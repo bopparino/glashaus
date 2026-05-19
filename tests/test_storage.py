@@ -115,22 +115,25 @@ def test_discover_migrations_rejects_duplicate_versions(tmp_path: Path) -> None:
 
 
 def test_runner_records_snapshot_callback() -> None:
-    """Pre-migration snapshot callback must be invoked once per applied migration,
-    with the target version, before the SQL runs."""
+    """Pre-migration snapshot callback must be invoked once per applied
+    migration, in order, *before* the SQL of that migration runs."""
     conn = connect(":memory:")
     seen: list[int] = []
 
     def snap(version: int) -> None:
         seen.append(version)
-        # At callback time the migration has NOT yet been applied — verify by
-        # checking current_version is still 0.
-        assert current_version(conn) == 0
+        # At callback time the migration with `version` has NOT yet been
+        # applied. In a forward-only scheme that means current_version is
+        # exactly `version - 1`.
+        assert current_version(conn) == version - 1
 
     try:
-        MigrationRunner(conn, snapshot=snap).apply_all()
+        runner = MigrationRunner(conn, snapshot=snap)
+        runner.apply_all()
+        expected = [m.version for m in runner.discover()]
     finally:
         conn.close()
-    assert seen == [1]
+    assert seen == expected
 
 
 def test_runner_rejects_migration_that_does_not_record_itself(tmp_path: Path) -> None:
@@ -158,17 +161,20 @@ def test_runner_rejects_migration_that_does_not_record_itself(tmp_path: Path) ->
 
 
 def test_runner_persists_across_connections(tmp_path: Path) -> None:
-    """Apply migrations once, reopen the DB, current_version must still be 1."""
+    """Apply migrations once, reopen the DB, current_version must match
+    the latest discovered migration."""
     db = tmp_path / "state.db"
     conn1 = connect(db)
     try:
-        MigrationRunner(conn1).apply_all()
+        runner1 = MigrationRunner(conn1)
+        runner1.apply_all()
+        latest = runner1.discover()[-1].version
     finally:
         conn1.close()
 
     conn2 = connect(db)
     try:
-        assert current_version(conn2) == 1
+        assert current_version(conn2) == latest
         # Pending should be empty on the fresh connection.
         assert MigrationRunner(conn2).pending() == []
     finally:
@@ -385,9 +391,10 @@ def test_pre_migration_snapshot_enables_restore_after_failure(tmp_path: Path) ->
     thing that quietly changes between SQLite versions.
 
     Flow:
-      1. Bring `state.db` to v1, write a row.
-      2. Stage a deliberately-broken migration 002 in a temp dir
-         (executes one DDL successfully, then hits a syntax error).
+      1. Bring `state.db` up to the current latest migration, write a row.
+      2. Stage a temp migrations dir that mirrors all real migrations
+         plus a deliberately-broken one at `latest + 1` (one DDL lands,
+         then a syntax error aborts the script).
       3. Wire a snapshot callback that takes a real `.backup` of the
          live DB to `state.snapshot.db` before any migration runs.
       4. Run the runner; assert it raises and that the live DB is in
@@ -395,16 +402,18 @@ def test_pre_migration_snapshot_enables_restore_after_failure(tmp_path: Path) ->
          landed; schema_version unchanged).
       5. Restore by copying the snapshot file over `state.db` — the
          same operation `docs/SETUP_BACKUPS.md` documents.
-      6. Reopen and confirm: version still 1, no leftover artifacts
-         from 002, original row intact.
+      6. Reopen and confirm: version is back to pre-broken-migration,
+         no leftover artifacts from the broken migration, original row
+         intact.
     """
     db_path = tmp_path / "state.db"
     snapshot_path = tmp_path / "state.snapshot.db"
 
-    # ---- 1. Bring DB to v1 + a row of pre-existing data --------------
+    # ---- 1. Bring DB up to the current latest version + a row --------
     conn = connect(db_path)
     try:
         MigrationRunner(conn).apply_all()
+        pre_version = current_version(conn)
         conn.execute(
             """INSERT INTO episodic
                (id, ts, content, user_id, agent_id, valence, arousal,
@@ -426,19 +435,24 @@ def test_pre_migration_snapshot_enables_restore_after_failure(tmp_path: Path) ->
     finally:
         conn.close()
 
-    # ---- 2. Stage migrations 001 (copied) + 002 (deliberately broken) -
+    # ---- 2. Stage a migrations dir mirroring all real ones plus a
+    #         deliberately-broken one at `pre_version + 1`. Robust to
+    #         future migrations regardless of count.
     bad_dir = tmp_path / "migrations"
     bad_dir.mkdir()
-    shutil.copy(MIGRATIONS_DIR / "001_initial.sql", bad_dir / "001_initial.sql")
-    (bad_dir / "002_broken.sql").write_text(
-        # Statement A: legitimate DDL — lands successfully because DDL
-        # auto-commits under executescript.
+    for real in discover_migrations(MIGRATIONS_DIR):
+        shutil.copy(real.path, bad_dir / real.path.name)
+
+    broken_version = pre_version + 1
+    broken_name = f"{broken_version:03d}_broken.sql"
+    (bad_dir / broken_name).write_text(
+        # A: legitimate DDL — lands because executescript auto-commits.
         "CREATE TABLE will_remain_partial (x INTEGER);\n"
-        # Statement B: syntax error — aborts the script before reaching C.
+        # B: syntax error — aborts the script before reaching C.
         "INVALID SQL HERE;\n"
-        # Statement C: would record the migration, but never runs.
-        "INSERT INTO schema_version (version, name) "
-        "VALUES (2, '002_broken');\n",
+        # C: would record the migration, but never runs.
+        f"INSERT INTO schema_version (version, name) "
+        f"VALUES ({broken_version}, '{broken_version:03d}_broken');\n",
         encoding="utf-8",
     )
 
@@ -473,7 +487,7 @@ def test_pre_migration_snapshot_enables_restore_after_failure(tmp_path: Path) ->
     # errors. This is the exact failure mode the snapshot exists to fix.
     conn = connect(db_path)
     try:
-        assert current_version(conn) == 1, "schema_version must not have moved"
+        assert current_version(conn) == pre_version, "schema_version must not have moved"
         partial = conn.execute(
             "SELECT name FROM sqlite_master WHERE name = 'will_remain_partial'"
         ).fetchone()
@@ -490,7 +504,7 @@ def test_pre_migration_snapshot_enables_restore_after_failure(tmp_path: Path) ->
     # ---- 6. Confirm pre-migration state is back ---------------------
     conn = connect(db_path)
     try:
-        assert current_version(conn) == 1
+        assert current_version(conn) == pre_version
         leftover = conn.execute(
             "SELECT name FROM sqlite_master WHERE name = 'will_remain_partial'"
         ).fetchone()

@@ -13,6 +13,12 @@ CREATE INDEX idx_episodic_ts        ON episodic(ts);
 -- [index] idx_formed_opinions_formed_at (tbl=formed_opinions)
 CREATE INDEX idx_formed_opinions_formed_at ON formed_opinions(formed_at);
 
+-- [index] idx_self_state_events_field_path (tbl=self_state_events)
+CREATE INDEX idx_self_state_events_field_path ON self_state_events(field_path);
+
+-- [index] idx_self_state_events_ts (tbl=self_state_events)
+CREATE INDEX idx_self_state_events_ts         ON self_state_events(ts);
+
 -- [index] idx_semantic_last_updated (tbl=semantic)
 CREATE INDEX idx_semantic_last_updated ON semantic(last_updated);
 
@@ -137,6 +143,16 @@ CREATE TABLE self_state (
     rel_current_warmth       REAL NOT NULL CHECK (rel_current_warmth BETWEEN 0 AND 1),
     rel_history_markers_json TEXT NOT NULL,
     rel_updated_at           TEXT NOT NULL
+);
+
+-- [table] self_state_events (tbl=self_state_events)
+CREATE TABLE self_state_events (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts                  TEXT NOT NULL,
+    field_path          TEXT NOT NULL,
+    old_value           REAL NOT NULL,
+    new_value           REAL NOT NULL,
+    trigger_episodic_id TEXT REFERENCES episodic(id) ON DELETE SET NULL
 );
 
 -- [table] semantic (tbl=semantic)
