@@ -88,11 +88,14 @@ def run_chat(
     `runner_factory` swap point for tests. Default uses real Ollama +
     OpenAI providers.
     """
-    # Quiet INFO-level structured logs so they don't bleed into the
-    # interactive chat output. Warnings + errors still surface (the
-    # user wants to see "turn failed" / "self-state deferred").
-    # File-based audit trail for thesis-time analysis is a later phase.
-    configure_logging(level="WARNING")
+    # Quiet structured logging during interactive chat. WARNING and
+    # below carry the same information the on_status callback and
+    # `[self-state deferred: ...]` surfacing already provide — and
+    # rendering them as raw `turn.record_turn_schema_failed` lines
+    # mid-conversation is jarring. ERROR-level events still appear
+    # for genuine failures the user should see. File-based audit
+    # trail for thesis-time analysis is a later phase.
+    configure_logging(level="ERROR")
 
     factory = runner_factory or _default_runner_factory
     out = stdout or sys.stdout
@@ -157,11 +160,16 @@ def run_chat(
         out.write(f"{state.identity_core.name}> ")
         out.flush()
 
+        def status_notice(msg: str) -> None:
+            out.write(f"\n[{msg}]\n")
+            out.flush()
+
         try:
             result = runner.run_stream(
                 turn_input,
                 history=history,
                 on_text_delta=lambda d: _write_delta(out, d),
+                on_status=status_notice,
             )
         except Exception as e:
             out.write(f"\n[turn failed: {e}]\n\n")

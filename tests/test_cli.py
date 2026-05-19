@@ -539,6 +539,7 @@ class _FakeTurnRunner:
         history: Any,
         *,
         on_text_delta: Any,
+        on_status: Any = None,
         seed_episodic_ids: Any = (),
     ) -> TurnResult:
         self.calls.append(turn_input)

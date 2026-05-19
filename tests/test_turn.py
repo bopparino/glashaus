@@ -340,6 +340,61 @@ def test_parse_update_self_state_rejects_opinion_missing_evidence() -> None:
         parse_update_self_state(args)
 
 
+def test_parse_update_self_state_skips_empty_disposition_drift_item() -> None:
+    """Live-smoke failure mode: Kimi K2.6 emits `disposition_drift: [{}]`.
+    The empty item is a placeholder the model didn't fill in — skip it,
+    don't fail the whole section."""
+    out = parse_update_self_state(
+        {
+            "turn_id": "t-1",
+            "disposition_drift": [
+                {},
+                {"dimension": "warmth", "direction": 1, "magnitude_weight": 0.5},
+            ],
+        }
+    )
+    assert len(out.disposition_drift) == 1
+    assert out.disposition_drift[0].dimension == "warmth"
+
+
+def test_parse_update_self_state_skips_empty_opinion_item() -> None:
+    out = parse_update_self_state(
+        {
+            "turn_id": "t-1",
+            "formed_opinions": [
+                {},
+                {"claim": "austin works late", "evidence_ids": ["ep-1"]},
+            ],
+        }
+    )
+    assert len(out.formed_opinions) == 1
+    assert out.formed_opinions[0].claim == "austin works late"
+
+
+def test_parse_update_self_state_skips_empty_quirk_item() -> None:
+    out = parse_update_self_state(
+        {
+            "turn_id": "t-1",
+            "quirks": [{}, {"pattern": "dry humor"}],
+        }
+    )
+    assert len(out.quirks) == 1
+    assert out.quirks[0].pattern == "dry humor"
+
+
+def test_parse_update_self_state_partial_disposition_drift_still_rejected() -> None:
+    """Half-filled items are still rejected — the model is confused,
+    not just lazy. Only fully-empty `{}` gets the skip-and-continue
+    treatment."""
+    with pytest.raises(ToolCallParseError, match="missing required keys"):
+        parse_update_self_state(
+            {
+                "turn_id": "t-1",
+                "disposition_drift": [{"dimension": "warmth"}],
+            }
+        )
+
+
 def test_parse_update_self_state_rejects_unknown_dimension() -> None:
     args = {
         "turn_id": "t-1",
@@ -950,6 +1005,86 @@ def test_run_stream_raises_when_retry_also_missing_record_turn(
     runner = TurnRunner(memory=memory, self_state=self_state, chat=chat)
     with pytest.raises(RuntimeError, match="record_turn"):
         runner.run_stream(turn_input, history=[], on_text_delta=lambda _: None)
+
+
+def test_run_stream_fires_on_status_when_record_turn_missing(
+    memory: MemoryStore,
+    self_state: SelfStateStore,
+    turn_input: TurnInput,
+) -> None:
+    """The user should see a 'regenerating...' notice during the silent
+    non-streaming retry, not a 60-second blank line."""
+    notices: list[str] = []
+    initial_stream = [
+        StreamFinal(
+            response=ChatResponse(
+                content="text",
+                tool_calls=(),  # no record_turn
+                finish_reason="stop",
+                raw={},
+            )
+        )
+    ]
+    chat = _FakeChat(
+        stream_script=initial_stream,
+        complete_response=ChatResponse(
+            content="retry",
+            tool_calls=tuple(_good_tool_calls()),
+            finish_reason="tool_calls",
+            raw={},
+        ),
+    )
+    runner = TurnRunner(memory=memory, self_state=self_state, chat=chat)
+    runner.run_stream(
+        turn_input,
+        history=[],
+        on_text_delta=lambda _: None,
+        on_status=notices.append,
+    )
+    assert notices, "expected an on_status notice during the retry"
+    assert "regenerating" in notices[0].lower()
+
+
+def test_run_stream_fires_on_status_when_schema_retry_runs(
+    memory: MemoryStore,
+    self_state: SelfStateStore,
+    turn_input: TurnInput,
+) -> None:
+    """Same visibility for the schema-validation retry path."""
+    notices: list[str] = []
+    bad_args = {
+        "turn_id": "t-1",
+        "episode_summary": "we said hi",
+        "affect": {},  # missing all three sub-fields
+        "salience": 0.4,
+    }
+    chat = _FakeChat(
+        stream_script=[
+            StreamFinal(
+                response=ChatResponse(
+                    content="text",
+                    tool_calls=(ToolCall(id="c1", name="record_turn", arguments=bad_args),),
+                    finish_reason="tool_calls",
+                    raw={},
+                )
+            )
+        ],
+        complete_response=ChatResponse(
+            content="retry text",
+            tool_calls=tuple(_good_tool_calls()),
+            finish_reason="tool_calls",
+            raw={},
+        ),
+    )
+    runner = TurnRunner(memory=memory, self_state=self_state, chat=chat)
+    runner.run_stream(
+        turn_input,
+        history=[],
+        on_text_delta=lambda _: None,
+        on_status=notices.append,
+    )
+    assert notices, "expected an on_status notice on schema-retry"
+    assert "schema" in notices[0].lower()
 
 
 def test_run_stream_retries_on_schema_validation_failure(

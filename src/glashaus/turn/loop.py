@@ -142,6 +142,7 @@ class TurnRunner:
         history: Sequence[ChatMessage],
         *,
         on_text_delta: Callable[[str], None],
+        on_status: Callable[[str], None] | None = None,
         seed_episodic_ids: Sequence[str] = (),
     ) -> TurnResult:
         """Run one turn, streaming user-facing text to `on_text_delta`.
@@ -195,6 +196,8 @@ class TurnRunner:
                 stream_error=str(stream_error) if stream_error else None,
                 had_record_turn=record_turn_call is not None,
             )
+            if on_status is not None:
+                on_status("regenerating tool calls (no streaming, may take a few seconds)")
             retry = self._retry_for_tool_calls(blocks, messages)
             record_turn_call = _find(retry.tool_calls, "record_turn")
             # Prefer the retry's update_self_state if the first attempt
@@ -223,6 +226,10 @@ class TurnRunner:
             record = parse_record_turn(record_turn_call.arguments)
         except ToolCallParseError as e:
             log.warning("turn.record_turn_schema_failed", error=str(e))
+            if on_status is not None:
+                on_status(
+                    f"record_turn schema invalid ({e}); regenerating (may take a few seconds)"
+                )
             retry_after_schema = self._retry_with_schema_nudge(
                 blocks, messages, error_message=str(e)
             )

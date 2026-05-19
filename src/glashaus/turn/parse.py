@@ -298,6 +298,11 @@ def _parse_disposition_drift(raw: Any) -> tuple[DispositionDriftSignal, ...]:
                 tool_name="update_self_state",
                 raw_arguments=repr(item),
             )
+        if not item:
+            # Empty {} — the model reached for the schema but didn't fill
+            # it. Skip rather than fail the whole section. The model's
+            # other (well-formed) items in the same array still apply.
+            continue
         _require_keys(
             item,
             {"dimension", "direction", "magnitude_weight"},
@@ -346,6 +351,9 @@ def _parse_opinions(raw: Any) -> tuple[OpinionDelta, ...]:
                 tool_name="update_self_state",
                 raw_arguments=repr(item),
             )
+        if not item:
+            # Empty placeholder — skip, same as for disposition_drift.
+            continue
         _require_keys(item, {"claim", "evidence_ids"}, f"formed_opinions[{i}]")
         claim = _str(item, "claim", f"formed_opinions[{i}]")
         evidence = _str_list(item["evidence_ids"], f"formed_opinions[{i}].evidence_ids")
@@ -376,6 +384,10 @@ def _parse_quirks(raw: Any) -> tuple[QuirkDelta, ...]:
                 tool_name="update_self_state",
                 raw_arguments=repr(item),
             )
+        if not item:
+            # Empty placeholder — skip, same as for disposition_drift /
+            # formed_opinions.
+            continue
         _require_keys(item, {"pattern"}, f"quirks[{i}]")
         pattern = _str(item, "pattern", f"quirks[{i}]")
         out.append(QuirkDelta(pattern=pattern))
