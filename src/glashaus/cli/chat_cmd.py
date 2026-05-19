@@ -31,6 +31,7 @@ from glashaus.cli.config import (
     render_base_spec,
 )
 from glashaus.cli.wizard import run_wizard
+from glashaus.logging import configure_logging
 from glashaus.memory.store import MemoryStore
 from glashaus.providers.base import ChatMessage, ChatProvider, EmbeddingProvider
 from glashaus.providers.ollama_chat import OllamaChatProvider
@@ -87,6 +88,12 @@ def run_chat(
     `runner_factory` swap point for tests. Default uses real Ollama +
     OpenAI providers.
     """
+    # Quiet INFO-level structured logs so they don't bleed into the
+    # interactive chat output. Warnings + errors still surface (the
+    # user wants to see "turn failed" / "self-state deferred").
+    # File-based audit trail for thesis-time analysis is a later phase.
+    configure_logging(level="WARNING")
+
     factory = runner_factory or _default_runner_factory
     out = stdout or sys.stdout
     ask = reader if reader is not None else _make_reader(stdin)

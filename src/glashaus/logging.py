@@ -71,7 +71,12 @@ def configure_logging(
         ),
         context_class=dict,
         logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
-        cache_logger_on_first_use=True,
+        # Don't cache loggers — we want re-calls to configure_logging()
+        # (e.g., the chat command muting INFO during interactive use)
+        # to take effect on already-imported modules that grabbed a
+        # logger at import time. The per-call dict lookup overhead is
+        # negligible at chat-loop scale.
+        cache_logger_on_first_use=False,
     )
 
     # If a sink file is configured, also write JSONL there. This is the
