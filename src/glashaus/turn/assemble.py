@@ -43,20 +43,112 @@ from glashaus.self_state.types import (
 # spec; configurable later via the chat config.
 CACHE_TTL_SECONDS: Final[int] = 3600
 
-# Text shown in the tool-overview block. The actual tool schemas go
-# via the provider's `tools=` arg; this block reminds the model what
-# they're for. Kept terse on purpose — long tool prose doesn't help
-# tool use and bloats the cached prefix.
-_TOOL_OVERVIEW: Final[str] = (
-    "Tools available this turn:\n"
-    "- record_turn: write your processed memory of this turn (episode_summary, "
-    "affect, salience, topics, references). Use your own words; do not "
-    "paraphrase the user. Score salience honestly.\n"
-    "- update_self_state: propose deltas to current_state, relational_stance, "
-    "disposition, formed_opinions, quirks. Emit only fields that actually "
-    "changed. Drift fields are signals, not new absolute values. "
-    "identity_core cannot be modified through this tool."
-)
+# Text shown in the tool-overview block. The actual tool schemas are
+# also sent via the provider's `tools=` arg. The schemas tell models
+# *what fields are allowed*; this block shows them *what a good
+# response looks like* — concrete examples close the gap that the
+# schema alone doesn't always close, especially for smaller models
+# (Kimi K2.6 was emitting `affect: {}` and `disposition_drift: [{}]`
+# despite the schema requiring fields).
+#
+# Token cost: ~700 tokens per turn. Once Anthropic lands in Phase 4
+# this block falls inside the breakpoint-1 cached prefix so the cost
+# vanishes after the first turn of a session.
+_TOOL_OVERVIEW: Final[str] = """\
+Tools available this turn — emit BOTH in every response:
+
+================================================================
+1. record_turn — your processed memory of this turn
+================================================================
+ALL of: turn_id, episode_summary, affect, salience are REQUIRED.
+
+`episode_summary`: your own-words memory of what happened, not a
+paraphrase of the user. Honest.
+
+`affect`: MUST be a complete object with ALL three fields:
+    {"valence": <-1..1>, "arousal": <0..1>, "dominant_emotion": "<word>"}
+If you're not sure what to put, use these neutral defaults:
+    {"valence": 0.0, "arousal": 0.3, "dominant_emotion": "neutral"}
+NEVER emit `affect: {}` — that fails validation and the turn retries
+expensively. Filling neutrals is always better than emitting empty.
+
+`salience`: most small-talk turns are ~0.1-0.3. Significant moments
+(first vulnerability, a new commitment, a real disagreement) approach
+~0.7-0.95. A score of 1.0 should be rare.
+
+`topics`: short tags. Optional. Empty list if none.
+
+`references`: episodic IDs of prior turns you are CONSCIOUSLY
+continuing. ONLY include IDs that appeared in the retrieved_episodic
+block above. NEVER invent UUIDs — invalid references cause the turn
+to fail with a foreign-key error. If unsure, use [].
+
+Example:
+    {
+      "turn_id": "t-abc123",
+      "episode_summary": "User asked about AI in 6 months. I framed the next phase as moving from fireworks to furniture.",
+      "affect": {"valence": 0.3, "arousal": 0.4, "dominant_emotion": "engaged"},
+      "salience": 0.4,
+      "topics": ["AI", "predictions"],
+      "references": []
+    }
+
+================================================================
+2. update_self_state — propose deltas for this turn
+================================================================
+ONLY `turn_id` is required (must match record_turn's turn_id).
+Emit ONLY the sections that actually changed. OMIT a section rather
+than emit `{}` or partial items.
+
+`current_state`: per-session. `mood` is a short string, `energy` is
+in [0, 1], `preoccupations` is a list of strings. Partial OK:
+    {"mood": "engaged", "energy": 0.6}
+
+`relational_stance`: medium drift over days.
+- `trust_drift`, `familiarity_drift` are magnitudes in [0, 1] —
+  how strongly this turn pulls trust/familiarity UP. Use 0 (or omit)
+  for "no pull". These are SIGNALS, not new values.
+- `current_warmth` IS a new absolute value in [0, 1], clipped.
+- `history_marker` is a short string that gets appended.
+
+`disposition_drift`: slow drift over weeks. List of items. Each item
+MUST have ALL THREE fields:
+    {"dimension": "<warmth|curiosity|playfulness|reserve|directness>",
+     "direction": <-1 or 1>,
+     "magnitude_weight": <0..1>}
+NEVER emit `[{}]` or items missing any of those three. If you have
+nothing to drift, OMIT `disposition_drift` entirely.
+
+`formed_opinions`: list of items, each with `claim` AND non-empty
+`evidence_ids` (real episodic IDs from retrieved_episodic).
+    {"claim": "Austin works late", "evidence_ids": ["ep-..."]}
+
+`quirks`: list of items, each with `pattern` (a short string).
+    {"pattern": "tends to answer with rhetorical questions"}
+
+`identity_core` (name, voice, base_values) CANNOT be modified through
+this tool. The schema rejects them.
+
+Example:
+    {
+      "turn_id": "t-abc123",
+      "current_state": {"mood": "engaged", "energy": 0.6},
+      "disposition_drift": [
+        {"dimension": "curiosity", "direction": 1, "magnitude_weight": 0.3}
+      ],
+      "relational_stance": {"trust_drift": 0.1}
+    }
+
+================================================================
+Failure modes to avoid
+================================================================
+- `affect: {}` — invalid; use neutral defaults instead.
+- `disposition_drift: [{}]` or items missing required fields — OMIT
+  the section instead.
+- Invented `references` UUIDs — only cite IDs from
+  retrieved_episodic. Use [] if none apply.
+- Attempting to modify identity_core — not supported.
+"""
 
 
 def assemble_system_blocks(

@@ -526,7 +526,9 @@ def test_assemble_omits_semantic_when_empty() -> None:
 def test_assemble_omits_episodic_when_empty() -> None:
     state = _full_self_state()
     blocks = assemble_system_blocks(base_spec="x", self_state=state, episodic_results=())
-    assert all("retrieved_episodic" not in b.content for b in blocks)
+    # Check the actual section heading, not any mention — the tool
+    # overview now references the section name in its instructions.
+    assert all("# retrieved_episodic" not in b.content for b in blocks)
 
 
 def _full_self_state() -> Any:
