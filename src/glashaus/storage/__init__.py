@@ -18,6 +18,7 @@ The schema is the contract; the schema-snapshot test guards it.
 
 from glashaus.storage.db import connect, open_state_db
 from glashaus.storage.runner import MIGRATIONS_DIR, MigrationRunner, dump_schema
+from glashaus.storage.tx import transaction
 
 __all__ = [
     "MIGRATIONS_DIR",
@@ -25,4 +26,5 @@ __all__ = [
     "connect",
     "dump_schema",
     "open_state_db",
+    "transaction",
 ]
