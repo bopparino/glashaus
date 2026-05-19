@@ -43,10 +43,11 @@ from glashaus.providers.base import (
 DEFAULT_MODEL = "kimi-k2.6:cloud"
 
 _CAPABILITIES = ChatCapabilities(
-    # Ollama doesn't honor cache_control:ephemeral. The SystemBlock
-    # cacheable flag is preserved on the wire (concatenated as plain
-    # text) so Phase 4's Anthropic adapter can pick it up without any
-    # call-site changes.
+    # Ollama doesn't honor cache_control:ephemeral. SystemBlocks with
+    # cache_breakpoint_ttl_seconds set are concatenated as plain text
+    # like any other block; the markers stay in the type system so
+    # Phase 4's Anthropic adapter can pick them up without call-site
+    # changes.
     supports_cache_control=False,
     supports_tool_use=True,
     supports_streaming=True,

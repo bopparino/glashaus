@@ -82,8 +82,13 @@ def test_chat_and_embedding_protocols_are_separate() -> None:
     assert not hasattr(fake, "embed")
 
 
-def test_system_block_default_not_cacheable() -> None:
-    assert SystemBlock(content="x").cacheable is False
+def test_system_block_default_has_no_cache_breakpoint() -> None:
+    assert SystemBlock(content="x").cache_breakpoint_ttl_seconds is None
+
+
+def test_system_block_can_carry_cache_breakpoint_ttl() -> None:
+    b = SystemBlock(content="x", cache_breakpoint_ttl_seconds=3600)
+    assert b.cache_breakpoint_ttl_seconds == 3600
 
 
 def test_tool_call_arguments_are_dict_not_string() -> None:

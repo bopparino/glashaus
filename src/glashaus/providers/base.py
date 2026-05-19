@@ -7,10 +7,10 @@ at the config layer rather than collapsed into one Provider interface.
 
 This file also defines:
 
-- `SystemBlock` — the cacheable system-prompt unit from plan §7.1. In
-  Phase 1 the `cacheable` flag is a no-op (Ollama doesn't honor
-  `cache_control`); the structure is preserved so the Phase-4 Anthropic
-  adapter is a drop-in. Documented inline so nobody removes it.
+- `SystemBlock` — system-prompt unit with an optional
+  `cache_breakpoint_ttl_seconds`. The Phase-4 Anthropic adapter
+  emits a cache_control marker at any block that has one set; Ollama
+  ignores it. Plan §7.1 documents the layered-caching intent.
 - `Tool`, `ToolCall` — typed tool-use shapes that any chat provider
   must surface uniformly so the turn loop doesn't branch on provider.
 - `ToolCallParseError` — raised when a model emits tool-call arguments
@@ -40,15 +40,24 @@ from typing import Any, Final, Protocol, runtime_checkable
 class SystemBlock:
     """One unit of system prompt.
 
-    `cacheable=True` is the cache_control:ephemeral hint from §7.1. Phase 1
-    has no Anthropic adapter, so this flag is no-op everywhere — Ollama
-    concatenates blocks into a single system message regardless. The flag
-    is preserved on the type so the Phase-4 Anthropic adapter can honor
-    it without changing call sites or storage.
+    `cache_breakpoint_ttl_seconds`:
+
+    - `None` (default): no cache_control marker at this block.
+    - `int`: place a cache_control marker on this block in the
+      Anthropic-style request, with the given TTL in seconds. Every
+      block from the start of the system array up through this one
+      becomes part of the cached prefix.
+
+    Phase 1 ships only Ollama, which silently ignores cache markers —
+    blocks are concatenated as plain text regardless. The flag is
+    preserved on the type so the Phase-4 Anthropic adapter is a drop-in,
+    and so the turn loop's documented cache layout (breakpoints at
+    positions 2 / 3 / 6 per chunk 5 spec) is testable today rather
+    than aspirational.
     """
 
     content: str
-    cacheable: bool = False
+    cache_breakpoint_ttl_seconds: int | None = None
 
 
 # ============================================================================
@@ -251,7 +260,8 @@ _RETRY_NUDGE: Final[SystemBlock] = SystemBlock(
         "JSON only — no comments, no trailing commas, no markdown fences, "
         "no prose around the JSON object."
     ),
-    cacheable=False,
+    # No cache marker on retry — the nudge appears only sometimes, so it
+    # would invalidate any cached prefix that comes after it anyway.
 )
 
 
