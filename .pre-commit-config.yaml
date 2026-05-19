@@ -1,0 +1,71 @@
+# GlasHaus pre-commit configuration.
+#
+# Two stages are wired:
+#   - commit (default): format, lint, fast tests. Must stay fast.
+#   - pre-push:         full test suite. Slower but blocks bad pushes.
+#
+# Install both with:
+#   uv run pre-commit install --hook-type pre-commit --hook-type pre-push
+#
+# See docs/SETUP_HOOKS.md for the longer story.
+
+default_language_version:
+  python: python3.12
+
+default_install_hook_types: [pre-commit, pre-push]
+
+repos:
+  # --- generic hygiene ---------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  # --- ruff: format + lint ----------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff-format
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+
+  # --- mypy: strict typecheck on every commit ---------------------------
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - structlog>=24.4
+          - pytest>=8.3
+        args: [--config-file=pyproject.toml]
+        # mypy reads from pyproject.toml's `files = [...]`. Pass files
+        # explicitly here too, so the hook scope matches.
+        files: ^(src|tests)/.*\.py$
+
+  # --- local hooks: fast tests on commit, full suite on push -----------
+  - repo: local
+    hooks:
+      - id: pytest-fast
+        name: pytest (fast, excludes 'slow')
+        entry: uv run pytest -q -m "not slow"
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+        types: [python]
+
+      - id: pytest-full
+        name: pytest (full suite, runs on push)
+        entry: uv run pytest -q
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        always_run: true

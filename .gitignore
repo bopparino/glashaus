@@ -1,0 +1,81 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Virtual envs / uv ---
+.venv/
+venv/
+env/
+ENV/
+# .python-version is committed — it pins the interpreter for uv/pyenv/CI
+
+# --- Tooling caches ---
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+
+# --- IDE / editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# --- macOS ---
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# --- GlasHaus runtime state (must never be committed) ---
+# The state DB lives in ~/.glashaus/, never the repo, but defensive in case
+# someone symlinks or copies it into the tree.
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.glashaus/
+state/
+logs/
+
+# --- Secrets ---
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key

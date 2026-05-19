@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd job: snapshot ~/.glashaus/state.db once a day at 04:17.
+
+  Install:
+    cp scripts/com.glashaus.backup.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.glashaus.backup.plist
+    launchctl enable gui/$(id -u)/com.glashaus.backup
+
+  Verify:
+    launchctl print gui/$(id -u)/com.glashaus.backup
+
+  Run once on demand:
+    launchctl kickstart -k gui/$(id -u)/com.glashaus.backup
+
+  Uninstall:
+    launchctl bootout gui/$(id -u)/com.glashaus.backup
+    rm ~/Library/LaunchAgents/com.glashaus.backup.plist
+
+  Before installing, edit the two `__GLASHAUS_REPO__` placeholders below to
+  the absolute path of this repository on your machine. The setup guide
+  has a one-liner that does this for you.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.glashaus.backup</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>__GLASHAUS_REPO__/scripts/snapshot_state_db.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>4</integer>
+        <key>Minute</key>
+        <integer>17</integer>
+    </dict>
+
+    <!-- Run the missed job at next wake/launch if the laptop was asleep. -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>__GLASHAUS_REPO__/../.glashaus/logs/backup.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>__GLASHAUS_REPO__/../.glashaus/logs/backup.err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>

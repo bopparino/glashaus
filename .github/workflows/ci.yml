@@ -1,0 +1,85 @@
+# CI for GlasHaus.
+#
+# Runs on every PR to main and on direct pushes to main (so trunk health is
+# always visible). Branch protection is configured separately on GitHub to
+# require this workflow to pass before a PR can merge — see
+# docs/SETUP_BRANCH_PROTECTION.md.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-flight runs for the same ref when a new commit arrives.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    name: lint + typecheck + test
+    runs-on: macos-14  # match the dev platform; revisit if we add Linux
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python from .python-version
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync --frozen --all-extras --dev
+
+      - name: ruff format (check only)
+        run: uv run ruff format --check .
+
+      - name: ruff lint
+        run: uv run ruff check .
+
+      - name: mypy (strict)
+        run: uv run mypy
+
+      - name: pytest
+        run: uv run pytest -q --cov=glashaus --cov-report=term-missing
+
+  schema-snapshot:
+    # Placeholder job — the storage layer doesn't exist yet, so this just
+    # asserts the marker is wired and the test module collects. Phase 1
+    # fills in the real snapshot/migration assertions; this job becomes
+    # the gate.
+    name: schema snapshot (placeholder until Phase 1)
+    runs-on: macos-14
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python from .python-version
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync --frozen --all-extras --dev
+
+      - name: Collect schema-snapshot tests
+        # `--collect-only` ensures the test files import cleanly and the
+        # marker is registered. Once Phase 1 lands, swap this for an
+        # actual run.
+        run: uv run pytest -m schema_snapshot --collect-only -q
