@@ -42,6 +42,7 @@ from glashaus.providers.base import (
     ChatMessage,
     ChatProvider,
     ChatResponse,
+    EmbeddingProvider,
     StreamFinal,
     StreamTextDelta,
     SystemBlock,
@@ -49,6 +50,8 @@ from glashaus.providers.base import (
     ToolCallParseError,
     structured_complete_with_retry,
 )
+from glashaus.retrieval.retriever import HybridRetriever
+from glashaus.retrieval.types import RetrievalContext, ScoredEpisodic, ScoredSemantic
 from glashaus.self_state.store import SelfStateStore
 from glashaus.turn.apply import (
     ApplyReport,
@@ -116,12 +119,16 @@ class TurnRunner:
         memory: MemoryStore,
         self_state: SelfStateStore,
         chat: ChatProvider,
+        retriever: HybridRetriever | None = None,
+        embedder: EmbeddingProvider | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
     ) -> None:
         self.memory = memory
         self.self_state = self_state
         self.chat = chat
+        self.retriever = retriever
+        self.embedder = embedder
         self.temperature = temperature
         self.max_tokens = max_tokens
 
@@ -135,21 +142,40 @@ class TurnRunner:
         history: Sequence[ChatMessage],
         *,
         on_text_delta: Callable[[str], None],
-        semantic_hot_set: Sequence[object] = (),
-        episodic_results: Sequence[object] = (),
+        seed_episodic_ids: Sequence[str] = (),
     ) -> TurnResult:
         """Run one turn, streaming user-facing text to `on_text_delta`.
 
-        `semantic_hot_set` and `episodic_results` are typed as `object`
-        on purpose: the retriever (chunk 6) hasn't landed yet, so the
-        turn loop accepts whatever the assembler accepts and passes it
-        through. When chunk 6 lands these become concrete types again.
+        Retrieval flow (skipped entirely when `retriever` is None):
+
+        1. Generate the query embedding via `embedder.embed`, when both
+           an embedder and retriever are present. Otherwise None — the
+           retriever's vec branch falls back to a 0 score per candidate.
+        2. Call `retriever.retrieve_episodic` / `retrieve_semantic` with
+           a context built from the user text + current_state.energy.
+        3. Pass the unwrapped EpisodicMemory / SemanticMemory lists
+           into `assemble_system_blocks`.
+
+        Write-time embedding for the new episodic happens after the
+        model emits `record_turn` — we embed the episode_summary so
+        future retrievals can find it via vec0.
         """
+        full_state = self.self_state.get()
+
+        # The query embedding `_qe` is returned by the helper for parity
+        # with the write-time embedding path; we don't need it again
+        # at this layer (the retriever has already consumed it).
+        scored_eps, scored_sems, _qe = self._run_retrieval(
+            turn_input.user_text,
+            full_state.current_state.energy,
+            seed_episodic_ids,
+        )
+
         blocks = assemble_system_blocks(
             base_spec=turn_input.base_spec,
-            self_state=self.self_state.get(),
-            semantic_hot_set=semantic_hot_set,  # type: ignore[arg-type]
-            episodic_results=episodic_results,  # type: ignore[arg-type]
+            self_state=full_state,
+            semantic_hot_set=[s.memory for s in scored_sems],
+            episodic_results=[s.memory for s in scored_eps],
         )
         messages = self._build_messages(history, turn_input.user_text)
 
@@ -215,6 +241,11 @@ class TurnRunner:
             update_error = "update_self_state was not emitted"
             log.warning("turn.update_self_state_missing")
 
+        # Write-time embedding for the new episodic so future retrievals
+        # can find it via vec0. Skipped when no embedder is configured;
+        # the LEFT JOIN convention means absence is fine.
+        episode_embedding = self._embed_episode_summary(record.episode_summary)
+
         # Episodic write — terminal-failure if this raises.
         episodic = apply_record_turn(
             record,
@@ -222,6 +253,7 @@ class TurnRunner:
             agent_id=turn_input.agent_id,
             channel=turn_input.channel,
             memory=self.memory,
+            embedding=episode_embedding,
         )
 
         # Self-state apply — best-effort.
@@ -314,6 +346,51 @@ class TurnRunner:
             _find(response.tool_calls, "record_turn"),
             _find(response.tool_calls, "update_self_state"),
         )
+
+    # ------------------------------------------------------------------
+    # Retrieval + embedding helpers
+    # ------------------------------------------------------------------
+
+    def _run_retrieval(
+        self,
+        user_text: str,
+        current_energy: float | None,
+        seed_episodic_ids: Sequence[str],
+    ) -> tuple[list[ScoredEpisodic], list[ScoredSemantic], list[float] | None]:
+        """Build the retrieval context, embed the query if possible,
+        and run both retrievers. Returns empty lists when no retriever
+        is configured."""
+        if self.retriever is None:
+            return [], [], None
+        query_embedding = self._embed_query(user_text)
+        ctx = RetrievalContext(
+            user_query=user_text,
+            query_embedding=query_embedding,
+            current_energy=current_energy,
+            seed_episodic_ids=tuple(seed_episodic_ids),
+        )
+        eps = self.retriever.retrieve_episodic(ctx)
+        sms = self.retriever.retrieve_semantic(ctx)
+        return eps, sms, query_embedding
+
+    def _embed_query(self, text: str) -> list[float] | None:
+        """Generate a query embedding. Returns None when no embedder is
+        configured. Failures from the embedder propagate — embedding is
+        an optional capability, but if you configured it, a runtime
+        failure should be visible, not silently dropped."""
+        if self.embedder is None:
+            return None
+        embeddings = self.embedder.embed([text])
+        return embeddings[0] if embeddings else None
+
+    def _embed_episode_summary(self, summary: str) -> list[float] | None:
+        """Same shape as `_embed_query`. Kept as a separate method so
+        future tuning (e.g. embedding a different field per provider)
+        has one place to land."""
+        if self.embedder is None:
+            return None
+        embeddings = self.embedder.embed([summary])
+        return embeddings[0] if embeddings else None
 
 
 def _find(calls: Sequence[ToolCall], name: str) -> ToolCall | None:
