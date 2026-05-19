@@ -6,6 +6,7 @@ they verify the foundation of every other test holds up.
 
 from __future__ import annotations
 
+import shutil
 import sqlite3
 from pathlib import Path
 
@@ -14,6 +15,7 @@ import pytest
 from glashaus.storage import MigrationRunner, connect, dump_schema, open_state_db
 from glashaus.storage.db import default_state_db_path, default_state_dir
 from glashaus.storage.runner import (
+    MIGRATIONS_DIR,
     Migration,
     current_version,
     discover_migrations,
@@ -370,3 +372,131 @@ def test_migration_class_path_property() -> None:
         path=MigrationRunner(connect(":memory:")).directory / "001_initial.sql",
     )
     assert "CREATE TABLE episodic" in mig.sql
+
+
+def test_pre_migration_snapshot_enables_restore_after_failure(tmp_path: Path) -> None:
+    """End-to-end exercise of the rollback path.
+
+    The runner's comments and `docs/SETUP_BACKUPS.md` both lean on this
+    invariant: when a migration fails partway through, restoring the
+    pre-migration `.backup` returns the DB to a coherent prior version.
+    Without a test that actually runs that loop, the invariant rots —
+    `executescript()`'s partial-failure semantics are exactly the kind of
+    thing that quietly changes between SQLite versions.
+
+    Flow:
+      1. Bring `state.db` to v1, write a row.
+      2. Stage a deliberately-broken migration 002 in a temp dir
+         (executes one DDL successfully, then hits a syntax error).
+      3. Wire a snapshot callback that takes a real `.backup` of the
+         live DB to `state.snapshot.db` before any migration runs.
+      4. Run the runner; assert it raises and that the live DB is in
+         the expected partial state (the broken migration's first DDL
+         landed; schema_version unchanged).
+      5. Restore by copying the snapshot file over `state.db` — the
+         same operation `docs/SETUP_BACKUPS.md` documents.
+      6. Reopen and confirm: version still 1, no leftover artifacts
+         from 002, original row intact.
+    """
+    db_path = tmp_path / "state.db"
+    snapshot_path = tmp_path / "state.snapshot.db"
+
+    # ---- 1. Bring DB to v1 + a row of pre-existing data --------------
+    conn = connect(db_path)
+    try:
+        MigrationRunner(conn).apply_all()
+        conn.execute(
+            """INSERT INTO episodic
+               (id, ts, content, user_id, agent_id, valence, arousal,
+                dominant_emotion, salience, channel)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "ep_pre",
+                "2026-01-01T00:00:00Z",
+                "row written before the broken migration",
+                "u",
+                "a",
+                0.1,
+                0.2,
+                "neutral",
+                0.6,
+                "cli",
+            ),
+        )
+    finally:
+        conn.close()
+
+    # ---- 2. Stage migrations 001 (copied) + 002 (deliberately broken) -
+    bad_dir = tmp_path / "migrations"
+    bad_dir.mkdir()
+    shutil.copy(MIGRATIONS_DIR / "001_initial.sql", bad_dir / "001_initial.sql")
+    (bad_dir / "002_broken.sql").write_text(
+        # Statement A: legitimate DDL — lands successfully because DDL
+        # auto-commits under executescript.
+        "CREATE TABLE will_remain_partial (x INTEGER);\n"
+        # Statement B: syntax error — aborts the script before reaching C.
+        "INVALID SQL HERE;\n"
+        # Statement C: would record the migration, but never runs.
+        "INSERT INTO schema_version (version, name) "
+        "VALUES (2, '002_broken');\n",
+        encoding="utf-8",
+    )
+
+    # ---- 3. Snapshot callback uses SQLite's online .backup API,
+    #         exactly like scripts/pre_migration_snapshot.sh does. ----
+    def real_snapshot(version: int) -> None:
+        # Open both connections with the stdlib (no extension needed for
+        # backup — it's a byte-level copy). This matches how the shell
+        # script invokes `sqlite3 .backup`.
+        src = sqlite3.connect(str(db_path))
+        dst = sqlite3.connect(str(snapshot_path))
+        try:
+            with dst:
+                src.backup(dst)
+        finally:
+            src.close()
+            dst.close()
+
+    # ---- 4. Run the runner; it must raise, snapshot must exist --------
+    conn = connect(db_path)
+    try:
+        runner = MigrationRunner(conn, directory=bad_dir, snapshot=real_snapshot)
+        with pytest.raises(sqlite3.OperationalError):
+            runner.apply_all()
+    finally:
+        conn.close()
+
+    assert snapshot_path.exists(), "snapshot must have been taken before the failure"
+
+    # The DB is now in a partial state — DDL from the broken migration
+    # landed because executescript() doesn't roll back DDL on later
+    # errors. This is the exact failure mode the snapshot exists to fix.
+    conn = connect(db_path)
+    try:
+        assert current_version(conn) == 1, "schema_version must not have moved"
+        partial = conn.execute(
+            "SELECT name FROM sqlite_master WHERE name = 'will_remain_partial'"
+        ).fetchone()
+        assert partial is not None, (
+            "expected the broken migration's DDL to have landed before the "
+            "failure — otherwise this test isn't exercising the rollback path"
+        )
+    finally:
+        conn.close()
+
+    # ---- 5. Restore by file copy. Same operation as `cp` in the docs. -
+    shutil.copyfile(snapshot_path, db_path)
+
+    # ---- 6. Confirm pre-migration state is back ---------------------
+    conn = connect(db_path)
+    try:
+        assert current_version(conn) == 1
+        leftover = conn.execute(
+            "SELECT name FROM sqlite_master WHERE name = 'will_remain_partial'"
+        ).fetchone()
+        assert leftover is None, "restore should have removed the partial DDL"
+        row = conn.execute("SELECT id, content FROM episodic WHERE id = 'ep_pre'").fetchone()
+        assert row is not None
+        assert row["content"] == "row written before the broken migration"
+    finally:
+        conn.close()

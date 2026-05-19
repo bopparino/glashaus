@@ -38,22 +38,25 @@ repos:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
 
-  # --- mypy: strict typecheck on every commit ---------------------------
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
-    hooks:
-      - id: mypy
-        additional_dependencies:
-          - structlog>=24.4
-          - pytest>=8.3
-        args: [--config-file=pyproject.toml]
-        # mypy reads from pyproject.toml's `files = [...]`. Pass files
-        # explicitly here too, so the hook scope matches.
-        files: ^(src|tests)/.*\.py$
-
-  # --- local hooks: fast tests on commit, full suite on push -----------
+  # --- local hooks: mypy, fast tests on commit, full suite on push ----
+  #
+  # mypy runs as a local hook (not via mirrors-mypy) so it uses the project
+  # venv and can see the installed `glashaus` package. The isolated-env
+  # variant only works when every changed commit happens to also stage
+  # the relevant src/ files — fine for greenfield commits, silently
+  # broken for test-only follow-ups. Local-hook semantics match CI exactly.
   - repo: local
     hooks:
+      - id: mypy
+        name: mypy (strict, project venv)
+        entry: uv run mypy
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+        # No `types: [python]` — mypy reads `files = [...]` from pyproject
+        # and we want the hook to run whenever any Python file changes.
+        types_or: [python, pyi]
+
       - id: pytest-fast
         name: pytest (fast, excludes 'slow')
         entry: uv run pytest -q -m "not slow"
