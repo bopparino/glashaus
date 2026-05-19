@@ -208,14 +208,41 @@ class TurnRunner:
                 "Cannot complete this turn — no episodic record."
             )
 
-        # record_turn is terminal-failure on parse: re-parse failure
-        # here means even the retry got it wrong. We raise rather than
-        # write a malformed episodic.
+        # record_turn parse path. Two distinct failure modes we handle
+        # differently:
+        #
+        # - JSON-level parse failure inside the provider: already caught
+        #   by structured_complete_with_retry above (via the stream
+        #   path's error -> retry).
+        # - Schema-level failure here (required fields missing, wrong
+        #   types, etc.): fire one *targeted* retry with a nudge
+        #   describing the specific schema error before giving up.
+        #   This is the Kimi K2.6 failure mode observed in live smoke:
+        #   the JSON parses, but `affect` came back as `{}`.
         try:
             record = parse_record_turn(record_turn_call.arguments)
         except ToolCallParseError as e:
-            log.error("turn.record_turn_parse_failed", error=str(e))
-            raise
+            log.warning("turn.record_turn_schema_failed", error=str(e))
+            retry_after_schema = self._retry_with_schema_nudge(
+                blocks, messages, error_message=str(e)
+            )
+            schema_retry_call = _find(retry_after_schema.tool_calls, "record_turn")
+            if schema_retry_call is None:
+                log.error("turn.record_turn_missing_after_schema_retry")
+                raise RuntimeError(
+                    f"record_turn missing after schema-validation retry. Original error: {e}"
+                ) from e
+            try:
+                record = parse_record_turn(schema_retry_call.arguments)
+            except ToolCallParseError as e2:
+                log.error("turn.record_turn_still_invalid", error=str(e2))
+                raise
+            # Prefer the schema-retry's update_self_state when the first
+            # attempt produced one but it was bundled with the failing
+            # record_turn (consistency: same turn_id source).
+            schema_retry_update = _find(retry_after_schema.tool_calls, "update_self_state")
+            if schema_retry_update is not None:
+                update_call = schema_retry_update
 
         # Cross-tool turn_id consistency check. The spec calls for
         # shared turn_id between record_turn and update_self_state for
@@ -331,6 +358,52 @@ class TurnRunner:
         return structured_complete_with_retry(
             self.chat,
             system_blocks=blocks,
+            messages=messages,
+            tools=TURN_TOOLS,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+        )
+
+    def _retry_with_schema_nudge(
+        self,
+        blocks: Sequence[SystemBlock],
+        messages: Sequence[ChatMessage],
+        *,
+        error_message: str,
+    ) -> ChatResponse:
+        """Non-streaming retry targeted at a schema-validation failure.
+
+        Distinct from `_retry_for_tool_calls`: that one handles JSON-
+        parse failures (the provider couldn't parse `arguments` as
+        JSON). This one handles "JSON parsed fine but required fields
+        are missing / wrong types" — the failure mode observed in
+        live smoke against Kimi K2.6 emitting `"affect": {}`.
+
+        We don't use `structured_complete_with_retry` here because its
+        retry is for JSON failures specifically; this call's
+        contributed nudge is field-shape guidance, not JSON guidance.
+        """
+        nudge = SystemBlock(
+            content=(
+                f"Your previous `record_turn` tool call failed schema "
+                f"validation:\n"
+                f"  {error_message}\n"
+                f"\n"
+                f"Emit the call again with the FULL required shape:\n"
+                f"  - turn_id: string\n"
+                f"  - episode_summary: non-empty string (your own words)\n"
+                f"  - affect: {{ valence: number in [-1, 1], arousal: "
+                f"number in [0, 1], dominant_emotion: non-empty string }}\n"
+                f"  - salience: number in [0, 1]\n"
+                f"  - topics: array of strings (optional)\n"
+                f"  - references: array of episodic ids (optional)\n"
+                f"\n"
+                f"All four required fields under `affect` must be present "
+                f"with the exact key names shown."
+            ),
+        )
+        return self.chat.complete(
+            system_blocks=(*blocks, nudge),
             messages=messages,
             tools=TURN_TOOLS,
             temperature=self.temperature,

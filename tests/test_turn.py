@@ -952,6 +952,124 @@ def test_run_stream_raises_when_retry_also_missing_record_turn(
         runner.run_stream(turn_input, history=[], on_text_delta=lambda _: None)
 
 
+def test_run_stream_retries_on_schema_validation_failure(
+    memory: MemoryStore,
+    self_state: SelfStateStore,
+    turn_input: TurnInput,
+) -> None:
+    """Live-smoke failure mode: model emits a record_turn whose JSON
+    parses fine but `affect` is `{}` — missing all three required
+    sub-fields. The schema-retry path fires with a targeted nudge."""
+    bad_args = {
+        "turn_id": "t-1",
+        "episode_summary": "we said hi",
+        "affect": {},  # missing valence/arousal/dominant_emotion
+        "salience": 0.4,
+    }
+    initial_stream = [
+        StreamTextDelta(delta="Hey. I'm here."),
+        StreamFinal(
+            response=ChatResponse(
+                content="Hey. I'm here.",
+                tool_calls=(ToolCall(id="c1", name="record_turn", arguments=bad_args),),
+                finish_reason="tool_calls",
+                raw={},
+            )
+        ),
+    ]
+    chat = _FakeChat(
+        stream_script=initial_stream,
+        complete_response=ChatResponse(
+            content="retry text",
+            tool_calls=tuple(_good_tool_calls()),
+            finish_reason="tool_calls",
+            raw={},
+        ),
+    )
+    runner = TurnRunner(memory=memory, self_state=self_state, chat=chat)
+    result = runner.run_stream(turn_input, history=[], on_text_delta=lambda _: None)
+    # Stream attempt ran once; schema-retry fired complete() once.
+    assert chat.stream_calls == 1
+    assert chat.complete_calls == 1
+    # Episodic landed via the retry's valid record_turn.
+    assert result.episodic.content.startswith("user said hi")
+    # Streamed text from the FIRST attempt remains the canonical
+    # user-facing response.
+    assert result.response_text == "Hey. I'm here."
+
+
+def test_run_stream_raises_when_schema_retry_also_invalid(
+    memory: MemoryStore,
+    self_state: SelfStateStore,
+    turn_input: TurnInput,
+) -> None:
+    """If the schema-retry also produces a malformed record_turn,
+    the turn fails terminally (caught by the CLI's outer try/except)."""
+    bad_args = {
+        "turn_id": "t-1",
+        "episode_summary": "we said hi",
+        "affect": {},
+        "salience": 0.4,
+    }
+    bad_call = ToolCall(id="c1", name="record_turn", arguments=bad_args)
+    chat = _FakeChat(
+        stream_script=[
+            StreamFinal(
+                response=ChatResponse(
+                    content="text",
+                    tool_calls=(bad_call,),
+                    finish_reason="tool_calls",
+                    raw={},
+                )
+            )
+        ],
+        complete_response=ChatResponse(
+            content="still bad",
+            tool_calls=(bad_call,),  # retry returns the same bad shape
+            finish_reason="tool_calls",
+            raw={},
+        ),
+    )
+    runner = TurnRunner(memory=memory, self_state=self_state, chat=chat)
+    with pytest.raises(ToolCallParseError, match="missing required keys"):
+        runner.run_stream(turn_input, history=[], on_text_delta=lambda _: None)
+
+
+def test_run_stream_raises_when_schema_retry_drops_record_turn(
+    memory: MemoryStore,
+    self_state: SelfStateStore,
+    turn_input: TurnInput,
+) -> None:
+    """Schema-retry response had no record_turn at all — terminal."""
+    bad_args = {
+        "turn_id": "t-1",
+        "episode_summary": "we said hi",
+        "affect": {},
+        "salience": 0.4,
+    }
+    chat = _FakeChat(
+        stream_script=[
+            StreamFinal(
+                response=ChatResponse(
+                    content="text",
+                    tool_calls=(ToolCall(id="c1", name="record_turn", arguments=bad_args),),
+                    finish_reason="tool_calls",
+                    raw={},
+                )
+            )
+        ],
+        complete_response=ChatResponse(
+            content="retry text without record_turn",
+            tool_calls=(),
+            finish_reason="stop",
+            raw={},
+        ),
+    )
+    runner = TurnRunner(memory=memory, self_state=self_state, chat=chat)
+    with pytest.raises(RuntimeError, match="schema-validation retry"):
+        runner.run_stream(turn_input, history=[], on_text_delta=lambda _: None)
+
+
 def test_run_stream_retries_on_tool_call_parse_error_during_stream(
     memory: MemoryStore,
     self_state: SelfStateStore,
