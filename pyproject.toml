@@ -7,10 +7,11 @@ requires-python = "==3.12.*"
 authors = [{ name = "Austin" }]
 license = { text = "UNLICENSED" }
 
-# Phase 0 ships with zero runtime dependencies. We add deps as the phases
-# that need them land. Anything here is something Phase 0 actually uses.
+# Runtime deps are added phase-by-phase. Each entry has a phase-tag
+# comment so the dependency drift story stays auditable.
 dependencies = [
-    "structlog>=24.4",
+    "structlog>=24.4",   # Phase 0  — structured logging
+    "sqlite-vec>=0.1.6", # Phase 1  — vector index alongside SQLite
 ]
 
 [project.scripts]
@@ -69,6 +70,11 @@ warn_unreachable = true
 warn_return_any = true
 files = ["src", "tests"]
 
+# sqlite-vec ships no type stubs (it's a tiny C-extension loader).
+[[tool.mypy.overrides]]
+module = ["sqlite_vec"]
+ignore_missing_imports = true
+
 # --- pytest ---------------------------------------------------------------
 [tool.pytest.ini_options]
 minversion = "8.0"
@@ -80,7 +86,7 @@ addopts = [
 ]
 markers = [
     "slow: tests that are skipped on the fast pre-commit run",
-    "schema_snapshot: schema/migration snapshot tests (filled in Phase 1)",
+    "schema_snapshot: schema/migration snapshot tests — guard against silent schema drift",
 ]
 
 # --- coverage -------------------------------------------------------------
