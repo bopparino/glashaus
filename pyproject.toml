@@ -12,6 +12,8 @@ license = { text = "UNLICENSED" }
 dependencies = [
     "structlog>=24.4",   # Phase 0  — structured logging
     "sqlite-vec>=0.1.6", # Phase 1  — vector index alongside SQLite
+    "ollama>=0.4.0",     # Phase 1  — chat completion (Kimi K2.6 via cloud-routed local daemon)
+    "openai>=1.50.0",    # Phase 1  — text-embedding-3-small only; chat is Ollama
 ]
 
 [project.scripts]
