@@ -111,7 +111,15 @@ class QuirkDelta:
 @dataclass(frozen=True, slots=True)
 class SelfStateUpdate:
     """Output of `parse_update_self_state` — the full set of proposed
-    deltas. Every section is optional except `turn_id`."""
+    deltas. Every section is optional except `turn_id`.
+
+    `parse_errors` records per-section parse failures from the
+    piecewise-tolerant path: when one section parse-fails, the parser
+    skips it (leaving the field at its default empty value) and
+    appends `"<section>: <error>"` here. The other sections still
+    apply. The chat command renders these via the
+    `[self-state partial: ...]` line.
+    """
 
     turn_id: str
     current_state: CurrentStateDelta | None = None
@@ -119,6 +127,7 @@ class SelfStateUpdate:
     disposition_drift: tuple[DispositionDriftSignal, ...] = field(default_factory=tuple)
     formed_opinions: tuple[OpinionDelta, ...] = field(default_factory=tuple)
     quirks: tuple[QuirkDelta, ...] = field(default_factory=tuple)
+    parse_errors: tuple[str, ...] = field(default_factory=tuple)
 
 
 # ============================================================================
@@ -166,9 +175,21 @@ def parse_record_turn(args: dict[str, Any]) -> TurnRecord:
 
 
 def parse_update_self_state(args: dict[str, Any]) -> SelfStateUpdate:
-    """Validate + project `update_self_state` arguments into a
-    `SelfStateUpdate`. Raises `ToolCallParseError` on any validation
-    failure."""
+    """Validate + project `update_self_state` into a `SelfStateUpdate`.
+
+    Piecewise-tolerant: top-level invariants (turn_id required,
+    identity_core forbidden) are hard. Section parses are independent
+    — a failure in one section is recorded in `parse_errors` and
+    skipped, leaving the rest to apply. This honors the plan's
+    "update_self_state is defer-on-failure" stance at finer
+    granularity: instead of deferring the *entire* update over one
+    malformed `disposition_drift` item, we apply the sections that
+    parsed and report what didn't.
+
+    Top-level failures (missing turn_id, forbidden identity_core
+    field) still raise — those would indicate the model is confused
+    about the tool's purpose, not just sloppy.
+    """
     if "turn_id" not in args:
         raise ToolCallParseError(
             "update_self_state.turn_id is required",
@@ -188,20 +209,49 @@ def parse_update_self_state(args: dict[str, Any]) -> SelfStateUpdate:
             raw_arguments=repr(args),
         )
 
-    cs = _parse_current_state(args.get("current_state"))
-    rel = _parse_relational_stance(args.get("relational_stance"))
-    disp = _parse_disposition_drift(args.get("disposition_drift", []))
-    opinions = _parse_opinions(args.get("formed_opinions", []))
-    quirks = _parse_quirks(args.get("quirks", []))
+    errors: list[str] = []
+    cs = _try_section(errors, "current_state", _parse_current_state, args.get("current_state"))
+    rel = _try_section(
+        errors, "relational_stance", _parse_relational_stance, args.get("relational_stance")
+    )
+    disp = _try_section(
+        errors,
+        "disposition_drift",
+        _parse_disposition_drift,
+        args.get("disposition_drift", []),
+        default=(),
+    )
+    opinions = _try_section(
+        errors, "formed_opinions", _parse_opinions, args.get("formed_opinions", []), default=()
+    )
+    quirks = _try_section(errors, "quirks", _parse_quirks, args.get("quirks", []), default=())
 
     return SelfStateUpdate(
         turn_id=turn_id,
         current_state=cs,
         relational_stance=rel,
-        disposition_drift=disp,
-        formed_opinions=opinions,
-        quirks=quirks,
+        disposition_drift=disp if disp is not None else (),
+        formed_opinions=opinions if opinions is not None else (),
+        quirks=quirks if quirks is not None else (),
+        parse_errors=tuple(errors),
     )
+
+
+def _try_section(
+    errors: list[str],
+    name: str,
+    fn: Any,
+    raw: Any,
+    *,
+    default: Any = None,
+) -> Any:
+    """Run one section parser, capturing ToolCallParseError into
+    `errors` and returning `default` on failure."""
+    try:
+        return fn(raw)
+    except ToolCallParseError as e:
+        errors.append(f"{name}: {e}")
+        return default
 
 
 # ============================================================================

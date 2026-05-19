@@ -322,22 +322,33 @@ def test_parse_update_self_state_rejects_identity_name_top_level() -> None:
         parse_update_self_state(args)
 
 
-def test_parse_update_self_state_rejects_opinion_with_empty_evidence() -> None:
-    args = {
-        "turn_id": "t-1",
-        "formed_opinions": [{"claim": "no evidence", "evidence_ids": []}],
-    }
-    with pytest.raises(ToolCallParseError, match="evidence_ids"):
-        parse_update_self_state(args)
+def test_parse_update_self_state_records_opinion_empty_evidence_in_parse_errors() -> None:
+    """Piecewise contract: a bad section is dropped + recorded in
+    parse_errors. The other sections still apply."""
+    out = parse_update_self_state(
+        {
+            "turn_id": "t-1",
+            "formed_opinions": [{"claim": "no evidence", "evidence_ids": []}],
+            "current_state": {"mood": "ok"},  # this section is fine
+        }
+    )
+    assert out.formed_opinions == ()
+    assert any("evidence_ids" in e for e in out.parse_errors)
+    assert any("formed_opinions" in e for e in out.parse_errors)
+    # Other sections still landed.
+    assert out.current_state is not None
+    assert out.current_state.mood == "ok"
 
 
-def test_parse_update_self_state_rejects_opinion_missing_evidence() -> None:
-    args = {
-        "turn_id": "t-1",
-        "formed_opinions": [{"claim": "no evidence"}],
-    }
-    with pytest.raises(ToolCallParseError, match="evidence_ids"):
-        parse_update_self_state(args)
+def test_parse_update_self_state_records_opinion_missing_evidence_in_parse_errors() -> None:
+    out = parse_update_self_state(
+        {
+            "turn_id": "t-1",
+            "formed_opinions": [{"claim": "no evidence"}],
+        }
+    )
+    assert out.formed_opinions == ()
+    assert any("evidence_ids" in e for e in out.parse_errors)
 
 
 def test_parse_update_self_state_skips_empty_disposition_drift_item() -> None:
@@ -382,44 +393,55 @@ def test_parse_update_self_state_skips_empty_quirk_item() -> None:
     assert out.quirks[0].pattern == "dry humor"
 
 
-def test_parse_update_self_state_partial_disposition_drift_still_rejected() -> None:
-    """Half-filled items are still rejected — the model is confused,
-    not just lazy. Only fully-empty `{}` gets the skip-and-continue
-    treatment."""
-    with pytest.raises(ToolCallParseError, match="missing required keys"):
-        parse_update_self_state(
-            {
-                "turn_id": "t-1",
-                "disposition_drift": [{"dimension": "warmth"}],
-            }
-        )
+def test_parse_update_self_state_partial_disposition_drift_recorded_in_parse_errors() -> None:
+    """Half-filled items still fail the section parse, but the
+    failure is now reported in `parse_errors` (piecewise contract).
+    Other sections still parse."""
+    out = parse_update_self_state(
+        {
+            "turn_id": "t-1",
+            "disposition_drift": [{"dimension": "warmth"}],
+            "current_state": {"mood": "ok"},
+        }
+    )
+    assert out.disposition_drift == ()
+    assert any("disposition_drift" in e for e in out.parse_errors)
+    assert out.current_state is not None and out.current_state.mood == "ok"
 
 
-def test_parse_update_self_state_rejects_unknown_dimension() -> None:
-    args = {
-        "turn_id": "t-1",
-        "disposition_drift": [{"dimension": "warmpth", "direction": 1, "magnitude_weight": 0.5}],
-    }
-    with pytest.raises(ToolCallParseError, match="dimension"):
-        parse_update_self_state(args)
+def test_parse_update_self_state_unknown_dimension_recorded_in_parse_errors() -> None:
+    out = parse_update_self_state(
+        {
+            "turn_id": "t-1",
+            "disposition_drift": [
+                {"dimension": "warmpth", "direction": 1, "magnitude_weight": 0.5}
+            ],
+        }
+    )
+    assert out.disposition_drift == ()
+    assert any("dimension" in e for e in out.parse_errors)
 
 
-def test_parse_update_self_state_rejects_invalid_direction() -> None:
-    args = {
-        "turn_id": "t-1",
-        "disposition_drift": [{"dimension": "warmth", "direction": 0, "magnitude_weight": 0.5}],
-    }
-    with pytest.raises(ToolCallParseError, match="direction"):
-        parse_update_self_state(args)
+def test_parse_update_self_state_invalid_direction_recorded_in_parse_errors() -> None:
+    out = parse_update_self_state(
+        {
+            "turn_id": "t-1",
+            "disposition_drift": [{"dimension": "warmth", "direction": 0, "magnitude_weight": 0.5}],
+        }
+    )
+    assert out.disposition_drift == ()
+    assert any("direction" in e for e in out.parse_errors)
 
 
-def test_parse_update_self_state_rejects_magnitude_out_of_range() -> None:
-    args = {
-        "turn_id": "t-1",
-        "disposition_drift": [{"dimension": "warmth", "direction": 1, "magnitude_weight": 1.5}],
-    }
-    with pytest.raises(ToolCallParseError, match="magnitude"):
-        parse_update_self_state(args)
+def test_parse_update_self_state_magnitude_out_of_range_recorded_in_parse_errors() -> None:
+    out = parse_update_self_state(
+        {
+            "turn_id": "t-1",
+            "disposition_drift": [{"dimension": "warmth", "direction": 1, "magnitude_weight": 1.5}],
+        }
+    )
+    assert out.disposition_drift == ()
+    assert any("magnitude" in e for e in out.parse_errors)
 
 
 def test_parse_update_self_state_partial_current_state() -> None:
@@ -525,6 +547,52 @@ def _full_self_state() -> Any:
 
 def _make_record_turn(turn_id: str = "t-1", salience: float = 0.5) -> Any:
     return parse_record_turn(_good_record_turn_args(turn_id=turn_id, salience=salience))
+
+
+def test_apply_record_turn_drops_invalid_references(memory: MemoryStore) -> None:
+    """Live-smoke failure mode: model emits a UUID-shaped reference
+    that doesn't point to any existing episodic. Without filtering,
+    the FK on episodic_references blows up the whole write. With
+    filtering, the bogus reference is dropped and the episodic
+    lands."""
+    real = memory.write_episodic(
+        content="prior turn",
+        user_id="u",
+        agent_id="a",
+        affect=Affect(valence=0.0, arousal=0.0, dominant_emotion="neutral"),
+        salience=0.5,
+    )
+    # Build a record with one real reference and one hallucinated UUID.
+    args = _good_record_turn_args(references=[real.id, "00000000-0000-0000-0000-000000000000"])
+    rec = parse_record_turn(args)
+    ep = apply_record_turn(
+        rec,
+        user_id="u",
+        agent_id="a",
+        channel="cli",
+        memory=memory,
+    )
+    # Episodic was written.
+    read = memory.get_episodic(ep.id)
+    assert read is not None
+    # Only the valid reference survived.
+    assert read.references == (real.id,)
+
+
+def test_apply_record_turn_drops_all_references_when_all_invalid(memory: MemoryStore) -> None:
+    """All-bogus reference list — episodic still lands with empty refs."""
+    args = _good_record_turn_args(references=["bogus-1", "bogus-2"])
+    rec = parse_record_turn(args)
+    ep = apply_record_turn(
+        rec,
+        user_id="u",
+        agent_id="a",
+        channel="cli",
+        memory=memory,
+    )
+    read = memory.get_episodic(ep.id)
+    assert read is not None
+    assert read.references == ()
 
 
 def test_apply_record_turn_writes_episodic(memory: MemoryStore) -> None:
@@ -1236,8 +1304,10 @@ def test_run_stream_defers_update_self_state_parse_failure(
     self_state: SelfStateStore,
     turn_input: TurnInput,
 ) -> None:
-    """update_self_state with broken args parses-fails; the turn still
-    completes with update_applied=False and an error message."""
+    """update_self_state with a broken section parses-piecewise; only
+    that section is dropped. With ALL sections broken (here:
+    disposition_drift not-a-list and nothing else), update_applied
+    stays False and update_error names the failing section."""
     broken_update = ToolCall(
         id="c2",
         name="update_self_state",
@@ -1264,7 +1334,7 @@ def test_run_stream_defers_update_self_state_parse_failure(
     result = runner.run_stream(turn_input, history=[], on_text_delta=lambda _: None)
     assert result.update_applied is False
     assert result.update_error is not None
-    assert "parse failed" in result.update_error
+    assert "disposition_drift" in result.update_error
     # Episodic was still written.
     assert result.episodic.content.startswith("user said hi")
 

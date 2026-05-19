@@ -25,6 +25,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
+from glashaus.logging import get_logger
 from glashaus.memory.store import MemoryStore
 from glashaus.memory.types import Affect, EpisodicMemory
 from glashaus.self_state.dynamics import (
@@ -47,6 +48,9 @@ from glashaus.turn.parse import (
     TurnRecord,
 )
 
+log = get_logger(__name__)
+
+
 # ============================================================================
 # Episodic write
 # ============================================================================
@@ -66,7 +70,15 @@ def apply_record_turn(
     The `turn_id` from the tool call is **not** the episodic id — it's a
     transient identifier used to dedup `update_self_state` retries
     against `record_turn`. The episodic gets a fresh UUID.
+
+    `references` is *filtered* against actually-existing episodics
+    before write. Models occasionally hallucinate UUIDs in references;
+    without this filter, the FK on `episodic_references` fires and
+    rolls back the whole episodic write — making the turn terminally
+    fail over what's essentially LLM noise. Filtering + logging the
+    drops preserves the episodic and the legitimate references.
     """
+    valid_refs = _filter_valid_references(record.references, memory)
     return memory.write_episodic(
         content=record.episode_summary,
         user_id=user_id,
@@ -78,11 +90,33 @@ def apply_record_turn(
         ),
         salience=record.salience,
         topics=record.topics,
-        references=record.references,
+        references=valid_refs,
         channel=channel,
         embedding=embedding,
         id=str(uuid.uuid4()),
     )
+
+
+def _filter_valid_references(refs: Sequence[str], memory: MemoryStore) -> tuple[str, ...]:
+    """Drop references that don't point to an existing episodic row.
+
+    The plan's data integrity matters more than any one fake reference
+    the model might emit; we'd rather log the drops than lose the turn.
+    """
+    if not refs:
+        return ()
+    found = memory.episodic_by_ids(refs)
+    found_ids = {ep.id for ep in found}
+    valid = tuple(r for r in refs if r in found_ids)
+    if len(valid) != len(refs):
+        invalid = [r for r in refs if r not in found_ids]
+        log.warning(
+            "apply.record_turn.dropped_invalid_references",
+            invalid_count=len(invalid),
+            valid_count=len(valid),
+            invalid_sample=invalid[:3],
+        )
+    return valid
 
 
 # ============================================================================

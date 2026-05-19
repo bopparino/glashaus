@@ -255,6 +255,11 @@ class TurnRunner:
         # shared turn_id between record_turn and update_self_state for
         # dedup across retries. A mismatch is suspicious enough to log,
         # not fatal in Phase 1.
+        #
+        # parse_update_self_state is piecewise-tolerant: only top-level
+        # invariants (missing turn_id, forbidden identity_core) raise.
+        # Section-level failures land in `parse_errors` on the result
+        # and the other sections still apply.
         update_parsed: SelfStateUpdate | None = None
         update_error: str | None = None
         if update_call is not None:
@@ -266,9 +271,14 @@ class TurnRunner:
                         record_turn_id=record.turn_id,
                         update_turn_id=update_parsed.turn_id,
                     )
+                if update_parsed.parse_errors:
+                    log.warning(
+                        "turn.update_self_state_partial_parse",
+                        errors=list(update_parsed.parse_errors),
+                    )
             except ToolCallParseError as e:
-                # update_self_state failure is non-terminal — log,
-                # defer, don't fail the turn.
+                # Top-level failure (turn_id missing, identity_core
+                # forbidden field). Truly nothing to apply.
                 update_error = f"parse failed: {e}"
                 log.warning("turn.update_self_state_parse_failed", error=str(e))
         else:
@@ -300,12 +310,18 @@ class TurnRunner:
                     self_state=self.self_state,
                     trigger_episodic_id=episodic.id,
                 )
-                update_applied = True
-                if apply_report.errors:
+                # update_applied tracks whether at least *something*
+                # landed in the store. With piecewise parse, a turn can
+                # have some sections apply and some skipped.
+                update_applied = apply_report.any_applied
+                if apply_report.errors or update_parsed.parse_errors:
+                    combined_errors = list(update_parsed.parse_errors) + list(apply_report.errors)
                     log.warning(
                         "turn.update_self_state_partial",
-                        errors=list(apply_report.errors),
+                        parse_errors=list(update_parsed.parse_errors),
+                        apply_errors=list(apply_report.errors),
                     )
+                    update_error = "; ".join(combined_errors)
             except Exception as e:
                 update_error = f"apply failed: {e}"
                 log.warning("turn.update_self_state_apply_failed", error=str(e))
