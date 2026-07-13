@@ -264,7 +264,10 @@ if (!YES) {
     initialValue: existing.heartbeat?.enabled ?? true,
   }));
   if (heartbeat.enabled) {
-    const quiet = await ask(p.text({ message: 'Quiet hours (no outreach), as start-end:', initialValue: `${heartbeat.quietStart}-${heartbeat.quietEnd}` }));
+    const quiet = await ask(p.text({
+      message: 'Quiet hours (no outreach), 24h clock as start-end — e.g. 23-8.5 means 11pm to 8:30am:',
+      initialValue: `${heartbeat.quietStart}-${heartbeat.quietEnd}`,
+    }));
     const m = String(quiet).match(/^\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*$/);
     if (m) { heartbeat.quietStart = Number(m[1]); heartbeat.quietEnd = Number(m[2]); }
   }

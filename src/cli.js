@@ -13,7 +13,12 @@ const rl = readline.createInterface({ input: process.stdin, output: process.stdo
 const who = config.companionName.toLowerCase();
 
 for (;;) {
-  const text = (await rl.question('you > ')).trim();
+  let text;
+  try {
+    text = (await rl.question('you > ')).trim();
+  } catch {
+    break; // stdin closed (piped input ran out, or ctrl-d)
+  }
   if (!text) continue;
   if (text === '/quit' || text === '/exit') break;
   try {

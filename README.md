@@ -35,6 +35,14 @@ curl -fsSL https://raw.githubusercontent.com/bopparino/glashaus/main/install.sh 
 `curl -fsSLO .../install.sh`, read it, then `sh install.sh`. Or skip it
 entirely: `npm install -g glashaus && glashaus setup`.)
 
+From source:
+
+```sh
+git clone https://github.com/bopparino/glashaus && cd glashaus
+npm install && npm link     # puts `glashaus` on your PATH
+glashaus setup
+```
+
 You need **Node ≥ 20** and **[Ollama](https://ollama.com)**. Setup detects
 your Ollama install, lists the models you've already pulled, and walks you
 through everything else — including a guided interview where your chosen
