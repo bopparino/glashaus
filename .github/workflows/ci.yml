@@ -1,0 +1,36 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ matrix.node }}' }
+      - run: npm ci
+      - name: syntax check every module
+        run: for f in src/*.js bin/*.js test/*.js; do node --check "$f"; done
+      - run: npm run smoke
+      - run: sh -n install.sh
+
+  leak-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: no personal strings ship in this repo
+        run: |
+          # The framework must contain zero traces of any private instance.
+          # (--exclude this workflow: the pattern must not match itself.)
+          if grep -rniE '\b(austin|kimmy|maryland|arbiter)\b|\belle\b|tapir-pound|8700468013' \
+               --exclude-dir=.git --exclude-dir=node_modules --exclude=ci.yml .; then
+            echo '::error::personal string found — this repo ships to strangers'
+            exit 1
+          fi
+          echo 'clean'

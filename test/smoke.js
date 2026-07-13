@@ -1,0 +1,88 @@
+// Smoke test — no Ollama required. Builds a fresh instance in a temp home
+// and exercises everything that doesn't need a model: DB creation +
+// migrations, persona file sync, fact writes, hybrid recall (FTS branch),
+// self-state drift, and full system-prompt assembly.
+//   npm run smoke
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+
+const home = fs.mkdtempSync(path.join(os.tmpdir(), 'glashaus-smoke-'));
+process.env.GLASHAUS_HOME = home;
+// config.json is snapshotted at import time; env overrides are the reliable
+// way to name things inside a single test process.
+process.env.GLASHAUS_COMPANION_NAME = 'Testa';
+process.env.GLASHAUS_USER_NAME = 'Sam';
+process.env.GLASHAUS_TIMEZONE = 'UTC';
+process.env.OLLAMA_HOST = 'http://127.0.0.1:1'; // never contacted
+
+const { config, writeInstanceConfig, isConfigured } = await import('../src/config.js');
+
+writeInstanceConfig({ companion: { name: 'Testa' }, user: { name: 'Sam' }, timezone: 'UTC' });
+assert.ok(isConfigured(), 'config.json written');
+assert.equal(config.home, home);
+assert.equal(config.companionName, 'Testa');
+assert.equal(config.userName, 'Sam');
+
+// -- db + migrations ----------------------------------------------------------
+const { getDb, setDocument, getDocument } = await import('../src/db.js');
+const db = getDb();
+assert.equal(db.pragma('user_version', { simple: true }), 4, 'migrations ran to v4');
+assert.equal(db.prepare('SELECT COUNT(*) n FROM self_state').get().n, 10, 'self-state seeded');
+
+// -- persona sync -------------------------------------------------------------
+const { starterTemplates, syncPersonaFromDisk, PERSONA_FILES } = await import('../src/persona.js');
+fs.mkdirSync(config.personaDir, { recursive: true });
+const templates = starterTemplates({ companionName: 'Testa', userName: 'Sam' });
+for (const [file, content] of Object.entries(templates)) {
+  fs.writeFileSync(path.join(config.personaDir, file), content);
+}
+const synced = syncPersonaFromDisk();
+assert.ok(synced.includes('soul.md'), 'soul.md synced');
+assert.ok(getDocument('SOUL').includes('Testa'), 'SOUL document readable');
+
+// edits archive, never clobber
+setDocument('SOUL', 'I am Testa, revised.');
+assert.equal(db.prepare('SELECT COUNT(*) n FROM document_history').get().n >= 1, true, 'history archived');
+
+// -- memory write + recall (FTS branch) ---------------------------------------
+const { addFact, recallFacts, saveMessage, recentMessages, forgetFact } = await import('../src/memory.js');
+const id = addFact({ category: 'user', content: 'Sam keeps bees on the roof', importance: 6, salience: 0.8 });
+addFact({ category: 'companion', content: 'I hate the word moist', importance: 9 });
+saveMessage('user', 'hello there');
+saveMessage('assistant', 'hey you');
+assert.equal(recentMessages(10).length, 2, 'messages persist');
+
+const recalled = recallFacts('tell me about the bees on the roof');
+assert.ok(recalled.some(f => f.content.includes('bees')), 'FTS recall finds the bee fact');
+assert.ok(recalled.some(f => f.importance >= 9), 'core facts always surface');
+
+forgetFact(id);
+assert.ok(!recallFacts('bees on the roof').some(f => f.id === id), 'soft-forget removes from recall');
+
+// -- self-state drift ---------------------------------------------------------
+const { applyDrift, getSelfState, renderSelfState } = await import('../src/selfstate.js');
+const before = getSelfState().find(r => r.dimension === 'trust').value;
+applyDrift({ trust: 1 }, 'capture');
+const after = getSelfState().find(r => r.dimension === 'trust').value;
+assert.ok(after > before && after <= 0.95, 'drift moves bounded');
+assert.ok(renderSelfState().includes('Sam'), 'self-state renders with user name');
+
+// -- prompt assembly ----------------------------------------------------------
+const { buildSystemPrompt } = await import('../src/prompt.js');
+const prompt = buildSystemPrompt('do you remember the bees?');
+for (const needle of ['I am Testa, revised.', 'How My Mind Works', 'About Sam', 'Things I Know']) {
+  assert.ok(prompt.includes(needle), `prompt contains "${needle}"`);
+}
+assert.ok(!/\bAustin\b|\bElle\b/.test(prompt), 'prompt is fully parameterized');
+
+// -- soul capsule -------------------------------------------------------------
+const { exportSoul } = await import('../src/soul.js');
+const capsulePath = exportSoul();
+const capsule = JSON.parse(fs.readFileSync(capsulePath, 'utf8'));
+assert.equal(capsule.format, 'glashaus-soul-capsule');
+assert.ok(capsule.documents.some(d => d.name === 'SOUL'), 'capsule carries the soul');
+
+fs.rmSync(home, { recursive: true, force: true });
+console.log('smoke ✓ — instance born, remembered, drifted, and exported in a temp home');

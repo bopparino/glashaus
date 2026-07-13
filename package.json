@@ -1,0 +1,39 @@
+{
+  "name": "glashaus",
+  "version": "1.0.0",
+  "description": "A local-first AI companion runtime — persistent identity, consolidating memory, dreams, and proactive presence on your own machine",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bopparino/glashaus.git"
+  },
+  "homepage": "https://github.com/bopparino/glashaus#readme",
+  "bugs": { "url": "https://github.com/bopparino/glashaus/issues" },
+  "keywords": [
+    "ai-companion", "companion", "ollama", "local-first", "sqlite",
+    "memory", "telegram-bot", "character", "roleplay", "self-hosted"
+  ],
+  "engines": { "node": ">=20" },
+  "bin": { "glashaus": "bin/glashaus.js" },
+  "files": [
+    "bin/",
+    "src/",
+    "assets/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "setup": "node src/setup.js",
+    "chat": "node src/cli.js",
+    "bot": "node src/index.js",
+    "dream": "node src/dream.js --now",
+    "smoke": "node test/smoke.js"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.11.0",
+    "better-sqlite3": "^12.2.0",
+    "grammy": "^1.36.1",
+    "node-cron": "^3.0.3"
+  }
+}

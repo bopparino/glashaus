@@ -1,0 +1,14 @@
+node_modules/
+.DS_Store
+*.log
+*.err
+.env
+
+# Never commit an instance: brains, personas, and secrets live in
+# GLASHAUS_HOME (~/.glashaus), not in this repo. These are safety nets in
+# case someone points GLASHAUS_HOME at the repo.
+data/
+logs/
+persona/
+config.json
+glashaus.pid
