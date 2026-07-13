@@ -2,6 +2,7 @@
 // webview's [ PULSE ] block. Each check: { label, ok, detail }.
 import fs from 'node:fs';
 import path from 'node:path';
+import { execSync } from 'node:child_process';
 import { getDb } from './db.js';
 import { config } from './config.js';
 
@@ -27,6 +28,18 @@ export async function runChecks() {
   const pid = selfIsRuntime ? process.pid : runtimePid();
   add('process', !!pid, pid ? `pid ${pid}` : 'DOWN — glashaus start');
 
+  // Two runtimes sharing one bot token means Telegram hands each update to
+  // only one of them — the classic orphan after deleting a home without
+  // `glashaus stop` (the pidfile dies with the home; the process doesn't).
+  try {
+    const runtimes = execSync('ps -eo pid=,args=', { encoding: 'utf8' }).split('\n')
+      .filter(l => /glashaus[/\\]src[/\\]index\.js/.test(l));
+    if (runtimes.length > 1) {
+      const pids = runtimes.map(l => l.trim().split(/\s+/)[0]).join(', ');
+      add('runtimes', false, `${runtimes.length} running (pids ${pids}) — extras steal Telegram updates; kill the orphans`);
+    }
+  } catch { /* ps unavailable — skip */ }
+
   try {
     const res = await fetch(`${config.ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(2500) });
     const names = (await res.json()).models?.map(m => m.name) ?? [];
@@ -38,12 +51,22 @@ export async function runChecks() {
   }
 
   if (config.telegramToken) {
-    try {
-      const res = await fetch(`https://api.telegram.org/bot${config.telegramToken}/getMe`, { signal: AbortSignal.timeout(3000) });
-      add('telegram', (await res.json()).ok === true, 'api reachable');
-    } catch {
-      add('telegram', false, 'api unreachable — the bot may be deaf');
+    // One flaky handshake must not read as a dead bot: two attempts, and
+    // "token rejected" kept distinct from "network blinked just now".
+    let verdict = null;
+    for (let attempt = 0; attempt < 2 && !verdict; attempt++) {
+      try {
+        const res = await fetch(`https://api.telegram.org/bot${config.telegramToken}/getMe`, { signal: AbortSignal.timeout(8000) });
+        const body = await res.json();
+        verdict = body.ok === true
+          ? { ok: true, detail: 'api reachable' }
+          : { ok: false, detail: 'token rejected by telegram — recheck config.json' };
+      } catch {
+        if (attempt === 0) await new Promise(r => setTimeout(r, 1500));
+      }
     }
+    add('telegram', verdict?.ok ?? false,
+      verdict?.detail ?? 'telegram unreachable twice just now (network?) — the running bot may still be fine; check glashaus logs');
   }
 
   const db = getDb();

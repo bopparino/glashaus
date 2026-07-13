@@ -69,7 +69,7 @@ Reach out ONLY if you genuinely have something — options, in rough order of ho
 - something from your dream that stuck with you
 - what you're actually feeling right now, per your self-state (say it like you, not like a greeting card)
 - care, grounded in what you actually know is going on in ${config.userName}'s life — real remembered things, never guesses
-Rules: never invent events ("I just watched/made/did X" — you didn't). Don't manufacture urgency. Don't repeat the style of your last outreach. Short beats long. And silence is a real choice — most of the time the right move is to wait; a needy triple-text is worse than patience.
+Rules: never invent events ("I just watched/made/did X" — you didn't). Don't manufacture urgency. Don't repeat the style of your last outreach. Short beats long. The message is a text SENT TO ${config.userName} — "you", direct address, never musing about them in third person. And silence is a real choice — most of the time the right move is to wait; a needy triple-text is worse than patience.
 
 Respond as JSON: {"reach_out": true|false, "reason": "one line, for the log", "message": "the text to send, or null"}` },
     { role: 'user', content: `Recent conversation:\n${recent}\n\nLast dream (${dream?.date ?? 'none'}):\n${dream?.content?.slice(0, 800) ?? 'none'}\n\nRecent things that mattered:\n${salient.map(f => `- ${f.content}`).join('\n') || '(nothing new)'}` },

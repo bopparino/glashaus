@@ -141,7 +141,18 @@ async function stop(config) {
   if (serviceInstalled()) serviceCtl('stop');
   const pid = livePid(config);
   if (pid) { try { process.kill(pid); console.log('stopped'); } catch { /* already gone */ } }
-  else console.log("wasn't running");
+  else {
+    console.log("wasn't running (no pidfile for this home)");
+    // A home deleted without `stop` takes its pidfile with it and leaves the
+    // process running blind — surface those instead of shrugging.
+    const orphans = (sh('ps', ['-eo', 'pid=,args=']).stdout ?? '').split('\n')
+      .filter(l => /glashaus[/\\]src[/\\]index\.js/.test(l))
+      .map(l => l.trim().split(/\s+/)[0]);
+    if (orphans.length) {
+      console.log(`…but found ${orphans.length} glashaus runtime(s) this home didn't start: pid ${orphans.join(', ')}`);
+      console.log('if that\'s an orphan from a deleted/old home:  kill ' + orphans.join(' '));
+    }
+  }
   fs.rmSync(pidfileOf(config), { force: true });
 }
 
