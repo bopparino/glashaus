@@ -14,6 +14,8 @@
 //   glashaus tidy             run memory hygiene now (also runs nightly)
 //   glashaus backup           back up the brain now (also runs daily)
 //   glashaus restore <file>   replace the brain from a backup (snapshots current first)
+//   glashaus purge            retire the companion: archive everything, wipe the brain — persona + config stay
+//   glashaus purge --all      …and persona, config, service too: an emptied home for a from-zero setup
 //   glashaus soul             export the personality-only capsule
 //   glashaus facts [word]     quick memory search in the terminal
 //   glashaus forget <id>      soft-forget a bad fact (reversible in the viewer)
@@ -278,6 +280,95 @@ switch (cmd) {
     fs.copyFileSync(file, config.dbPath);
     console.log(`restored from ${file}\nprevious brain saved at ${snap} (restore it the same way to undo)`);
     await start(config);
+    break;
+  }
+
+  case 'purge': {
+    // Retire the companion deliberately. Everything is archived BEFORE
+    // anything is deleted — on this framework's rule that a companion never
+    // just vanishes. Default scope wipes the lived state (the brain) and
+    // keeps persona files + config, then re-births an empty brain from them:
+    // same soul, same disposition, no memories. --all empties the home.
+    const { config } = await requireSetup();
+    const all = args.includes('--all');
+    const forceIdx = args.indexOf('--force');
+    const forcedName = forceIdx >= 0 ? args[forceIdx + 1] : null;
+
+    console.log(`This retires ${config.companionName}. What gets wiped: ${all
+      ? 'EVERYTHING — brain, persona files, config, backups, logs, and the login service. Only the archive remains.'
+      : 'the BRAIN — every message, fact, episode, dream, opinion, quirk, self-note, and the relationship state. Persona files, config, and backups stay; disposition carries over.'}`);
+    console.log('A complete archive (database, soul capsule, persona, config — including any bot token) is written first.');
+
+    if (forceIdx >= 0) {
+      if (!forcedName || forcedName !== config.companionName) {
+        console.error(`--force must name this home's companion exactly: glashaus purge --force ${config.companionName}`);
+        process.exit(1);
+      }
+    } else {
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      const answer = await rl.question(`Type the companion's name (${config.companionName}) to continue: `);
+      rl.close();
+      if (answer.trim() !== config.companionName) { console.log('aborted — nothing touched'); process.exit(1); }
+    }
+
+    await stop(config);
+
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    let archive = path.join(`${config.home}-archive`, `${config.companionName}-${stamp}`);
+    for (let n = 2; fs.existsSync(archive); n++) { // same-second purge must never merge archives
+      archive = path.join(`${config.home}-archive`, `${config.companionName}-${stamp}-${n}`);
+    }
+    fs.mkdirSync(archive, { recursive: true, mode: 0o700 });
+    run('soul.js', ['--now']); // fresh capsule via a child process — this one never holds a DB handle
+    const capsule = path.join(config.backupDir, 'soul-latest.json');
+    if (fs.existsSync(capsule)) fs.copyFileSync(capsule, path.join(archive, 'soul.json'));
+    for (const suffix of ['', '-wal', '-shm']) {
+      if (fs.existsSync(config.dbPath + suffix)) {
+        fs.copyFileSync(config.dbPath + suffix, path.join(archive, path.basename(config.dbPath) + suffix));
+      }
+    }
+    if (fs.existsSync(config.personaDir)) fs.cpSync(config.personaDir, path.join(archive, 'persona'), { recursive: true });
+    const configFile = path.join(config.home, 'config.json');
+    if (fs.existsSync(configFile)) fs.copyFileSync(configFile, path.join(archive, 'config.json'));
+
+    // Personality survives a purge; the relationship doesn't. Carry the
+    // dispositional dims into the next brain through the baseline mechanism;
+    // trust/familiarity/desire/security restart at their birth values.
+    let disposition = {};
+    if (!all) {
+      try {
+        const { default: Database } = await import('better-sqlite3');
+        const old = new Database(config.dbPath, { readonly: true });
+        for (const r of old.prepare("SELECT dimension, value FROM self_state WHERE layer = 'disposition'").all()) {
+          disposition[r.dimension] = r.value;
+        }
+        old.close();
+      } catch { /* unreadable brain — nothing to carry */ }
+    }
+
+    if (all) {
+      if (serviceInstalled()) {
+        serviceCtl('stop');
+        if (process.platform !== 'darwin') sh('systemctl', ['--user', 'disable', 'glashaus']);
+        fs.rmSync(process.platform === 'darwin' ? plistPath() : unitPath(), { force: true });
+      }
+      fs.rmSync(config.home, { recursive: true, force: true });
+      console.log(`${config.companionName} is retired. Archive: ${archive}`);
+      console.log('The home is empty — `glashaus setup` starts from zero.');
+      break;
+    }
+
+    fs.rmSync(path.dirname(config.dbPath), { recursive: true, force: true });
+    fs.rmSync(config.logsDir, { recursive: true, force: true });
+    if (Object.keys(disposition).length) {
+      fs.writeFileSync(path.join(config.home, 'baseline.json'), JSON.stringify(disposition, null, 2));
+    }
+    if (run('setup-apply.js') !== 0) { // fresh migrations + persona sync + baseline
+      console.error('rebirth failed — the archive is intact; run `glashaus setup` to repair');
+      process.exit(1);
+    }
+    console.log(`${config.companionName} is reborn — same soul, same disposition, no memories. Archive: ${archive}`);
+    console.log('First hello is yours to time:  glashaus chat   (then: glashaus start)');
     break;
   }
 

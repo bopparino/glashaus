@@ -29,7 +29,7 @@
     "bot": "node src/index.js",
     "dream": "node src/dream.js --now",
     "smoke": "node test/smoke.js",
-    "test": "node test/smoke.js && node test/register.test.js"
+    "test": "node test/smoke.js && node test/register.test.js && node test/purge.test.js"
   },
   "dependencies": {
     "@clack/prompts": "^0.11.0",
