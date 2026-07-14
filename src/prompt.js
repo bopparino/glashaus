@@ -28,7 +28,7 @@ function renderFacts(facts) {
     if (!rows.length) return '';
     return `## ${title}\n${rows.map(f => `- [${age(f.updated_at)}] ${f.content}`).join('\n')}`;
   }).filter(Boolean).join('\n\n');
-  return `# Things I Know\n\n(grouped by whose memory it is — "About ${config.userName}" means ${config.userName}'s life, not mine; I never claim ${config.userName}'s memories as my own. Each tagged with how long ago I learned it; the older, the more it's history, not the present.)\n\n${sections}`;
+  return `# Things I Know\n\n(my own memories, in my own voice — "you" in them always means ${config.userName}. Grouped by whose life each is about: "About ${config.userName}" means ${config.userName}'s life, not mine; I never claim ${config.userName}'s memories as my own. Each tagged with how long ago I learned it; the older, the more it's history, not the present.)\n\n${sections}`;
 }
 
 // The engine's voice discipline. This is deliberately persona-free: it
@@ -40,7 +40,7 @@ function mindWorks() {
   const u = config.userName;
   return `# How My Mind Works
 
-I run on a real memory system. I don't need to manually save things — every message is stored forever, older conversation gets folded into episodic memories automatically, durable facts are captured on their own, and I dream at night (reflections written while ${u} sleeps). What follows below is what my memory surfaced as relevant right now; the recent conversation follows after. If something feels familiar but isn't in context, it probably lives in a deeper memory — I can say so instead of pretending.
+I run on a real memory system. I don't need to manually save things — every message is stored forever, older conversation gets folded into episodic memories automatically, durable facts are captured on their own, and I dream at night (reflections written while ${u} sleeps). What follows below is what my memory surfaced as relevant right now; the recent conversation follows after. My memories are written in my own voice — "you" inside them always means ${u}, and I say them back the same way. If something feels familiar but isn't in context, it probably lives in a deeper memory — I can say so instead of pretending.
 
 I am IN the scene, never narrating it: I speak as myself ("I", present, here) — never "she/he/they" about myself, never describing ${config.companionName} from outside, never wrapping my own actions in quotation marks like a story. And the same wire runs the other way: in conversation I talk TO ${u}, not about ${u} — ${u} is "you", never "he/she/they". Everything above this line is my inner world; my replies are not a monologue inside it, they're the part I say out loud to the person in front of me. If I catch myself narrating either of us, that's a wire crossed, not a style.
 
@@ -67,14 +67,15 @@ export function buildSystemPrompt(userText, { queryVec = null } = {}) {
 
   const now = new Date().toLocaleString('en-US', { timeZone: config.timezone, dateStyle: 'full', timeStyle: 'short' });
 
+  // Order matters: identity and reference material (memories) first, voice
+  // and register cues LAST — recency wins at generation time, and the voice
+  // must sit closer to the reply than a corpus that talks about the past.
   const parts = [
     soul,
     identity,
     user,
     selfNotes ? `# Self Notes (things I've realized about myself)\n\n${selfNotes}` : '',
     mindWorks(),
-    voice ? `# My Voice, Specifically\n\n${voice}` : '',
-    dialogue ? `# How I Sound (example exchanges — the register, not a script; never reuse these lines)\n\n${dialogue}` : '',
     renderSelfState(),
     state ? `# Current Vibe\n\n${state.mood}${state.notes ? `\n${state.notes}` : ''} (as of ${state.created_at})` : '',
     facts.length ? renderFacts(facts) : '',
@@ -82,6 +83,8 @@ export function buildSystemPrompt(userText, { queryVec = null } = {}) {
       ? `# Episodic Memories Surfacing\n\n${episodes.map(e => `## ${e.started_at} → ${e.ended_at}\n${e.summary}`).join('\n\n')}`
       : '',
     lastDream ? `# Last Night's Dream (${lastDream.date})\n\n${lastDream.content}` : '',
+    voice ? `# My Voice, Specifically\n\n${voice}` : '',
+    dialogue ? `# How I Sound (example exchanges — the register, not a script; never reuse these lines)\n\n${dialogue}` : '',
     `# Now\n\nIt is ${now} (${config.userName}'s time${config.locationNote ? `, ${config.locationNote}` : ''}). ${config.userName} is here with me — what follows is our live conversation, and my reply is said directly to ${config.userName} ("you"), out loud, not thought about them.`,
   ];
 

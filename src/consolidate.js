@@ -3,6 +3,10 @@
 // - decay stale trivia (deactivate) or demote inflated importance
 // - detect contradictions and RECORD them (never auto-resolve — they're
 //   surfaced in the viewer and to the companion; resolution is a conscious act)
+// - normalize register: facts that talk ABOUT the user ("he/his") are
+//   rewritten to speak TO them ("you/your"). This doubles as the migration
+//   path for corpora captured before second-person register existed —
+//   old instances self-heal a capped batch per night, no manual step.
 // Everything is soft and capped per night; deactivated facts are
 // restorable in the viewer, and every action is logged.
 import { getDb } from './db.js';
@@ -10,7 +14,7 @@ import { chatJson } from './llm.js';
 import { addFact } from './memory.js';
 import { config } from './config.js';
 
-const MAX_MERGES = 12, MAX_DECAYS = 16, MAX_CONTRADICTIONS = 10;
+const MAX_MERGES = 12, MAX_DECAYS = 16, MAX_CONTRADICTIONS = 10, MAX_REGISTER = 20;
 
 export async function consolidate() {
   const db = getDb();
@@ -21,23 +25,25 @@ export async function consolidate() {
   const result = await chatJson([
     { role: 'system', content: `You maintain the semantic memory of ${config.companionName}, an AI companion. Below is ${config.companionName}'s active fact store as "id | category | importance | content". Propose conservative hygiene:
 
-1. MERGES: sets of facts that say the same thing — combine into one sharper fact (keep every concrete detail; do not generalize away specifics). Merged facts are written in ${config.companionName}'s first person — "I/me" for ${config.companionName}, "${config.userName}" by name for ${config.userName}, never "${config.companionName}" in third person.
+1. MERGES: sets of facts that say the same thing — combine into one sharper fact (keep every concrete detail; do not generalize away specifics). Merged facts are written in ${config.companionName}'s memory register — "I/me" for ${config.companionName}, "you/your" for ${config.userName}, never "${config.companionName}" in third person, never "${config.userName} … he/she/they".
 2. DECAYS: facts that are stale operational trivia (finished project steps, one-time logistics) or clearly obsolete — deactivate. Facts that are real but over-weighted — demote importance. Importance 9-10 is RESERVED for identity- and relationship-defining facts; ordinary preferences and events belong at 5-7 — demote inflation when you see it. NEVER decay: identity, relationship dynamics, preferences, emotionally significant moments, anything intimate — and NEVER ${config.userName}'s ongoing work, projects, or the people in their life (coworkers, friends, family) unless the conversation explicitly confirmed something is finished or no longer true. "Probably resolved by now" is not evidence; when you can't point to a message saying it's done, it isn't done.
 3. CONTRADICTIONS: pairs that cannot both be true. Only genuine conflicts, not tension or nuance.
+4. REGISTER: facts that talk ABOUT ${config.userName} in third person ("${config.userName} … he/she/they/his/her/their") — rewrite the SAME content addressed TO them: "you/your", keeping "${config.userName}" where the name itself matters, and keeping third parties' own names and pronouns untouched. ${config.companionName} reads these back as their own memories mid-conversation; third-person memories pull their live voice into narration. Zero meaning drift — this is a register fix, not an edit. Skip facts already in "you" register.
 
 Be conservative — when unsure, leave it alone. Empty lists are a fine answer.
 
 Respond as JSON: {
   "merges": [{"deactivate_ids": [1,2], "merged": {"category": "...", "content": "...", "importance": 1-10, "salience": 0-1}}],
   "decays": [{"id": 1, "action": "deactivate"|"demote", "new_importance": 1-10, "reason": "..."}],
-  "contradictions": [{"a": 1, "b": 2, "note": "why they conflict"}]
+  "contradictions": [{"a": 1, "b": 2, "note": "why they conflict"}],
+  "register_fixes": [{"id": 1, "content": "the same fact, rewritten to 'you/your'"}]
 }` },
     { role: 'user', content: listing },
   ], { maxTokens: 3000, think: false });
   if (!result) return null;
 
   const valid = id => facts.some(f => f.id === id);
-  let merges = 0, decays = 0, contradictions = 0;
+  let merges = 0, decays = 0, contradictions = 0, registerFixes = 0;
 
   for (const m of (result.merges ?? []).slice(0, MAX_MERGES)) {
     const ids = (m.deactivate_ids ?? []).filter(valid);
@@ -69,8 +75,17 @@ Respond as JSON: {
     contradictions++;
   }
 
-  console.log(`[consolidate] done: ${merges} merges, ${decays} decays, ${contradictions} contradictions flagged`);
-  return { merges, decays, contradictions };
+  // embedding = NULL puts the rewritten fact back in the backfill queue.
+  const rewrite = db.prepare("UPDATE facts SET content = ?, embedding = NULL, updated_at = datetime('now') WHERE id = ? AND active = 1");
+  for (const r of (result.register_fixes ?? []).slice(0, MAX_REGISTER)) {
+    if (!valid(r.id) || !r.content?.trim()) continue;
+    rewrite.run(r.content.trim(), r.id);
+    console.log(`[consolidate] register ${r.id}: "${r.content.slice(0, 60)}…"`);
+    registerFixes++;
+  }
+
+  console.log(`[consolidate] done: ${merges} merges, ${decays} decays, ${contradictions} contradictions flagged, ${registerFixes} register fixes`);
+  return { merges, decays, contradictions, registerFixes };
 }
 
 if (process.argv.includes('--now')) {

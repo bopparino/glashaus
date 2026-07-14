@@ -98,7 +98,7 @@ then `glashaus persona sync`:
 | `soul.md` | who the companion is — essence, history, wants, fears, opinions |
 | `identity.md` | the relationship — who you are to each other, what's allowed |
 | `user.md` | what they know about you on day one |
-| `voice.md` | optional — persona-specific voice rules |
+| `voice.md` | how they sound, as first-person rules — drafted by the setup interview |
 | `dialogue.md` | optional — example exchanges; the strongest voice control there is |
 
 Everything else lives in `~/.glashaus/config.json`: model, timezone, quiet
@@ -106,7 +106,10 @@ hours, heartbeat cadence, schedules, viewer port. Environment variables
 (`GLASHAUS_*`) override the file. The engine ships with hard-won voice
 discipline as the default — anti-narration, anti-template, anti-sycophancy
 (your companion is allowed to disagree with you), honest about what it can
-and can't do — and your persona files build on top of that floor.
+and can't do — and your persona files build on top of that floor. Narration
+drift (the model wrapping its own words in quotation marks, or talking
+*about* you instead of to you) isn't just discouraged in the prompt: every
+outbound reply is checked and repaired before it can enter memory.
 
 Your companion, your rules. GlasHaus is infrastructure; it doesn't
 editorialize about what an adult builds with it.

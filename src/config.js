@@ -53,6 +53,9 @@ export const config = {
 
   companionName: pick('GLASHAUS_COMPANION_NAME', file.companion?.name, 'Companion'),
   userName: pick('GLASHAUS_USER_NAME', file.user?.name, 'Friend'),
+  // Optional ("he/him" | "she/her" | …): lets the register guardrail catch
+  // the companion talking ABOUT the user instead of to them. Empty = tier off.
+  userPronouns: pick('GLASHAUS_USER_PRONOUNS', file.user?.pronouns, ''),
   timezone: pick('GLASHAUS_TIMEZONE', file.timezone,
     Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'),
   // Free-text "where/when" note appended to the clock line, e.g. "Berlin".

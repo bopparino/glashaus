@@ -1,4 +1,5 @@
 import { chat } from './llm.js';
+import { enforceRegister } from './register.js';
 import { buildSystemPrompt } from './prompt.js';
 import { saveMessage, recentMessages, summarizeBacklog, captureFacts } from './memory.js';
 import { embed, backfillEmbeddings } from './embeddings.js';
@@ -28,11 +29,13 @@ async function exchange(text, { persist = true, images = [] } = {}) {
   const userMsg = { role: 'user', content: text };
   if (images.length) userMsg.images = images; // base64, current turn only
 
-  const reply = await chat([
+  // Register drift is repaired BEFORE persisting — a narrated reply that
+  // reaches the messages table becomes a template for the next forty.
+  const reply = await enforceRegister(await chat([
     { role: 'system', content: system },
     ...history,
     userMsg,
-  ]);
+  ]));
 
   if (persist && reply.trim()) {
     saveMessage('user', text);

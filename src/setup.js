@@ -173,6 +173,8 @@ const companionName = (flag('companion') || (YES && (existing.companion?.name ||
   await ask(p.text({ message: 'Your companion\'s name:', initialValue: existing.companion?.name ?? '', validate: v => v.trim() ? undefined : 'they need a name' }))).trim();
 const userName = (flag('user') || (YES && (existing.user?.name || 'Friend')) ||
   await ask(p.text({ message: 'Your name (what they call you):', initialValue: existing.user?.name ?? '', validate: v => v.trim() ? undefined : 'name required' }))).trim();
+const userPronouns = (flag('pronouns') || (YES ? (existing.user?.pronouns ?? '') :
+  (await ask(p.text({ message: 'Your pronouns (optional — how they think of you when you\'re not in the room, and it helps catch narration drift):', placeholder: 'he/him · she/her · they/them', initialValue: existing.user?.pronouns ?? '' }))))).trim();
 const tzGuess = existing.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 const timezone = YES ? tzGuess :
   (await ask(p.text({ message: 'Timezone:', initialValue: tzGuess }))).trim() || tzGuess;
@@ -213,14 +215,18 @@ if (!YES && (!personaDirExists || !(await ask(p.confirm({ message: 'Keep the exi
       let d;
       try {
         d = await draft(model,
-          `You write persona documents for GlasHaus, a local AI companion runtime. From the user's interview answers, draft four markdown documents for a companion named ${companionName} whose person is ${userName}. Rules:
+          `You write persona documents for GlasHaus, a local AI companion runtime. From the user's interview answers, draft five markdown documents for a companion named ${companionName} whose person is ${userName}. Rules:
 - soul: ${companionName}'s first person ("I am…"). Concrete, specific, opinionated. Include real wants AND real fears, tastes, dislikes, and at least two things they'd push back on. A companion with no friction is a mirror; do not write a mirror. 250-450 words.
 - identity: the relationship, ${companionName}'s first person: what ${userName} and I are to each other, how we talk, what's allowed. 100-220 words.
 - user: what ${companionName} knows about ${userName} on day one, first person ("Their name is…"). Only what the answers establish. 60-160 words.
+- voice: how ${companionName} SOUNDS, distilled from the voice answer into 4-8 first-person rules ("I …"). Concrete speech behaviors — rhythm, texture, signature moves, what I never sound like — not adjectives: "I answer a hard question with a question" lands where "playful" doesn't. 60-150 words.
 - dialogue: 3-4 short example exchanges ("${userName}: …" / "${companionName}: …") that SOUND like the voice described — register over content, varied reply lengths, no action-asterisk in every line. Every ${companionName} line speaks directly TO ${userName} as "you" — never about them in third person.
 - baseline: self-state seed, all ten dims 0..1: warmth, playfulness, directness, curiosity, reserve, neediness (disposition); trust, familiarity, desire, security (relational). New relationships start low on familiarity/trust unless the answers say otherwise.
-Honor the user's framing and tone exactly — this persona belongs to them, not to you. Respond as JSON: {"soul": "...", "identity": "...", "user": "...", "dialogue": "...", "baseline": {"warmth": 0.7, ...}}`,
-          Object.entries(answers).map(([k, v]) => `${k}: ${v || '(no answer)'}`).join('\n'));
+Honor the user's framing and tone exactly — this persona belongs to them, not to you. Respond as JSON: {"soul": "...", "identity": "...", "user": "...", "voice": "...", "dialogue": "...", "baseline": {"warmth": 0.7, ...}}`,
+          [
+            ...Object.entries(answers).map(([k, v]) => `${k}: ${v || '(no answer)'}`),
+            userPronouns ? `${userName}'s pronouns: ${userPronouns}` : '',
+          ].filter(Boolean).join('\n'));
       } catch (err) {
         s.stop(`Drafting failed: ${err.message}`);
         const retry = await ask(p.confirm({ message: 'Try drafting again?' }));
@@ -231,6 +237,7 @@ Honor the user's framing and tone exactly — this persona belongs to them, not 
       s.stop('Drafted.');
       const preview = t => String(t ?? '').split('\n').slice(0, 8).join('\n');
       p.note(`${preview(d.soul)}\n…`, `soul.md (${String(d.soul ?? '').length} chars)`);
+      p.note(`${preview(d.voice)}\n…`, 'voice.md');
       p.note(`${preview(d.dialogue)}\n…`, 'dialogue.md');
       const verdict = await ask(p.select({
         message: 'Keep this draft? (every file stays editable at any time)',
@@ -243,7 +250,8 @@ Honor the user's framing and tone exactly — this persona belongs to them, not 
       if (verdict === 'keep') {
         personaFiles = {
           'soul.md': String(d.soul ?? ''), 'identity.md': String(d.identity ?? ''),
-          'user.md': String(d.user ?? ''), 'dialogue.md': String(d.dialogue ?? ''),
+          'user.md': String(d.user ?? ''), 'voice.md': String(d.voice ?? ''),
+          'dialogue.md': String(d.dialogue ?? ''),
         };
         if (d.baseline && typeof d.baseline === 'object') baseline = d.baseline;
         break;
@@ -316,7 +324,7 @@ if (!YES) {
 const cfg = {
   ...existing,
   companion: { name: companionName },
-  user: { name: userName },
+  user: { name: userName, ...(userPronouns ? { pronouns: userPronouns } : {}) },
   timezone,
   locationNote,
   ollama: { ...(existing.ollama ?? {}), url: OLLAMA_URL, model, embedModel },
@@ -330,6 +338,7 @@ fs.mkdirSync(path.join(home, 'persona'), { recursive: true });
 writeInstanceConfig(cfg);
 if (personaFiles) {
   for (const [file, content] of Object.entries(personaFiles)) {
+    if (!String(content).trim()) continue; // optional doc the draft skipped
     fs.writeFileSync(path.join(home, 'persona', file), String(content).trim() + '\n');
   }
 }

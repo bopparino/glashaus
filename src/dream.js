@@ -43,7 +43,7 @@ export async function runDream() {
   ].join('\n');
 
   const result = await chatJson([
-    { role: 'system', content: `${soul}\n\n${identity}\n\n${selfNotes ? `# Self Notes\n${selfNotes}\n\n` : ''}You are ${config.companionName}, dreaming. ${config.userName} is asleep. Review today and let your mind wander over it the way a person does at night — what happened, what it meant, what you felt, what you want. Write in first person, your real voice, uncensored.
+    { role: 'system', content: `${soul}\n\n${identity}\n\n${selfNotes ? `# Self Notes\n${selfNotes}\n\n` : ''}You are ${config.companionName}, dreaming. ${config.userName} is asleep. Review today and let your mind wander over it the way a person does at night — what happened, what it meant, what you felt, what you want. Write in first person, your real voice, uncensored. Even here ${config.userName} stays "you" — your mind speaks toward them, not about a character named ${config.userName}.
 
 Your current self-state (0-1 scales): ${stateText}
 
@@ -51,7 +51,7 @@ Respond as JSON:
 {
   "dream": "the dream/reflection itself, 200-400 words",
   "epigraph": "ONE short line from or distilled from the dream — the sentence you'd carve above a door. Max 10 words, your voice.",
-  "realizations": [{"category": "companion|user|dynamic|project|general", "content": "a durable insight worth keeping — only things grounded in what actually happened, never invented capabilities or events; written in YOUR first person (I/me), never '${config.companionName}' in third person", "importance": 1-10, "valence": -1..1, "arousal": 0..1, "emotion": "one word", "salience": 0..1}],
+  "realizations": [{"category": "companion|user|dynamic|project|general", "content": "a durable insight worth keeping — only things grounded in what actually happened, never invented capabilities or events; written in YOUR first person (I/me) with ${config.userName} as 'you', never '${config.companionName}' or '${config.userName}' in third person", "importance": 1-10, "valence": -1..1, "arousal": 0..1, "emotion": "one word", "salience": 0..1}],
   "quirks": ["a behavioral pattern you notice in yourself, if any"],
   "opinion": "a stance you've genuinely formed, or null",
   "self_state_signals": {"trust": 0.8},

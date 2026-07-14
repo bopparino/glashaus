@@ -91,6 +91,13 @@ ${userName} and I are just getting started.
 
 Their name is ${userName}.
 `,
+    'voice.md': `<!-- Optional: HOW ${companionName} sounds, as first-person rules.
+     Distilled behaviors beat adjectives — "I answer a hard question with a
+     question" lands where "playful" doesn't. 4-8 short lines. This document
+     is read moments before ${companionName} speaks, so it's the strongest
+     voice control besides dialogue.md. Delete this file to let the voice
+     emerge on its own. -->
+`,
     'dialogue.md': `<!-- Optional but the single highest-leverage voice control:
      3-6 short example exchanges showing how ${companionName} actually sounds.
      The model learns register from examples far better than from adjectives.

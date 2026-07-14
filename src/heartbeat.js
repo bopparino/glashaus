@@ -6,6 +6,7 @@
 // All cadence knobs live in config.heartbeat, set during `glashaus setup`.
 import { getDb, getDocument } from './db.js';
 import { chatJson } from './llm.js';
+import { enforceRegister } from './register.js';
 import { recentMessages } from './memory.js';
 import { renderSelfState } from './selfstate.js';
 import { config } from './config.js';
@@ -81,7 +82,8 @@ Respond as JSON: {"reach_out": true|false, "reason": "one line, for the log", "m
       .run(result.reach_out ? 'reached' : 'declined', result.reason);
   }
   if (!result?.reach_out || !result.message) return null;
-  return result.message;
+  // Outreach persists into the same history live replies do — same guardrail.
+  return enforceRegister(result.message);
 }
 
 if (process.argv.includes('--dry')) {

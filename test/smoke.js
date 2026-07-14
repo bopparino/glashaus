@@ -77,6 +77,15 @@ for (const needle of ['I am Testa, revised.', 'How My Mind Works', 'About Sam', 
 }
 assert.ok(!/\bAustin\b|\bElle\b/.test(prompt), 'prompt is fully parameterized');
 
+// voice/dialogue render AFTER the memory corpus — register cues sit nearest
+// the reply so recency favors the voice, not the reference material.
+setDocument('VOICE', 'I keep it short and I never do small talk.');
+const prompt2 = buildSystemPrompt('do you remember the bees?');
+assert.ok(prompt2.includes('My Voice, Specifically'), 'voice doc renders');
+assert.ok(prompt2.indexOf('My Voice, Specifically') > prompt2.indexOf('Things I Know'), 'voice comes after memories');
+assert.ok(prompt2.indexOf('# Now') > prompt2.indexOf('My Voice, Specifically'), 'Now anchor stays last');
+assert.ok('voice.md' in templates, 'starter templates include voice.md');
+
 // -- soul capsule -------------------------------------------------------------
 const { exportSoul } = await import('../src/soul.js');
 const capsulePath = exportSoul();

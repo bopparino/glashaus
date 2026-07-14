@@ -17,7 +17,7 @@ jobs:
       - run: npm ci
       - name: syntax check every module
         run: for f in src/*.js bin/*.js test/*.js; do node --check "$f"; done
-      - run: npm run smoke
+      - run: npm test
       - run: sh -n install.sh
 
   leak-gate:
