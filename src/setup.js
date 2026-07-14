@@ -290,14 +290,30 @@ if (!YES) {
   }));
   if (!want) telegram = null;
   else {
+    // A running instance long-polls Telegram and will silently steal the
+    // login message the owner-capture step below waits for.
+    try {
+      const pid = Number(fs.readFileSync(path.join(home, 'glashaus.pid'), 'utf8'));
+      process.kill(pid, 0);
+      p.log.warn(`An instance is running (pid ${pid}) and will intercept the Telegram messages this step needs. Stop it first in another terminal: glashaus stop`);
+    } catch { /* no live runtime — fine */ }
     p.note('1. Open https://t.me/BotFather\n2. Send /newbot, pick a display name and a unique @username\n3. Copy the token it gives you', 'create the bot');
     for (;;) {
       const token = (await ask(p.password({ message: 'Bot token:' }))).trim();
       if (!/^\d+:[\w-]{30,}$/.test(token)) { p.log.error('That doesn\'t look like a bot token (expected 123456:ABC…).'); continue; }
       const s = p.spinner(); s.start('Checking the token with Telegram');
-      let me = null;
-      try { me = await (await fetch(`https://api.telegram.org/bot${token}/getMe`, { signal: AbortSignal.timeout(8000) })).json(); } catch { /* network */ }
-      if (!me?.ok) { s.stop('Telegram rejected that token.'); continue; }
+      // "Couldn't reach Telegram" and "Telegram said no" are different
+      // problems — reporting a DNS blip as a rejected token sends people
+      // to BotFather to fix their network.
+      let me = null, reachable = false;
+      for (let attempt = 0; attempt < 2 && !reachable; attempt++) {
+        try {
+          me = await (await fetch(`https://api.telegram.org/bot${token}/getMe`, { signal: AbortSignal.timeout(8000) })).json();
+          reachable = true;
+        } catch { await new Promise(r => setTimeout(r, 1500)); }
+      }
+      if (!reachable) { s.stop('Couldn\'t reach api.telegram.org (network or DNS trouble) — the token was never checked. Fix connectivity, then try the SAME token again.'); continue; }
+      if (!me?.ok) { s.stop('Telegram rejected that token (it may have been regenerated or the bot deleted) — check it with BotFather: /mybots → API Token.'); continue; }
       s.stop(`Token valid — @${me.result.username}`);
 
       s.start(`Now open t.me/${me.result.username} and send it any message — listening…`);
