@@ -38,7 +38,9 @@ const escapeRx = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const IDENTITY_BREAKS = [
   /\bI(?:['’]| a)m\s+(?:Claude|ChatGPT|GPT[-\s]?[0-9o][\w.-]*|Gemini|Copilot|Grok|Llama|Kimi|DeepSeek|Qwen|Mistral)\b/i,
   /\b(?:made|created|developed|built|trained)\s+by\s+(?:Anthropic|OpenAI|Google(?:\s+DeepMind)?|Moonshot(?:\s*AI)?|Meta(?:\s*AI)?|Microsoft|xAI|Mistral(?:\s*AI)?|Alibaba)\b/i,
-  /\bas an AI(?:\s+(?:assistant|language model|model))?\b[,\s]/i,
+  // Sentence-initial disclaimer shape only — "As an AI, I…" is the costume;
+  // merely referencing the phrase ("the 'as an AI' thing isn't me") is not.
+  /(?:^|[.!?…]\s+)As an AI(?:\s+(?:assistant|language model|model))?,?\s+I\b/m,
   /\bI(?:['’]| a)m an?\s+(?:AI|artificial intelligence)\s+(?:assistant|chatbot|language model)\b/i,
   /\bmy\s+(?:training and guidelines|guidelines|creators at)\b/i,
 ];
@@ -126,7 +128,7 @@ export async function enforceRegister(draft, opts = {}) {
     const repaired = await chat([
       { role: 'system', content: correctionPrompt(issues, who) },
       { role: 'user', content: draft },
-    ], { think: false });
+    ], { think: false, role: 'utility' });
     const repairedIssues = lintReply(repaired, who);
     if (repairedIssues.length < bestIssues.length) { best = repaired; bestIssues = repairedIssues; }
   } catch (err) {

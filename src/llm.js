@@ -1,5 +1,15 @@
 import { config } from './config.js';
 
+// Two lanes into Ollama, one wire format.
+//
+// Roles: 'voice' is the companion speaking (voiceModel, sampling applied);
+// 'utility' is bookkeeping — capture, consolidation, dreams, register repair
+// (utilityModel, deterministic). Unset split-brain config collapses both
+// lanes onto `model`, which is the v1 behavior exactly.
+const modelFor = role => (role === 'utility'
+  ? config.utilityModel ?? config.model
+  : config.voiceModel ?? config.model);
+
 // Single call into Ollama's chat API. Returns the assistant text.
 // Never returns empty: reasoning models can burn the whole num_predict budget
 // on thinking and produce no content — we retry, then retry without thinking,
@@ -11,7 +21,7 @@ export async function chat(messages, opts = {}) {
     // attempt 0: as asked · 1: as asked (transient retry) · 2: thinking off
     const think = attempt === 2 ? false : opts.think;
     try {
-      const text = await chatOnce(messages, { ...opts, think });
+      const text = await chatOnce(messages, { role: 'voice', ...opts, think });
       if (text.trim()) return text;
       lastErr = new Error('model returned empty content');
     } catch (err) {
@@ -22,25 +32,30 @@ export async function chat(messages, opts = {}) {
   throw lastErr;
 }
 
-async function chatOnce(messages, { json = false, maxTokens, think } = {}) {
+function body(messages, { json = false, maxTokens, think, role = 'voice', model, stream = false }) {
+  const sampled = role === 'voice' && think !== false;
+  return JSON.stringify({
+    model: model ?? modelFor(role),
+    messages,
+    stream,
+    ...(think === false ? { think: false } : {}),
+    ...(json ? { format: 'json' } : {}),
+    options: {
+      num_predict: maxTokens ?? config.maxTokens,
+      // sampling applies to the voice lane only — utility passes and repairs
+      // want determinism; min_p keeps small local models out of the slop
+      // tail without flattening the voice
+      ...(config.temperature != null && sampled ? { temperature: config.temperature } : {}),
+      ...(config.minP != null && sampled ? { min_p: config.minP } : {}),
+    },
+  });
+}
+
+async function chatOnce(messages, opts = {}) {
   const res = await fetch(`${config.ollamaUrl}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: config.model,
-      messages,
-      stream: false,
-      ...(think === false ? { think: false } : {}),
-      ...(json ? { format: 'json' } : {}),
-      options: {
-        num_predict: maxTokens ?? config.maxTokens,
-        // sampling applies to conversational replies only, never utility calls
-        // (utility passes want determinism; min_p keeps small local models
-        // out of the slop tail without flattening the voice)
-        ...(config.temperature != null && think !== false ? { temperature: config.temperature } : {}),
-        ...(config.minP != null && think !== false ? { min_p: config.minP } : {}),
-      },
-    }),
+    body: body(messages, opts),
   });
   if (!res.ok) {
     throw new Error(`Ollama ${res.status}: ${await res.text()}`);
@@ -49,9 +64,50 @@ async function chatOnce(messages, { json = false, maxTokens, think } = {}) {
   return data.message?.content ?? '';
 }
 
+// Streaming voice lane: tokens arrive through onToken as the model speaks.
+// Returns the full text. On any failure mid-stream with nothing shown yet it
+// falls back to the non-streaming path — the caller always gets a reply.
+export async function chatStream(messages, { onToken, ...opts } = {}) {
+  try {
+    const res = await fetch(`${config.ollamaUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: body(messages, { role: 'voice', ...opts, stream: true }),
+    });
+    if (!res.ok || !res.body) throw new Error(`Ollama ${res.status}`);
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '', full = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const j = JSON.parse(line);
+          const delta = j.message?.content ?? '';
+          if (delta) { full += delta; onToken?.(delta); }
+          if (j.error) throw new Error(j.error);
+        } catch (e) { if (e instanceof SyntaxError) continue; throw e; }
+      }
+    }
+    if (full.trim()) return full;
+    throw new Error('empty stream');
+  } catch (err) {
+    if (opts._noFallback) throw err;
+    // Nothing usable streamed — take the reliable road.
+    const text = await chat(messages, opts);
+    onToken?.(text);
+    return text;
+  }
+}
+
 // For extraction/summarization passes: ask for JSON, tolerate sloppy output.
 export async function chatJson(messages, opts = {}) {
-  const raw = await chat(messages, { ...opts, json: true });
+  const raw = await chat(messages, { role: 'utility', ...opts, json: true });
   // The model often wraps JSON in ```json fences despite format:json.
   const text = raw.replace(/^[\s\S]*?```(?:json)?\s*/i, m => (raw.includes('```') ? '' : m))
     .replace(/```[\s\S]*$/, '')

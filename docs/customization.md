@@ -27,6 +27,15 @@ database — you cannot lose a persona to an edit.
   the voice feels off, fix it here first. The engine tells the model these
   are register examples, never lines to reuse.
 
+- **`lexicon.md`** — the vocabulary system. Slang, inside jokes, named
+  creatures, shared shorthand, how they actually swear — each entry a `## term`
+  with `means:` and `sounds like:` lines. Mark up to ~10 signature words
+  `— core` (always in context); everything else rides in only when its word
+  comes up in conversation or in a recalled memory, so the lexicon can grow to
+  hundreds of entries at zero prompt cost. The companion also *nominates* new
+  words it hears (`glashaus lexicon`, then `approve <id>`) — nothing enters the
+  vocabulary without your sign-off.
+
 `glashaus persona edit soul` opens the file in `$EDITOR` and syncs on close.
 
 ## 2. `config.json` — `~/.glashaus/config.json`

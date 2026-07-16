@@ -1,4 +1,4 @@
-import { chat } from './llm.js';
+import { chat, chatStream } from './llm.js';
 import { enforceRegister, lintIdentity } from './register.js';
 import { buildSystemPrompt } from './prompt.js';
 import { saveMessage, recentMessages, summarizeBacklog, captureFacts } from './memory.js';
@@ -18,7 +18,7 @@ export function handleUserMessage(text, opts = {}) {
   return run;
 }
 
-async function exchange(text, { persist = true, images = [] } = {}) {
+async function exchange(text, { persist = true, images = [], onToken = null } = {}) {
   // Query embedding is best-effort with a tight budget — if the embed
   // model is cold or slow, retrieval just runs without the vector branch.
   const queryVec = await embed(text, { timeoutMs: 1500 });
@@ -29,11 +29,15 @@ async function exchange(text, { persist = true, images = [] } = {}) {
   const userMsg = { role: 'user', content: text };
   if (images.length) userMsg.images = images; // base64, current turn only
 
-  let draft = await chat([
+  const msgs = [
     { role: 'system', content: system },
     ...history,
     userMsg,
-  ]);
+  ];
+  // onToken streams the draft as it's spoken (the REPL). Guards still run on
+  // the finished text; a caller that streams must be ready to redraw when the
+  // returned reply differs from what it watched arrive.
+  let draft = onToken ? await chatStream(msgs, { onToken }) : await chat(msgs);
 
   // Identity breaks (the base model announcing itself as some other AI) get
   // one full regeneration with the break named — an edit can't save a reply

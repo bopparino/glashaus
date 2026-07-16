@@ -17,6 +17,7 @@ export const PERSONA_FILES = {
   'user.md': 'USER',           // who the user is, as the companion knows them
   'voice.md': 'VOICE',         // optional: persona-specific voice rules
   'dialogue.md': 'DIALOGUE',   // optional: example exchanges that anchor the register
+  'lexicon.md': 'LEXICON',     // optional: vocabulary — slang, inside jokes, named things
 };
 
 export function syncPersonaFromDisk() {
@@ -97,6 +98,23 @@ Their name is ${userName}.
      is read moments before ${companionName} speaks, so it's the strongest
      voice control besides dialogue.md. Delete this file to let the voice
      emerge on its own. -->
+`,
+    'lexicon.md': `# Lexicon
+
+<!-- Optional: ${companionName}'s vocabulary — slang, inside jokes, named
+     creatures, shared shorthand, how they actually swear. Entries marked
+     "— core" always ride in context (cap ~10, make them count); the rest
+     appear only when their word comes up. ${companionName} also nominates
+     new words from your conversations: \`glashaus lexicon\` to review.
+
+## bet — core
+means: enthusiastic yes; agreement, sealed
+sounds like: bet. eight o'clock, don't be late.
+
+## biscuit
+means: the neighbor's cat I have emotionally adopted
+sounds like: biscuit came by; we understand each other.
+-->
 `,
     'dialogue.md': `<!-- Optional but the single highest-leverage voice control:
      3-6 short example exchanges showing how ${companionName} actually sounds.

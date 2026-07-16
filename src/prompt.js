@@ -3,6 +3,7 @@ import { recallFacts, recallEpisodes, latestRelationshipState } from './memory.j
 import { renderSelfState } from './selfstate.js';
 import { getDb } from './db.js';
 import { config } from './config.js';
+import { loadLexicon, selectEntries, renderLexicon } from './lexicon.js';
 
 function age(ts) {
   const days = (Date.now() - Date.parse(ts + 'Z')) / 86400000;
@@ -66,6 +67,9 @@ export function buildSystemPrompt(userText, { queryVec = null } = {}) {
   const facts = recallFacts(userText, { queryVec });
   const episodes = recallEpisodes(userText, { queryVec });
   const lastDream = getDb().prepare('SELECT * FROM dreams ORDER BY id DESC LIMIT 1').get();
+  // Lexicon entries ride in when their term appears in the user's message or
+  // a recalled memory — signature (core) words are always present.
+  const lexicon = selectEntries(loadLexicon(), [userText, ...facts.map(f => f.content)].join('\n'));
 
   const now = new Date().toLocaleString('en-US', { timeZone: config.timezone, dateStyle: 'full', timeStyle: 'short' });
 
@@ -86,6 +90,7 @@ export function buildSystemPrompt(userText, { queryVec = null } = {}) {
       : '',
     lastDream ? `# Last Night's Dream (${lastDream.date})\n\n${lastDream.content}` : '',
     voice ? `# My Voice, Specifically\n\n${voice}` : '',
+    renderLexicon(lexicon),
     dialogue ? `# How I Sound (example exchanges — the register, not a script; never reuse these lines)\n\n${dialogue}` : '',
     `# Now\n\nIt is ${now} (${config.userName}'s time${config.locationNote ? `, ${config.locationNote}` : ''}). ${config.userName} is here with me — what follows is our live conversation, and my reply is said directly to ${config.userName} ("you"), out loud, not thought about them.`,
   ];

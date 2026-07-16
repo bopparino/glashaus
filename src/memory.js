@@ -3,6 +3,7 @@ import { chat, chatJson } from './llm.js';
 import { config } from './config.js';
 import { embed, cosine } from './embeddings.js';
 import { applyDrift, addOpinion } from './selfstate.js';
+import { addLexiconCandidate } from './lexicon.js';
 
 // ---------- retrieval (glashaus §3.4 hybrid — pure SQL + math, no LLM calls) ----------
 
@@ -212,7 +213,9 @@ You may also report drift signals for ${config.companionName}'s self-state — O
 
 And optionally: an opinion ${config.companionName} genuinely formed (a stance, not a fact), and a one-line mood read.
 
-Respond as JSON: {"facts": [{"category": "user|companion|dynamic|project|general", "content": "...", "importance": 1-10, "valence": 0, "arousal": 0, "emotion": "...", "salience": 0}], "self_state_signals": {"warmth": 0.9}, "opinion": null, "mood": "...", "mood_changed": false}
+Also nominate LEXICON candidates — at most 2, usually 0: only words/phrases actually used in the transcript that a general model likely wouldn't know or that these two use in their own way (slang, coinages, names of creatures/things in their world, community vocabulary). NEVER standard English used normally, never a word already known.
+
+Respond as JSON: {"facts": [{"category": "user|companion|dynamic|project|general", "content": "...", "importance": 1-10, "valence": 0, "arousal": 0, "emotion": "...", "salience": 0}], "self_state_signals": {"warmth": 0.9}, "opinion": null, "mood": "...", "mood_changed": false, "lexicon": [{"term": "...", "means": "...", "example": "how it sounded in the transcript"}]}
 
 Already known:
 ${existing || '(nothing yet)'}` },
@@ -222,6 +225,9 @@ ${existing || '(nothing yet)'}` },
   if (!result) return;
   for (const f of result.facts ?? []) {
     if (f?.content) addFact({ ...f, source: 'capture' });
+  }
+  for (const c of (result.lexicon ?? []).slice(0, 2)) {
+    if (c?.term) addLexiconCandidate(c);
   }
   if (result.self_state_signals) applyDrift(result.self_state_signals, 'capture');
   if (result.opinion) addOpinion(result.opinion, 'formed in conversation');

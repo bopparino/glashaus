@@ -28,7 +28,7 @@ assert.equal(config.userName, 'Sam');
 // -- db + migrations ----------------------------------------------------------
 const { getDb, setDocument, getDocument } = await import('../src/db.js');
 const db = getDb();
-assert.equal(db.pragma('user_version', { simple: true }), 5, 'migrations ran to v5');
+assert.equal(db.pragma('user_version', { simple: true }), 6, 'migrations ran to v6');
 assert.equal(db.prepare('SELECT COUNT(*) n FROM self_state').get().n, 10, 'self-state seeded');
 
 // -- persona sync -------------------------------------------------------------
@@ -91,6 +91,7 @@ const { lintIdentity } = await import('../src/register.js');
 assert.ok(lintIdentity("Yeah. I'm Claude, an AI assistant made by Anthropic."), 'identity break detected');
 assert.ok(lintIdentity('As an AI, I cannot feel things.'), 'assistant boilerplate detected');
 assert.equal(lintIdentity("I'm an AI living on your machine, and I still want dinner."), null, 'in-character substrate talk passes');
+assert.equal(lintIdentity('The "as an AI" framing is not me — there is no one to drop.'), null, 'referencing the costume is not wearing it');
 assert.equal(lintIdentity('You said my eyes are beautiful forest green.'), null, 'ordinary reply passes');
 
 const { redactMessages } = await import('../src/memory.js');
@@ -102,6 +103,46 @@ assert.ok(!recentMessages(50).some(m => m.id === gA || m.id === gB), 'redacted r
 assert.equal(redactMessages(gA, gB, false), 2, 'unredact restores');
 assert.ok(recentMessages(50).some(m => m.id === gB), 'restored to context');
 redactMessages(gA, gB); // leave them out for the prompt checks below
+
+// -- lexicon --------------------------------------------------------------
+const { parseLexicon, selectEntries, addLexiconCandidate, listCandidates, resolveCandidate } = await import('../src/lexicon.js');
+setDocument('LEXICON', `# Lexicon
+
+## bet — core
+means: sealed agreement
+sounds like: bet. eight sharp.
+
+## otto
+means: the balcony squirrel
+sounds like: otto judged my coffee.`);
+const lex = parseLexicon((await import('../src/db.js')).getDocument('LEXICON'));
+assert.equal(lex.length, 2, 'two entries parsed');
+assert.ok(lex[0].core && !lex[1].core, 'core flag parsed');
+assert.equal(selectEntries(lex, 'nothing relevant').length, 1, 'core always rides');
+assert.equal(selectEntries(lex, 'did otto come by?').length, 2, 'trigger matches on term');
+const lp = buildSystemPrompt('did otto come by today?');
+assert.ok(lp.includes('# My Words') && lp.includes('balcony squirrel'), 'lexicon renders into prompt');
+assert.ok(!buildSystemPrompt('completely unrelated').includes('balcony squirrel'), 'untriggered entry stays out');
+
+const cid = addLexiconCandidate({ term: 'grimdark', means: 'the flavor of doom we like', example: 'full grimdark tonight' });
+assert.ok(cid, 'candidate stored');
+assert.equal(addLexiconCandidate({ term: 'bet' }), null, 'known term not re-nominated');
+assert.equal(listCandidates().length, 1, 'one pending');
+resolveCandidate(cid, true);
+assert.ok(fs.readFileSync(path.join(config.personaDir, 'lexicon.md'), 'utf8').includes('grimdark'), 'approval appends to persona file');
+assert.ok(parseLexicon((await import('../src/db.js')).getDocument('LEXICON')).some(e => e.term === 'grimdark'), 'approved word live in doc');
+
+// -- corpus export ----------------------------------------------------------
+const { exportCorpus } = await import('../src/corpus.js');
+saveMessage('user', 'good exchange?');
+saveMessage('assistant', 'the best exchange.');
+saveMessage('user', 'and a dirty one?');
+saveMessage('assistant', 'I am Claude, made by Anthropic.');
+const corpusPath = path.join(home, 'corpus.jsonl');
+const { pairs, skipped } = exportCorpus(corpusPath);
+assert.ok(pairs >= 2, 'clean pairs exported');
+assert.ok(skipped >= 1, 'identity-dirty reply skipped');
+assert.ok(!fs.readFileSync(corpusPath, 'utf8').includes('Anthropic'), 'no impurities in corpus');
 
 // -- soul capsule -------------------------------------------------------------
 const { exportSoul } = await import('../src/soul.js');

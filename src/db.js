@@ -217,6 +217,22 @@ function migrate(db) {
     `);
     db.pragma('user_version = 5');
   }
+
+  // v6 — learned-vocabulary queue: fact capture nominates words it heard;
+  // nothing enters the lexicon without approval (glashaus lexicon approve).
+  if (db.pragma('user_version', { simple: true }) < 6) {
+    db.exec(`
+      CREATE TABLE lexicon_candidates (
+        id INTEGER PRIMARY KEY,
+        term TEXT NOT NULL,
+        means TEXT NOT NULL DEFAULT '',
+        example TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'pending', -- pending | approved | rejected
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    db.pragma('user_version = 6');
+  }
 }
 
 export function setDocument(name, content) {

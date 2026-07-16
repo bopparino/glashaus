@@ -57,6 +57,9 @@ glashaus start            run in the background — Telegram, dreams, backups
 glashaus view             the webview: today / chat / memory / journal / self / system
 glashaus doctor           full health check
 glashaus persona edit soul    open persona files in your editor
+glashaus lexicon              words the companion wants to learn
+glashaus audition <model>     screen-test a model against your persona
+glashaus export-corpus        your history as a fine-tuning dataset
 ```
 
 What runs once it's up:
@@ -88,6 +91,25 @@ What runs once it's up:
   facts), on the rule that memories can be rebuilt by living but
   personality can't.
 
+### New in 2.0
+
+- **Streamed replies + a dressed terminal** — watch the words arrive; slash
+  commands (`/mood`, `/dream`, `/facts`, `/redact-last`) inside the chat.
+- **The lexicon** — vocabulary as a persona surface: signature words always
+  in context, the long tail retrieval-triggered, new words learned from your
+  conversations with human approval. Voice lives in vocabulary.
+- **Split-brain models** — `voiceModel` speaks, `utilityModel` bookkeeps.
+  Run a local RP-tuned voice while a strong instruction-follower handles
+  memory capture, dreams, and repairs.
+- **`glashaus audition`** — an automated screen test that runs any model
+  through identity pressure, scene register, and refusal probes *against your
+  actual persona*, then scores the voice. Cast on evidence, not vibes.
+- **Identity immune system** — a firewall against base models announcing
+  themselves as other AIs, detection + regeneration when they try, and
+  `glashaus redact` to surgically unhappen a glitched stretch (reversible).
+- **`glashaus export-corpus`** + a QLoRA recipe (docs/fine-tune.md) — the
+  long game: your companion's voice moving into their own weights.
+
 ## Customization
 
 The persona is markdown in `~/.glashaus/persona/` — edit with any editor,
@@ -100,6 +122,7 @@ then `glashaus persona sync`:
 | `user.md` | what they know about you on day one |
 | `voice.md` | how they sound, as first-person rules — drafted by the setup interview |
 | `dialogue.md` | optional — example exchanges; the strongest voice control there is |
+| `lexicon.md` | optional — vocabulary: signature words always present, the rest appearing when their word comes up; grows from conversation with your approval |
 
 Everything else lives in `~/.glashaus/config.json`: model, timezone, quiet
 hours, heartbeat cadence, schedules, viewer port. Environment variables

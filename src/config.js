@@ -70,6 +70,12 @@ export const config = {
   ollamaUrl: pick('OLLAMA_HOST', file.ollama?.url, 'http://127.0.0.1:11434')
     .replace(/\/$/, ''),
   model: pick('GLASHAUS_MODEL', file.ollama?.model, ''),
+  // Split brain (optional): the voice speaks, the utility bookkeeps. A local
+  // RP-tuned voice with a strong instruction-follower on capture/dreams ends
+  // refusal roulette without giving up structured-output quality. Unset =
+  // both fall back to `model`.
+  voiceModel: pick('GLASHAUS_VOICE_MODEL', file.ollama?.voiceModel, null),
+  utilityModel: pick('GLASHAUS_UTILITY_MODEL', file.ollama?.utilityModel, null),
   embedModel: pick('GLASHAUS_EMBED_MODEL', file.ollama?.embedModel, 'nomic-embed-text'),
   maxTokens: num(pick('GLASHAUS_MAX_TOKENS', file.ollama?.maxTokens), 4096),
   // Sampling for conversational replies only; utility calls stay at model

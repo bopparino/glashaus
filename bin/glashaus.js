@@ -19,6 +19,9 @@
 //   glashaus soul             export the personality-only capsule
 //   glashaus facts [word]     quick memory search in the terminal
 //   glashaus forget <id>      soft-forget a bad fact (reversible in the viewer)
+//   glashaus lexicon           words the companion wants to learn (approve/reject <id>)
+//   glashaus audition <model>  screen-test a model against this persona before casting it
+//   glashaus export-corpus     dump clean chat JSONL for fine-tuning (docs/fine-tune.md)
 //   glashaus redact <a> [b]    cut a glitched message range from the companion's mind (reversible)
 //   glashaus unredact <a> [b]  restore a redacted range
 //   glashaus persona sync     push persona/*.md edits into the live documents
@@ -256,6 +259,43 @@ switch (cmd) {
       const { syncPersonaFromDisk } = await import(src('persona.js'));
       syncPersonaFromDisk();
     } else { console.error('usage: glashaus persona [sync | edit <soul|identity|user|voice|dialogue>]'); process.exit(1); }
+    break;
+  }
+
+  case 'lexicon': {
+    await requireSetup();
+    const { listCandidates, resolveCandidate } = await import(src('lexicon.js'));
+    const [sub, id] = args;
+    if (sub === 'approve' || sub === 'reject') {
+      const c = resolveCandidate(Number(id), sub === 'approve');
+      if (!c) { console.error('no pending candidate with that id'); process.exit(1); }
+      console.log(sub === 'approve'
+        ? `"${c.term}" added to persona/lexicon.md — edit the entry to sharpen it, then: glashaus persona sync`
+        : `"${c.term}" rejected.`);
+    } else {
+      const pending = listCandidates();
+      if (!pending.length) { console.log('no words waiting.'); break; }
+      for (const c of pending) console.log(`#${c.id}  ${c.term}${c.means ? ' — ' + c.means : ''}${c.example ? `\n     "${c.example}"` : ''}`);
+      console.log('\napprove with: glashaus lexicon approve <id>');
+    }
+    break;
+  }
+
+  case 'audition': {
+    await requireSetup();
+    if (!args[0]) { console.error('usage: glashaus audition <model>   (e.g. glashaus audition mag-mell:12b)'); process.exit(1); }
+    const { audition } = await import(src('audition.js'));
+    await audition(args[0]);
+    break;
+  }
+
+  case 'export-corpus': {
+    const { config } = await requireSetup();
+    const out = args[0] ?? `${config.home}/corpus-${new Date().toISOString().slice(0, 10)}.jsonl`;
+    const { exportCorpus } = await import(src('corpus.js'));
+    const { pairs, skipped } = exportCorpus(out);
+    console.log(`${pairs} exchange(s) exported to ${out}${skipped ? ` (${skipped} skipped: register/identity impurities)` : ''}`);
+    console.log('recipe: docs/fine-tune.md');
     break;
   }
 
