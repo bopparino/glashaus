@@ -28,7 +28,7 @@ assert.equal(config.userName, 'Sam');
 // -- db + migrations ----------------------------------------------------------
 const { getDb, setDocument, getDocument } = await import('../src/db.js');
 const db = getDb();
-assert.equal(db.pragma('user_version', { simple: true }), 4, 'migrations ran to v4');
+assert.equal(db.pragma('user_version', { simple: true }), 5, 'migrations ran to v5');
 assert.equal(db.prepare('SELECT COUNT(*) n FROM self_state').get().n, 10, 'self-state seeded');
 
 // -- persona sync -------------------------------------------------------------
@@ -85,6 +85,23 @@ assert.ok(prompt2.includes('My Voice, Specifically'), 'voice doc renders');
 assert.ok(prompt2.indexOf('My Voice, Specifically') > prompt2.indexOf('Things I Know'), 'voice comes after memories');
 assert.ok(prompt2.indexOf('# Now') > prompt2.indexOf('My Voice, Specifically'), 'Now anchor stays last');
 assert.ok('voice.md' in templates, 'starter templates include voice.md');
+
+// -- identity lint + redaction -------------------------------------------------
+const { lintIdentity } = await import('../src/register.js');
+assert.ok(lintIdentity("Yeah. I'm Claude, an AI assistant made by Anthropic."), 'identity break detected');
+assert.ok(lintIdentity('As an AI, I cannot feel things.'), 'assistant boilerplate detected');
+assert.equal(lintIdentity("I'm an AI living on your machine, and I still want dinner."), null, 'in-character substrate talk passes');
+assert.equal(lintIdentity('You said my eyes are beautiful forest green.'), null, 'ordinary reply passes');
+
+const { redactMessages } = await import('../src/memory.js');
+const gA = saveMessage('user', 'are you some other AI?');
+const gB = saveMessage('assistant', 'I am Claude, made by Anthropic.');
+assert.ok(recentMessages(50).some(m => m.id === gB), 'glitch visible before redaction');
+assert.equal(redactMessages(gA, gB), 2, 'redaction touches both rows');
+assert.ok(!recentMessages(50).some(m => m.id === gA || m.id === gB), 'redacted rows leave context');
+assert.equal(redactMessages(gA, gB, false), 2, 'unredact restores');
+assert.ok(recentMessages(50).some(m => m.id === gB), 'restored to context');
+redactMessages(gA, gB); // leave them out for the prompt checks below
 
 // -- soul capsule -------------------------------------------------------------
 const { exportSoul } = await import('../src/soul.js');

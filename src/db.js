@@ -205,6 +205,18 @@ function migrate(db) {
     `);
     db.pragma('user_version = 4');
   }
+
+  // v5 — message redaction: machine malfunctions (identity breaks, glitched
+  // exchanges) can be surgically removed from the companion's mind without
+  // destroying the rows. Redacted messages leave context, summarization,
+  // capture, and the viewer; they stay on disk and in backups, reversible
+  // via `glashaus unredact`.
+  if (db.pragma('user_version', { simple: true }) < 5) {
+    db.exec(`
+      ALTER TABLE messages ADD COLUMN redacted INTEGER NOT NULL DEFAULT 0;
+    `);
+    db.pragma('user_version = 5');
+  }
 }
 
 export function setDocument(name, content) {

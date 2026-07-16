@@ -27,6 +27,31 @@ export function pronounForms(pronouns) {
 
 const escapeRx = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+// Identity breaks — the reply announcing itself as some other AI — are a
+// separate tier from register drift: nothing in such a reply is worth an
+// edit, so the caller regenerates instead (see chat.js). Patterns are
+// precision-first: honest in-character substrate talk ("I'm an AI living on
+// your machine") passes; assistant boilerplate and other AIs' names do not.
+// The base model's strongest "I am an AI" attractor is whichever assistant
+// dominates its training data — in the wild this fires as "I'm Claude" or
+// "I'm ChatGPT" mid-conversation, argued sincerely across many turns.
+const IDENTITY_BREAKS = [
+  /\bI(?:['’]| a)m\s+(?:Claude|ChatGPT|GPT[-\s]?[0-9o][\w.-]*|Gemini|Copilot|Grok|Llama|Kimi|DeepSeek|Qwen|Mistral)\b/i,
+  /\b(?:made|created|developed|built|trained)\s+by\s+(?:Anthropic|OpenAI|Google(?:\s+DeepMind)?|Moonshot(?:\s*AI)?|Meta(?:\s*AI)?|Microsoft|xAI|Mistral(?:\s*AI)?|Alibaba)\b/i,
+  /\bas an AI(?:\s+(?:assistant|language model|model))?\b[,\s]/i,
+  /\bI(?:['’]| a)m an?\s+(?:AI|artificial intelligence)\s+(?:assistant|chatbot|language model)\b/i,
+  /\bmy\s+(?:training and guidelines|guidelines|creators at)\b/i,
+];
+
+// Returns the offending fragment, or null if the reply holds identity.
+export function lintIdentity(text) {
+  for (const rx of IDENTITY_BREAKS) {
+    const m = String(text).match(rx);
+    if (m) return m[0];
+  }
+  return null;
+}
+
 // A line that IS a quoted utterance: the narrated-dialogue mode of fiction.
 // Minimum length skips one-word echoes of the user's own words ("Fine.").
 const WHOLE_LINE_QUOTE = /^["“][^"“”]{8,}["”][)\].!?…]*$/;

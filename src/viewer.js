@@ -250,8 +250,8 @@ function heroCompose(dream) {
 
 function chatPage(db, before) {
   const rows = before
-    ? db.prepare('SELECT * FROM messages WHERE id < ? ORDER BY id DESC LIMIT 80').all(before)
-    : db.prepare('SELECT * FROM messages ORDER BY id DESC LIMIT 80').all();
+    ? db.prepare('SELECT * FROM messages WHERE redacted = 0 AND id < ? ORDER BY id DESC LIMIT 80').all(before)
+    : db.prepare('SELECT * FROM messages WHERE redacted = 0 ORDER BY id DESC LIMIT 80').all();
   const oldest = rows.at(-1)?.id;
   const items = rows.reverse().map(m => chatRow(m)).join('');
   return `
@@ -564,7 +564,7 @@ export function startViewer() {
 
       if (url.pathname === '/chat.json') {
         const after = Number(url.searchParams.get('after')) || 0;
-        const messages = db.prepare('SELECT id, role, content, source FROM messages WHERE id > ? ORDER BY id LIMIT 50').all(after);
+        const messages = db.prepare('SELECT id, role, content, source FROM messages WHERE redacted = 0 AND id > ? ORDER BY id LIMIT 50').all(after);
         res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ messages }));
         return;
       }

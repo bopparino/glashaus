@@ -19,6 +19,8 @@
 //   glashaus soul             export the personality-only capsule
 //   glashaus facts [word]     quick memory search in the terminal
 //   glashaus forget <id>      soft-forget a bad fact (reversible in the viewer)
+//   glashaus redact <a> [b]    cut a glitched message range from the companion's mind (reversible)
+//   glashaus unredact <a> [b]  restore a redacted range
 //   glashaus persona sync     push persona/*.md edits into the live documents
 //   glashaus persona edit <soul|identity|user|voice|dialogue>
 //   glashaus service install  start at login + survive crashes (launchd/systemd)
@@ -254,6 +256,21 @@ switch (cmd) {
       const { syncPersonaFromDisk } = await import(src('persona.js'));
       syncPersonaFromDisk();
     } else { console.error('usage: glashaus persona [sync | edit <soul|identity|user|voice|dialogue>]'); process.exit(1); }
+    break;
+  }
+
+  case 'redact': case 'unredact': {
+    await requireSetup();
+    const [from, to = args[0]] = args.map(Number);
+    if (!Number.isInteger(from) || !Number.isInteger(to) || to < from) {
+      console.error('usage: glashaus redact <fromId> [toId]   (ids from the viewer or `glashaus facts`-adjacent queries)');
+      process.exit(1);
+    }
+    const { redactMessages } = await import(src('memory.js'));
+    const n = redactMessages(from, to, cmd === 'redact');
+    console.log(cmd === 'redact'
+      ? `redacted ${n} message(s) [${from}..${to}] — gone from context, summaries, and the viewer; rows remain on disk (reversible: glashaus unredact ${from} ${to})`
+      : `restored ${n} message(s) [${from}..${to}]`);
     break;
   }
 

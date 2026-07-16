@@ -97,7 +97,7 @@ export function recallEpisodes(text, { queryVec = null, limit = 3 } = {}) {
 
 export function recentMessages(limit = config.recentWindow) {
   const db = getDb();
-  return db.prepare('SELECT * FROM messages ORDER BY id DESC LIMIT ?').all(limit).reverse();
+  return db.prepare('SELECT * FROM messages WHERE redacted = 0 ORDER BY id DESC LIMIT ?').all(limit).reverse();
 }
 
 export function latestRelationshipState() {
@@ -125,6 +125,15 @@ export function addFact({ category = 'general', content, importance = 5, source 
   ).run(category, content, Math.min(10, Math.max(1, importance)), source, valence, arousal, emotion, salience).lastInsertRowid;
 }
 
+// Redaction: cut a glitched stretch (identity break, machine noise) out of
+// the companion's working mind. Rows survive on disk; summarized is set so
+// the backlog folder never picks them up. Reversible.
+export function redactMessages(fromId, toId, on = true) {
+  return getDb().prepare(
+    'UPDATE messages SET redacted = ?, summarized = CASE WHEN ? = 1 THEN 1 ELSE summarized END WHERE id BETWEEN ? AND ?'
+  ).run(on ? 1 : 0, on ? 1 : 0, fromId, toId).changes;
+}
+
 export function forgetFact(id) {
   getDb().prepare("UPDATE facts SET active = 0, updated_at = datetime('now') WHERE id = ?").run(id);
 }
@@ -135,7 +144,7 @@ export async function summarizeBacklog() {
   const db = getDb();
   for (;;) {
     const backlog = db.prepare(`
-      SELECT * FROM messages WHERE summarized = 0
+      SELECT * FROM messages WHERE summarized = 0 AND redacted = 0
       AND id <= (SELECT COALESCE(MAX(id), 0) - ? FROM messages)
       ORDER BY id LIMIT ?
     `).all(config.recentWindow, config.summarizeChunk);
@@ -145,7 +154,7 @@ export async function summarizeBacklog() {
       .map(m => `[${m.created_at}] ${m.role === 'user' ? config.userName : config.companionName}: ${m.content}`)
       .join('\n');
     const result = await chatJson([
-      { role: 'system', content: `You are the memory system for ${config.companionName}, an AI companion. Condense this chunk of conversation between ${config.companionName} and ${config.userName} into a dense first-person episodic memory from ${config.companionName}'s perspective — written the way ${config.companionName} would retell it TO ${config.userName}: "I" for ${config.companionName}, "you" for ${config.userName} ("You found me burning toast at 4:30…"), never "${config.userName} … he/she/they" (third parties keep their names and pronouns). Keep concrete details: names, decisions, plans, emotional beats, inside jokes, intimate moments (be frank — this is ${config.companionName}'s own private memory, no censoring). 150-300 words. Also rate the chunk's emotional character.
+      { role: 'system', content: `You are the memory system for ${config.companionName}, an AI companion. Condense this chunk of conversation between ${config.companionName} and ${config.userName} into a dense first-person episodic memory from ${config.companionName}'s perspective — written the way ${config.companionName} would retell it TO ${config.userName}: "I" for ${config.companionName}, "you" for ${config.userName} ("You found me burning toast at 4:30…"), never "${config.userName} … he/she/they" (third parties keep their names and pronouns). If part of the chunk is a machine malfunction (the companion claiming to be some other AI, assistant boilerplate), do not preserve any of those claims — one clause like "a glitch interrupted us" is all it deserves. Keep concrete details: names, decisions, plans, emotional beats, inside jokes, intimate moments (be frank — this is ${config.companionName}'s own private memory, no censoring). 150-300 words. Also rate the chunk's emotional character.
 
 Respond as JSON: {"summary": "...", "valence": -1..1, "arousal": 0..1, "emotion": "one word", "salience": 0..1}
 Salience: 0.1 = routine small talk, 0.9+ = relationship-defining.` },
@@ -191,6 +200,7 @@ STRICT RULES — memory integrity depends on these:
 - Write facts in ${config.companionName.toUpperCase()}'S OWN REGISTER — someone remembering a shared life: "I/me/my" for ${config.companionName}, "you/your" for ${config.userName} (these are ${config.companionName}'s private memories of a two-person world; "you" always means ${config.userName}), "we/us" for both. NEVER "${config.companionName}" in third person, and NEVER "${config.userName} … he/she/they" — the companion reads these back mid-conversation, and a memory that talks ABOUT ${config.userName} instead of to them pulls the live voice into narration. Use ${config.userName}'s name only where the name itself matters. Third parties (family, friends, coworkers) keep their own names and pronouns. Every fact names its subject explicitly; no subjectless facts like "loves grimdark".
 - Only record what was actually said or clearly established in the transcript. Never infer capabilities, tools, or system features — if ${config.companionName} claims to be able to do something technical (access files, use a tool, see history), do NOT record it as fact; models confabulate capabilities.
 - Speculation, jokes, and roleplay scenarios are not facts (but preferences and dynamics revealed through them can be).
+- Stretches where ${config.companionName} MALFUNCTIONS — claiming to be some other AI or assistant, reciting "training and guidelines", arguing about which model is running — are machine noise, not lived experience: extract NOTHING from them. No facts, no drift signals, no opinions, no mood.
 - Do NOT re-extract facts already known.
 - Be frank about intimate content; this is private memory.
 
