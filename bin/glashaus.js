@@ -61,7 +61,25 @@ async function requireSetup() {
 }
 
 const pidfileOf = config => path.join(config.home, 'glashaus.pid');
+
+// Under a service manager the runtime never writes a pidfile — ask the
+// manager. Pidfile is the fallback for plain `glashaus start` background runs.
+function servicePid() {
+  if (process.platform === 'darwin') {
+    const out = sh('launchctl', ['print', `gui/${process.getuid()}/${PLIST_LABEL}`]).stdout ?? '';
+    const m = out.match(/^\s*pid = (\d+)/m);
+    return m ? Number(m[1]) : null;
+  }
+  const out = sh('systemctl', ['--user', 'show', '-p', 'MainPID', 'glashaus']).stdout ?? '';
+  const m = out.match(/MainPID=(\d+)/);
+  return m && m[1] !== '0' ? Number(m[1]) : null;
+}
+
 function livePid(config) {
+  if (serviceInstalled()) {
+    const pid = servicePid();
+    if (pid) return pid;
+  }
   try {
     const pid = Number(fs.readFileSync(pidfileOf(config), 'utf8').trim());
     if (pid) { process.kill(pid, 0); return pid; }
@@ -140,7 +158,8 @@ async function start(config) {
     fs.writeFileSync(pidfileOf(config), String(child.pid));
     child.unref();
   }
-  await new Promise(r => setTimeout(r, 1200));
+  // Service managers take a beat to spawn; poll before declaring death.
+  for (let i = 0; i < 6 && !livePid(config); i++) await new Promise(r => setTimeout(r, 500));
   if (!livePid(config)) {
     console.error('runtime died right after boot — last errors:');
     const errLog = path.join(config.logsDir, 'glashaus.err');
@@ -163,7 +182,10 @@ async function stop(config) {
     const orphans = (sh('ps', ['-eo', 'pid=,args=']).stdout ?? '').split('\n')
       .filter(l => /glashaus[/\\]src[/\\]index\.js/.test(l))
       .map(l => l.trim().split(/\s+/)[0]);
-    if (orphans.length === 1) {
+    if (serviceInstalled()) {
+      // launchd/systemd owns the runtime and was already told to stop —
+      // killing its child here just makes KeepAlive resurrect it.
+    } else if (orphans.length === 1) {
       // One runtime, no pidfile: a lost child (crashed start, manual boot,
       // deleted home). Adopt and stop it — that is what stop means.
       try { process.kill(Number(orphans[0])); console.log(`stopped orphan runtime pid ${orphans[0]}`); }
@@ -179,7 +201,7 @@ async function stop(config) {
 async function status(config) {
   const pid = livePid(config);
   console.log(pid
-    ? `up (pid ${pid}${serviceInstalled() ? ', service — auto-starts at login' : ', background'})`
+    ? `up (pid ${pid}${serviceInstalled() ? ', service — launchd/systemd keeps it alive' : ', background'})`
     : 'down');
   const log = path.join(config.logsDir, 'glashaus.log');
   if (fs.existsSync(log)) {

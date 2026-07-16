@@ -9,8 +9,27 @@ import { config } from './config.js';
 const BACKUP_DIR = config.backupDir;
 const PIDFILE = path.join(config.home, 'glashaus.pid');
 
-// Pidfile written by `glashaus start`; kill(pid, 0) probes liveness.
+// Service-managed runtimes never write a pidfile — ask launchd/systemd
+// first, fall back to the pidfile for plain background starts.
+const PLIST_LABEL = 'com.glashaus.runtime';
+function servicePid() {
+  try {
+    if (process.platform === 'darwin') {
+      const home = process.env.HOME ?? '';
+      if (!fs.existsSync(path.join(home, 'Library', 'LaunchAgents', `${PLIST_LABEL}.plist`))) return null;
+      const out = execSync(`launchctl print gui/${process.getuid()}/${PLIST_LABEL} 2>/dev/null`, { encoding: 'utf8' });
+      const m = out.match(/^\s*pid = (\d+)/m);
+      return m ? Number(m[1]) : null;
+    }
+    const out = execSync('systemctl --user show -p MainPID glashaus 2>/dev/null', { encoding: 'utf8' });
+    const m = out.match(/MainPID=(\d+)/);
+    return m && m[1] !== '0' ? Number(m[1]) : null;
+  } catch { return null; }
+}
+
 export function runtimePid() {
+  const managed = servicePid();
+  if (managed) return managed;
   try {
     const pid = Number(fs.readFileSync(PIDFILE, 'utf8').trim());
     if (pid) { process.kill(pid, 0); return pid; }
