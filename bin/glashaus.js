@@ -17,6 +17,7 @@
 //   glashaus purge            retire the companion: archive everything, wipe the brain — persona + config stay
 //   glashaus purge --all      …and persona, config, service too: an emptied home for a from-zero setup
 //   glashaus soul             export the personality-only capsule
+//   glashaus soul import <f>  pour a capsule into a FRESH brain (rebirth; see docs/moving.md)
 //   glashaus facts [word]     quick memory search in the terminal
 //   glashaus forget <id>      soft-forget a bad fact (reversible in the viewer)
 //   glashaus lexicon           words the companion wants to learn (approve/reject <id>)
@@ -224,7 +225,20 @@ switch (cmd) {
   case 'dream': { await requireSetup(); process.exit(run('dream.js', ['--now'])); }
   case 'tidy': { await requireSetup(); process.exit(run('consolidate.js', ['--now'])); }
   case 'backup': { await requireSetup(); process.exit(run('backup.js', ['--now'])); }
-  case 'soul': { await requireSetup(); process.exit(run('soul.js', ['--now'])); }
+  case 'soul': {
+    await requireSetup();
+    if (args[0] === 'import') {
+      if (!args[1] || !fs.existsSync(args[1])) { console.error('usage: glashaus soul import <capsule.json>'); process.exit(1); }
+      const { importSoul } = await import(src('soul.js'));
+      try {
+        const n = importSoul(args[1]);
+        console.log(`soul imported: ${n.documents} documents, ${n.facts} identity facts, ${n.dreams} dreams, ${n.opinions} opinions, ${n.quirks} quirks, ${n.events} drift events`);
+        console.log('persona files: run `glashaus persona sync` after exporting them, or edit persona/ yourself. She remembers who she is; the two of you rebuild the rest by living.');
+      } catch (err) { console.error(err.message); process.exit(1); }
+      break;
+    }
+    process.exit(run('soul.js', ['--now']));
+  }
   case 'doctor': { await requireSetup(); process.exit(run('doctor.js')); }
 
   case 'start': { const { config } = await requireSetup(); await start(config); break; }

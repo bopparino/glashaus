@@ -2,8 +2,10 @@
 // memory viewer + nightly dream/consolidation + proactive heartbeat +
 // daily backups.
 //   glashaus start  /  npm run bot
+import fs from 'node:fs';
+import path from 'node:path';
 import cron from 'node-cron';
-import { config, isConfigured } from './config.js';
+import { config, isConfigured, validateInstanceConfig } from './config.js';
 import { runDream } from './dream.js';
 import { consolidate } from './consolidate.js';
 import { heartbeat } from './heartbeat.js';
@@ -17,6 +19,24 @@ if (!isConfigured()) {
   console.error('No instance found. Run `glashaus setup` first.');
   process.exit(1);
 }
+
+const configErrors = await validateInstanceConfig();
+if (configErrors.length) {
+  console.error('config.json has problems — fix these and restart:');
+  for (const e of configErrors) console.error('  · ' + e);
+  process.exit(1);
+}
+
+// Boot ledger: doctor uses this to spot a service manager resurrecting a
+// crashing runtime over and over (which otherwise looks like "up").
+try {
+  fs.mkdirSync(config.logsDir, { recursive: true });
+  const ledger = path.join(config.logsDir, 'boots.log');
+  const boots = (fs.existsSync(ledger) ? fs.readFileSync(ledger, 'utf8').trim().split('\n') : [])
+    .filter(Boolean).slice(-19);
+  boots.push(new Date().toISOString());
+  fs.writeFileSync(ledger, boots.join('\n') + '\n');
+} catch { /* ledger is best-effort */ }
 
 // Persona files are the source of truth for identity docs — pick up edits
 // made while the service was down.

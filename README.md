@@ -150,7 +150,10 @@ evolution, dreams, proactive engagement. *Samantha-from-'Her' as north
 star, eyes open* — the depth comes from the scaffolding, and that isn't a
 limitation to apologize for; it's the project.
 
-Docs: [architecture](docs/architecture.md) ·
+[ROADMAP](ROADMAP.md) — what's next and what's deliberately never coming.
+
+Docs: [commands & config reference](docs/commands.md) ·
+[moving machines](docs/moving.md) · [architecture](docs/architecture.md) ·
 [customization](docs/customization.md) · [telegram](docs/telegram.md) ·
 [ethics & safety](docs/ethics.md)
 

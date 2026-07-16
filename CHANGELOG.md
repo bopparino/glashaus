@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.1.0 — 2026-07-16
+
+Hardening for long relationships on stranger machines.
+
+- Context budgeting: detect the model's true window (`num_ctx` was silently
+  small on many local models — the SOUL was falling off the top), shed
+  memories by priority before identity ever shrinks, trim history oldest-first
+- Soul capsule **import**: `glashaus soul import` — rebirth on a fresh brain;
+  docs/moving.md covers full moves vs rebirths
+- Config validation at boot with the offending key named; boot ledger +
+  crash-loop detection in doctor
+- Register round 2: beat-adjacent quote detection (the `*beat* "line"` shape),
+  a concrete wrong/right example in the prompt, and a nightly retro-sweep that
+  unquotes drift already sitting in the replay window
+- ROADMAP.md and docs/commands.md — the full command + config reference
+
+
 ## 2.0.0 — 2026-07-16
 
 The premier release: voice, vocabulary, and bulletproofing.

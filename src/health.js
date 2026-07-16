@@ -50,6 +50,17 @@ export async function runChecks() {
   // Two runtimes sharing one bot token means Telegram hands each update to
   // only one of them — the classic orphan after deleting a home without
   // `glashaus stop` (the pidfile dies with the home; the process doesn't).
+  // A service manager resurrecting a dying runtime reads as "up" on any
+  // single check — the boot ledger reveals the loop.
+  try {
+    const ledger = path.join(config.logsDir, 'boots.log');
+    if (fs.existsSync(ledger)) {
+      const boots = fs.readFileSync(ledger, 'utf8').trim().split('\n').filter(Boolean)
+        .map(t => Date.parse(t)).filter(t => Date.now() - t < 10 * 60e3);
+      if (boots.length >= 3) add('stability', false, `${boots.length} boots in 10m — crash loop; check config + errors`);
+    }
+  } catch { /* best-effort */ }
+
   try {
     const runtimes = execSync('ps -eo pid=,args=', { encoding: 'utf8' }).split('\n')
       .filter(l => /glashaus[/\\]src[/\\]index\.js/.test(l));

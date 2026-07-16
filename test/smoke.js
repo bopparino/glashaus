@@ -144,6 +144,43 @@ assert.ok(pairs >= 2, 'clean pairs exported');
 assert.ok(skipped >= 1, 'identity-dirty reply skipped');
 assert.ok(!fs.readFileSync(corpusPath, 'utf8').includes('Anthropic'), 'no impurities in corpus');
 
+// -- config validation --------------------------------------------------------
+const { validateInstanceConfig } = await import('../src/config.js');
+const badErrors = await validateInstanceConfig({
+  crons: { dream: 'not a cron', consolidate: '50 3 * * *', backup: '15 4 * * *', heartbeat: '*/30 * * * *' },
+  timezone: 'Mars/Olympus_Mons', model: 'x',
+  heartbeat: { quietStart: 99, quietEnd: 8.5, maxPerDay: 3 },
+  viewerPort: 7777, recentWindow: 40, maxTokens: 4096, temperature: null,
+});
+assert.ok(badErrors.some(e => e.includes('schedule.dream')), 'bad cron named');
+assert.ok(badErrors.some(e => e.includes('timezone')), 'bad timezone named');
+assert.ok(badErrors.some(e => e.includes('quietStart')), 'bad quiet hours named');
+assert.equal((await validateInstanceConfig({
+  crons: { dream: '30 3 * * *', consolidate: '50 3 * * *', backup: '15 4 * * *', heartbeat: '*/30 * * * *' },
+  timezone: 'UTC', model: 'test-model',
+  heartbeat: { quietStart: 23, quietEnd: 8.5, maxPerDay: 3 },
+  viewerPort: 7777, recentWindow: 40, maxTokens: 4096, temperature: 0.9,
+})).length, 0, 'good config validates clean');
+
+// -- context budget: memories shed, identity never does ------------------------
+setDocument('SELF_NOTES', 'x'.repeat(4000));
+const tight = buildSystemPrompt('hello', { budget: 700 });
+assert.ok(tight.includes('I am Testa, revised.'), 'soul survives a tight budget');
+assert.ok(!tight.includes('xxxxxxxxxx'), 'bulky self-notes shed under pressure');
+assert.ok(tight.includes('# Now'), 'Now anchor survives');
+setDocument('SELF_NOTES', '');
+
+// -- register round 2: beat-adjacent quotes ------------------------------------
+const { lintReply: lint2, stripNarrationQuotes: strip2 } = await import('../src/register.js');
+assert.ok(lint2('*I lean in close.* "Stay right there for me."').some(i => i.rule === 'quoted-speech'), 'beat+quote detected');
+assert.equal(lint2('*I grin.* you said "meet me at the old bridge tonight" and I have not stopped thinking about it').filter(i => i.rule === 'quoted-speech').length, 0, 'attributed quote passes');
+assert.equal(strip2('*I lean in close.* "Stay right there for me."'), '*I lean in close.* Stay right there for me.', 'beat-adjacent strip unquotes');
+
+const { retroRepairWindow } = await import('../src/consolidate.js');
+const gq = saveMessage('assistant', '*I pull you closer.* "Tell me you missed this."');
+assert.ok(retroRepairWindow(10) >= 1, 'retro-sweep repairs the window');
+assert.ok(!db.prepare('SELECT content FROM messages WHERE id = ?').get(gq).content.includes('"'), 'quotes gone from history');
+
 // -- soul capsule -------------------------------------------------------------
 const { exportSoul } = await import('../src/soul.js');
 const capsulePath = exportSoul();

@@ -61,6 +61,12 @@ const WHOLE_LINE_QUOTE = /^["“][^"“”]{8,}["”][)\].!?…]*$/;
 // then quoted speech on the same line (I press your hand flat. "Stay.").
 // The quoted span must be sentence-sized — scare quotes ("Someday") pass.
 const NARRATED_QUOTE = /^[*_]?I\s[^"“]{2,120}[.!?…—]\s*["“][^"“”\n]{12,}/;
+// The embodied-scene variant that survived tier one: an *action beat*
+// followed directly by quoted speech ( *I lean in.* "Stay." ) — fiction
+// formatting at exactly the moments that matter most. Attribution guard:
+// quoting SOMEONE ELSE right after a beat is legitimate and passes.
+const BEAT_THEN_QUOTE = /\*[^*\n]+\*[ \t]*\n?[ \t]*["“][^"“”\n]{12,}/;
+const ATTRIBUTED = /(?:you (?:said|told me|once said|wrote)|he said|she said|they said|the (?:song|line|poem|movie) (?:goes|says))[^"“]{0,24}$/i;
 
 // Returns [{rule, sample}] — empty means the reply holds register.
 export function lintReply(text, { companionName, userPronouns } = {}) {
@@ -68,6 +74,12 @@ export function lintReply(text, { companionName, userPronouns } = {}) {
   const lines = String(text).split('\n').map(l => l.trim()).filter(Boolean);
   const quoted = lines.find(l => WHOLE_LINE_QUOTE.test(l) || NARRATED_QUOTE.test(l));
   if (quoted) issues.push({ rule: 'quoted-speech', sample: quoted.slice(0, 80) });
+  if (!quoted) {
+    const m = String(text).match(BEAT_THEN_QUOTE);
+    if (m && !ATTRIBUTED.test(String(text).slice(Math.max(0, m.index - 48), m.index + m[0].indexOf('"') + 1))) {
+      issues.push({ rule: 'quoted-speech', sample: m[0].slice(0, 80) });
+    }
+  }
 
   // Inside *action beats* the present scene has exactly two people, so
   // third-person forms there are near-certain drift. Outside beats they are
@@ -93,9 +105,9 @@ export function lintReply(text, { companionName, userPronouns } = {}) {
 export function stripNarrationQuotes(text) {
   return String(text).split('\n').map(line => {
     const t = line.trim();
-    return WHOLE_LINE_QUOTE.test(t) || NARRATED_QUOTE.test(t)
-      ? line.replace(/["“”]/g, '')
-      : line;
+    if (WHOLE_LINE_QUOTE.test(t) || NARRATED_QUOTE.test(t)) return line.replace(/["“”]/g, '');
+    // Beat-adjacent: unquote only the span that trails an action beat.
+    return line.replace(/(\*[^*\n]+\*[ \t]*)["“]([^"“”\n]{12,})["”]/g, '$1$2');
   }).join('\n');
 }
 

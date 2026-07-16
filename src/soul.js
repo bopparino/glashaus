@@ -11,6 +11,48 @@ import { config } from './config.js';
 
 const BACKUP_DIR = config.backupDir;
 
+// The other half of the promise: a capsule can be poured into a FRESH brain.
+// This is rebirth, not restore — documents, self-state trajectory, opinions,
+// quirks, dreams, and identity facts return; messages and episodes don't
+// (memories can be rebuilt by living; this carries who she IS). For a full
+// machine move with every conversation intact, use the database backup and
+// `glashaus restore` instead — see docs/moving.md.
+export function importSoul(file) {
+  const capsule = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (capsule.format !== 'glashaus-soul-capsule') {
+    throw new Error('that file is not a glashaus soul capsule');
+  }
+  const db = getDb();
+  const life = db.prepare(
+    'SELECT (SELECT COUNT(*) FROM messages) m, (SELECT COUNT(*) FROM facts) f, (SELECT COUNT(*) FROM dreams) d'
+  ).get();
+  if (life.m || life.f || life.d) {
+    throw new Error('this brain already holds a life — a soul imports only into a fresh home. Full move: restore the database backup (glashaus restore). Rebirth here: glashaus purge first.');
+  }
+  const out = { documents: 0, history: 0, self_state: 0, events: 0, opinions: 0, quirks: 0, dreams: 0, facts: 0 };
+  db.transaction(() => {
+    const doc = db.prepare("INSERT INTO documents (name, content, updated_at) VALUES (?, ?, ?) ON CONFLICT(name) DO UPDATE SET content = excluded.content, updated_at = excluded.updated_at");
+    for (const d of capsule.documents ?? []) { doc.run(d.name, d.content, d.updated_at); out.documents++; }
+    const hist = db.prepare('INSERT INTO document_history (name, content, replaced_at) VALUES (?, ?, ?)');
+    for (const h of capsule.document_history ?? []) { hist.run(h.name, h.content, h.replaced_at); out.history++; }
+    const ss = db.prepare('UPDATE self_state SET value = ?, updated_at = ? WHERE dimension = ?');
+    for (const r of capsule.self_state ?? []) { out.self_state += ss.run(r.value, r.updated_at, r.dimension).changes; }
+    const ev = db.prepare('INSERT INTO self_state_events (dimension, old_value, new_value, signal, trigger, created_at) VALUES (?, ?, ?, ?, ?, ?)');
+    for (const e of capsule.self_state_events ?? []) { ev.run(e.dimension, e.old_value, e.new_value, e.signal, e.trigger, e.created_at); out.events++; }
+    const op = db.prepare('INSERT INTO opinions (claim, context, formed_at) VALUES (?, ?, ?)');
+    for (const o of capsule.opinions ?? []) { op.run(o.claim, o.context, o.formed_at); out.opinions++; }
+    const qk = db.prepare('INSERT INTO quirks (pattern, observed_count, first_seen, last_seen) VALUES (?, ?, ?, ?)');
+    for (const q of capsule.quirks ?? []) { qk.run(q.pattern, q.observed_count, q.first_seen, q.last_seen); out.quirks++; }
+    const dr = db.prepare('INSERT INTO dreams (date, content, epigraph, created_at) VALUES (?, ?, ?, ?)');
+    for (const d of capsule.dreams ?? []) { dr.run(d.date, d.content, d.epigraph ?? null, d.created_at); out.dreams++; }
+    const fa = db.prepare('INSERT INTO facts (category, content, importance, salience, emotion, valence, arousal, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    for (const f of capsule.identity_facts ?? []) { fa.run(f.category, f.content, f.importance, f.salience, f.emotion, f.valence, f.arousal, f.source ?? 'import', f.created_at, f.updated_at); out.facts++; }
+    const rs = db.prepare('INSERT INTO relationship_state (mood, notes, created_at) VALUES (?, ?, ?)');
+    for (const r of capsule.relationship_state ?? []) rs.run(r.mood, r.notes, r.created_at);
+  })();
+  return out;
+}
+
 export function exportSoul() {
   const db = getDb();
   const capsule = {

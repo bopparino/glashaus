@@ -13,8 +13,31 @@ import { getDb } from './db.js';
 import { chatJson } from './llm.js';
 import { addFact } from './memory.js';
 import { config } from './config.js';
+import { lintReply, stripNarrationQuotes } from './register.js';
 
 const MAX_MERGES = 12, MAX_DECAYS = 16, MAX_CONTRADICTIONS = 10, MAX_REGISTER = 20;
+
+// The replay window is the strongest register teacher there is — one quoted
+// reply that slipped through (or predates the guardrail) re-teaches the rut
+// for forty messages. Nightly, mechanically unquote what the linter flags in
+// recent history. Same transformation the send-time fallback applies; no
+// judgment calls, no LLM.
+export function retroRepairWindow(limit = 60) {
+  const db = getDb();
+  const rows = db.prepare(
+    "SELECT id, content FROM messages WHERE role = 'assistant' AND redacted = 0 ORDER BY id DESC LIMIT ?"
+  ).all(limit);
+  let repaired = 0;
+  const update = db.prepare("UPDATE messages SET content = ? WHERE id = ?");
+  for (const r of rows) {
+    if (!lintReply(r.content, { companionName: config.companionName, userPronouns: config.userPronouns })
+      .some(i => i.rule === 'quoted-speech')) continue;
+    const fixed = stripNarrationQuotes(r.content);
+    if (fixed !== r.content) { update.run(fixed, r.id); repaired++; }
+  }
+  if (repaired) console.log(`[register] retro-repaired ${repaired} quoted repl${repaired === 1 ? 'y' : 'ies'} in the replay window`);
+  return repaired;
+}
 
 export async function consolidate() {
   const db = getDb();
@@ -84,6 +107,7 @@ Respond as JSON: {
     registerFixes++;
   }
 
+  retroRepairWindow();
   console.log(`[consolidate] done: ${merges} merges, ${decays} decays, ${contradictions} contradictions flagged, ${registerFixes} register fixes`);
   return { merges, decays, contradictions, registerFixes };
 }

@@ -47,6 +47,31 @@ const pick = (envKey, fileVal, d) => env[envKey] ?? fileVal ?? d;
 // Env (GLASHAUS_*) overrides config.json overrides defaults. The flat key shape
 // is the engine's contract; config.json mirrors it in nested sections purely
 // for human editing.
+// Boot-time validation: a hand-edited config.json must fail LOUDLY with the
+// key named, never as a stack trace from deep inside node-cron — under a
+// service manager a silent boot death becomes an invisible crash loop.
+export async function validateInstanceConfig(cfg = config) {
+  const errors = [];
+  const { validate } = await import('node-cron');
+  for (const [name, expr] of Object.entries(cfg.crons)) {
+    if (!validate(expr)) errors.push(`schedule.${name}: "${expr}" is not a valid cron expression`);
+  }
+  try { new Intl.DateTimeFormat('en-US', { timeZone: cfg.timezone }); }
+  catch { errors.push(`timezone: "${cfg.timezone}" is not a valid IANA timezone`); }
+  if (!cfg.model) errors.push('ollama.model: no model configured — run `glashaus setup`');
+  const num = (label, v, lo, hi) => {
+    if (v != null && (Number.isNaN(v) || v < lo || v > hi)) errors.push(`${label}: ${v} is outside [${lo}..${hi}]`);
+  };
+  num('heartbeat.quietStart', cfg.heartbeat.quietStart, 0, 24);
+  num('heartbeat.quietEnd', cfg.heartbeat.quietEnd, 0, 24);
+  num('heartbeat.maxPerDay', cfg.heartbeat.maxPerDay, 0, 48);
+  num('viewer.port', cfg.viewerPort, 1, 65535);
+  num('context.recentWindow', cfg.recentWindow, 4, 400);
+  num('ollama.maxTokens', cfg.maxTokens, 64, 131072);
+  if (cfg.temperature != null) num('ollama.temperature', cfg.temperature, 0, 2);
+  return errors;
+}
+
 export const config = {
   appRoot,
   home,
@@ -78,6 +103,12 @@ export const config = {
   utilityModel: pick('GLASHAUS_UTILITY_MODEL', file.ollama?.utilityModel, null),
   embedModel: pick('GLASHAUS_EMBED_MODEL', file.ollama?.embedModel, 'nomic-embed-text'),
   maxTokens: num(pick('GLASHAUS_MAX_TOKENS', file.ollama?.maxTokens), 4096),
+  // Context window to request from Ollama. null = detect the model's real
+  // window at boot (capped at 32k for KV-cache sanity) — many models default
+  // to a small window and silently truncate FROM THE TOP, i.e. the SOUL.
+  numCtx: pick('GLASHAUS_NUM_CTX', file.ollama?.numCtx, null) !== null
+    ? Number(pick('GLASHAUS_NUM_CTX', file.ollama?.numCtx, null))
+    : null,
   // Sampling for conversational replies only; utility calls stay at model
   // defaults for determinism. null = leave it to the model.
   temperature: pick('GLASHAUS_TEMPERATURE', file.ollama?.temperature, null) !== null

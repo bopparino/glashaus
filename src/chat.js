@@ -1,4 +1,4 @@
-import { chat, chatStream } from './llm.js';
+import { chat, chatStream, getNumCtx, estimateTokens } from './llm.js';
 import { enforceRegister, lintIdentity } from './register.js';
 import { buildSystemPrompt } from './prompt.js';
 import { saveMessage, recentMessages, summarizeBacklog, captureFacts } from './memory.js';
@@ -23,8 +23,18 @@ async function exchange(text, { persist = true, images = [], onToken = null } = 
   // model is cold or slow, retrieval just runs without the vector branch.
   const queryVec = await embed(text, { timeoutMs: 1500 });
 
-  const system = buildSystemPrompt(text, { queryVec });
+  // Fit everything inside the model's real window: the system prompt gets
+  // ~55% (shedding memories before identity), the reply gets room to speak,
+  // and history gives up its OLDEST pairs first — never the persona.
+  const numCtx = await getNumCtx();
+  const system = buildSystemPrompt(text, { queryVec, budget: Math.floor(numCtx * 0.55) });
   const history = recentMessages().map(m => ({ role: m.role, content: m.content }));
+  const historyBudget = numCtx - estimateTokens(system) - Math.min(config.maxTokens, Math.floor(numCtx / 3)) - estimateTokens(text) - 300;
+  let historyTokens = history.reduce((a, m) => a + estimateTokens(m.content) + 4, 0);
+  while (history.length > 2 && historyTokens > historyBudget) {
+    historyTokens -= estimateTokens(history[0].content) + 4;
+    history.shift();
+  }
 
   const userMsg = { role: 'user', content: text };
   if (images.length) userMsg.images = images; // base64, current turn only

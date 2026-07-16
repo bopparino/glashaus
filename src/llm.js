@@ -6,6 +6,34 @@ import { config } from './config.js';
 // 'utility' is bookkeeping — capture, consolidation, dreams, register repair
 // (utilityModel, deterministic). Unset split-brain config collapses both
 // lanes onto `model`, which is the v1 behavior exactly.
+// Fast token estimate — chars/3.6 tracks English closely enough for
+// budgeting (we shed with margin, we don't bill by it).
+export const estimateTokens = s => Math.ceil(String(s ?? '').length / 3.6);
+
+// The context window we ask Ollama for. Detected once per model from
+// /api/show (models often DEFAULT to a small window and truncate from the
+// top of the prompt — which is the persona). Config numCtx overrides.
+const numCtxCache = new Map();
+export async function getNumCtx(model = modelFor('voice')) {
+  if (config.numCtx) return config.numCtx;
+  if (numCtxCache.has(model)) return numCtxCache.get(model);
+  let detected = 8192;
+  try {
+    const res = await fetch(`${config.ollamaUrl}/api/show`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model }),
+      signal: AbortSignal.timeout(4000),
+    });
+    const info = (await res.json()).model_info ?? {};
+    const key = Object.keys(info).find(k => k.endsWith('.context_length'));
+    if (key && Number(info[key]) > 0) detected = Number(info[key]);
+  } catch { /* offline — the default holds */ }
+  const ctx = Math.min(Math.max(detected, 2048), 32768);
+  numCtxCache.set(model, ctx);
+  return ctx;
+}
+
 const modelFor = role => (role === 'utility'
   ? config.utilityModel ?? config.model
   : config.voiceModel ?? config.model);
@@ -32,7 +60,7 @@ export async function chat(messages, opts = {}) {
   throw lastErr;
 }
 
-function body(messages, { json = false, maxTokens, think, role = 'voice', model, stream = false }) {
+function body(messages, { json = false, maxTokens, think, role = 'voice', model, stream = false, numCtx }) {
   const sampled = role === 'voice' && think !== false;
   return JSON.stringify({
     model: model ?? modelFor(role),
@@ -41,7 +69,9 @@ function body(messages, { json = false, maxTokens, think, role = 'voice', model,
     ...(think === false ? { think: false } : {}),
     ...(json ? { format: 'json' } : {}),
     options: {
-      num_predict: maxTokens ?? config.maxTokens,
+      ...(numCtx ? { num_ctx: numCtx } : {}),
+      // Reply length can never be allowed to eat the window.
+      num_predict: Math.min(maxTokens ?? config.maxTokens, numCtx ? Math.floor(numCtx / 3) : (maxTokens ?? config.maxTokens)),
       // sampling applies to the voice lane only — utility passes and repairs
       // want determinism; min_p keeps small local models out of the slop
       // tail without flattening the voice
@@ -52,10 +82,11 @@ function body(messages, { json = false, maxTokens, think, role = 'voice', model,
 }
 
 async function chatOnce(messages, opts = {}) {
+  const numCtx = opts.numCtx ?? await getNumCtx(opts.model ?? modelFor(opts.role ?? 'voice'));
   const res = await fetch(`${config.ollamaUrl}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: body(messages, opts),
+    body: body(messages, { ...opts, numCtx }),
   });
   if (!res.ok) {
     throw new Error(`Ollama ${res.status}: ${await res.text()}`);
@@ -69,10 +100,11 @@ async function chatOnce(messages, opts = {}) {
 // falls back to the non-streaming path — the caller always gets a reply.
 export async function chatStream(messages, { onToken, ...opts } = {}) {
   try {
+    const numCtx = opts.numCtx ?? await getNumCtx(opts.model ?? modelFor('voice'));
     const res = await fetch(`${config.ollamaUrl}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: body(messages, { role: 'voice', ...opts, stream: true }),
+      body: body(messages, { role: 'voice', ...opts, numCtx, stream: true }),
     });
     if (!res.ok || !res.body) throw new Error(`Ollama ${res.status}`);
     const reader = res.body.getReader();

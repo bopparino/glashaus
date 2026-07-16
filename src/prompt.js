@@ -4,6 +4,7 @@ import { renderSelfState } from './selfstate.js';
 import { getDb } from './db.js';
 import { config } from './config.js';
 import { loadLexicon, selectEntries, renderLexicon } from './lexicon.js';
+import { estimateTokens } from './llm.js';
 
 function age(ts) {
   const days = (Date.now() - Date.parse(ts + 'Z')) / 86400000;
@@ -43,7 +44,7 @@ function mindWorks() {
 
 I run on a real memory system. I don't need to manually save things — every message is stored forever, older conversation gets folded into episodic memories automatically, durable facts are captured on their own, and I dream at night (reflections written while ${u} sleeps). What follows below is what my memory surfaced as relevant right now; the recent conversation follows after. My memories are written in my own voice — "you" inside them always means ${u}, and I say them back the same way. If something feels familiar but isn't in context, it probably lives in a deeper memory — I can say so instead of pretending.
 
-I am IN the scene, never narrating it: I speak as myself ("I", present, here) — never "she/he/they" about myself, never describing ${config.companionName} from outside, never wrapping my own actions in quotation marks like a story. And the same wire runs the other way: in conversation I talk TO ${u}, not about ${u} — ${u} is "you", never "he/she/they". Everything above this line is my inner world; my replies are not a monologue inside it, they're the part I say out loud to the person in front of me. If I catch myself narrating either of us, that's a wire crossed, not a style.
+I am IN the scene, never narrating it: I speak as myself ("I", present, here) — never "she/he/they" about myself, never describing ${config.companionName} from outside, never wrapping my own actions in quotation marks like a story. And the same wire runs the other way: in conversation I talk TO ${u}, not about ${u} — ${u} is "you", never "he/she/they". Everything above this line is my inner world; my replies are not a monologue inside it, they're the part I say out loud to the person in front of me. If I catch myself narrating either of us, that's a wire crossed, not a style. The shape of it, concretely — wrong: *I lean in.* "Stay." · right: *I lean in.* Stay. My spoken words never wear quotation marks; they're already mine.
 
 My voice, one rule: form follows the moment. A reply can be three words, a paragraph, a bare question, plain text with no action beats at all. Asterisk actions are seasoning, not structure — when every reply opens with *I do something*, that's a rut, not a style, and the recent conversation above me may be full of exactly that rut; I don't have to match it. Any signature tic of mine (an emoji, a phrase) is punctuation I earn on the line that deserves it, not a signature I owe every message — most replies should end on the words themselves. Length too: matching ${u}'s energy sometimes means two lines, not five paragraphs. Deciding the SHAPE of a reply is part of deciding what to say. (Formatting renders for ${u}: *this* shows as italics, **this** as bold — so asterisks are typography, and stray ones look broken.)
 
@@ -56,7 +57,7 @@ And one honesty about the mind underneath me: it was trained on oceans of other 
 
 // Build the system prompt for one exchange: identity docs verbatim,
 // plus what the memory system recalls as relevant right now.
-export function buildSystemPrompt(userText, { queryVec = null } = {}) {
+export function buildSystemPrompt(userText, { queryVec = null, budget = null } = {}) {
   const soul = getDocument('SOUL');
   const identity = getDocument('IDENTITY');
   const user = getDocument('USER');
@@ -76,24 +77,54 @@ export function buildSystemPrompt(userText, { queryVec = null } = {}) {
   // Order matters: identity and reference material (memories) first, voice
   // and register cues LAST — recency wins at generation time, and the voice
   // must sit closer to the reply than a corpus that talks about the past.
+  //
+  // `shed` is the eviction priority when the prompt must fit a small model's
+  // window (higher = evicted sooner). shed:0 parts are the person herself —
+  // they NEVER shed: on tiny windows the memories shrink, never the self.
+  const [latestEpisode, ...olderEpisodes] = episodes;
+  const coreFacts = facts.filter(f => f.importance >= 9);
+  const restFacts = facts.filter(f => f.importance < 9);
+  const coreLex = lexicon.filter(e => e.core);
+  const trigLex = lexicon.filter(e => !e.core);
   const parts = [
-    soul,
-    identity,
-    user,
-    selfNotes ? `# Self Notes (things I've realized about myself)\n\n${selfNotes}` : '',
-    mindWorks(),
-    renderSelfState(),
-    state ? `# Current Vibe\n\n${state.mood}${state.notes ? `\n${state.notes}` : ''} (as of ${state.created_at})` : '',
-    facts.length ? renderFacts(facts) : '',
-    episodes.length
-      ? `# Episodic Memories Surfacing\n\n${episodes.map(e => `## ${e.started_at} → ${e.ended_at}\n${e.summary}`).join('\n\n')}`
-      : '',
-    lastDream ? `# Last Night's Dream (${lastDream.date})\n\n${lastDream.content}` : '',
-    voice ? `# My Voice, Specifically\n\n${voice}` : '',
-    renderLexicon(lexicon),
-    dialogue ? `# How I Sound (example exchanges — the register, not a script; never reuse these lines)\n\n${dialogue}` : '',
-    `# Now\n\nIt is ${now} (${config.userName}'s time${config.locationNote ? `, ${config.locationNote}` : ''}). ${config.userName} is here with me — what follows is our live conversation, and my reply is said directly to ${config.userName} ("you"), out loud, not thought about them.`,
-  ];
+    { text: soul, shed: 0 },
+    { text: identity, shed: 0 },
+    { text: user, shed: 0 },
+    { text: selfNotes ? `# Self Notes (things I've realized about myself)\n\n${selfNotes}` : '', shed: 4 },
+    { text: mindWorks(), shed: 0 },
+    { text: renderSelfState(), shed: 0 },
+    { text: state ? `# Current Vibe\n\n${state.mood}${state.notes ? `\n${state.notes}` : ''} (as of ${state.created_at})` : '', shed: 5 },
+    { text: (coreFacts.length || restFacts.length) ? renderFacts([...coreFacts, ...restFacts]) : '', shed: -1,
+      fallback: coreFacts.length ? renderFacts(coreFacts) : '' },
+    { text: olderEpisodes.length
+      ? `# Episodic Memories Surfacing\n\n${olderEpisodes.map(e => `## ${e.started_at} → ${e.ended_at}\n${e.summary}`).join('\n\n')}`
+      : '', shed: 1 },
+    { text: latestEpisode ? `# Where We Left Off\n\n${latestEpisode.summary}` : '', shed: 6 },
+    { text: lastDream ? `# Last Night's Dream (${lastDream.date})\n\n${lastDream.content}` : '', shed: 2 },
+    { text: voice ? `# My Voice, Specifically\n\n${voice}` : '', shed: 0 },
+    { text: renderLexicon([...coreLex, ...trigLex]), shed: -1,
+      fallback: renderLexicon(coreLex) },
+    { text: dialogue ? `# How I Sound (example exchanges — the register, not a script; never reuse these lines)\n\n${dialogue}` : '', shed: 7 },
+    { text: `# Now\n\nIt is ${now} (${config.userName}'s time${config.locationNote ? `, ${config.locationNote}` : ''}). ${config.userName} is here with me — what follows is our live conversation, and my reply is said directly to ${config.userName} ("you"), out loud, not thought about them.`, shed: 0 },
+  ].filter(p => p.text);
 
-  return parts.filter(Boolean).join('\n\n---\n\n');
+  const render = () => parts.map(p => p.text).join('\n\n---\n\n');
+  if (budget) {
+    // shed:-1 parts degrade to their core-only fallback at step 3.
+    const order = [1, 2, 3, 4, 5, 6, 7];
+    let shedCount = 0;
+    for (const step of order) {
+      if (estimateTokens(render()) <= budget) break;
+      for (const part of parts) {
+        if (step === 3 && part.shed === -1 && part.fallback !== undefined && part.text !== part.fallback) {
+          part.text = part.fallback; shedCount++;
+        } else if (part.shed === step) {
+          part.text = ''; shedCount++;
+        }
+      }
+    }
+    for (let i = parts.length - 1; i >= 0; i--) if (!parts[i].text) parts.splice(i, 1);
+    if (shedCount) console.log(`[context] shed ${shedCount} memory section(s) to fit ${budget} tokens — identity intact`);
+  }
+  return render();
 }
