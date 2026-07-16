@@ -121,8 +121,8 @@ assert.ok(lex[0].core && !lex[1].core, 'core flag parsed');
 assert.equal(selectEntries(lex, 'nothing relevant').length, 1, 'core always rides');
 assert.equal(selectEntries(lex, 'did biscuit come by?').length, 2, 'trigger matches on term');
 const lp = buildSystemPrompt('did biscuit come by today?');
-assert.ok(lp.includes('# My Words') && lp.includes('balcony squirrel'), 'lexicon renders into prompt');
-assert.ok(!buildSystemPrompt('completely unrelated').includes('balcony squirrel'), 'untriggered entry stays out');
+assert.ok(lp.includes('# My Words') && lp.includes("neighbor's cat"), 'lexicon renders into prompt');
+assert.ok(!buildSystemPrompt('completely unrelated').includes("neighbor's cat"), 'untriggered entry stays out');
 
 const cid = addLexiconCandidate({ term: 'grimdark', means: 'the flavor of doom we like', example: 'full grimdark tonight' });
 assert.ok(cid, 'candidate stored');
