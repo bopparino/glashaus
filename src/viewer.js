@@ -594,6 +594,14 @@ export function startViewer() {
       res.writeHead(500).end(String(err));
     }
   });
+  server.on('error', err => {
+    console.error(err.code === 'EADDRINUSE'
+      ? `[viewer] port ${PORT} is already taken — another glashaus runtime? (glashaus stop, then retry)`
+      : `[viewer] ${err.message}`);
+    // Inside the runtime a dead viewer means a half-alive companion — exit
+    // loudly so the service manager (or the human) restarts things cleanly.
+    process.exit(1);
+  });
   server.listen(PORT, BIND, () => {
     console.log(`glashaus: http://${BIND}:${PORT}`);
   });

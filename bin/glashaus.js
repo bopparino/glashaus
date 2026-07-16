@@ -141,6 +141,14 @@ async function start(config) {
     child.unref();
   }
   await new Promise(r => setTimeout(r, 1200));
+  if (!livePid(config)) {
+    console.error('runtime died right after boot — last errors:');
+    const errLog = path.join(config.logsDir, 'glashaus.err');
+    if (fs.existsSync(errLog)) {
+      console.error(fs.readFileSync(errLog, 'utf8').trim().split('\n').slice(-5).map(l => '  ' + l).join('\n'));
+    }
+    process.exit(1);
+  }
   await status(config);
 }
 
@@ -155,9 +163,14 @@ async function stop(config) {
     const orphans = (sh('ps', ['-eo', 'pid=,args=']).stdout ?? '').split('\n')
       .filter(l => /glashaus[/\\]src[/\\]index\.js/.test(l))
       .map(l => l.trim().split(/\s+/)[0]);
-    if (orphans.length) {
-      console.log(`…but found ${orphans.length} glashaus runtime(s) this home didn't start: pid ${orphans.join(', ')}`);
-      console.log('if that\'s an orphan from a deleted/old home:  kill ' + orphans.join(' '));
+    if (orphans.length === 1) {
+      // One runtime, no pidfile: a lost child (crashed start, manual boot,
+      // deleted home). Adopt and stop it — that is what stop means.
+      try { process.kill(Number(orphans[0])); console.log(`stopped orphan runtime pid ${orphans[0]}`); }
+      catch { /* raced away */ }
+    } else if (orphans.length) {
+      console.log(`…but found ${orphans.length} glashaus runtimes this home didn't start: pid ${orphans.join(', ')}`);
+      console.log('multiple instances may be intentional — stop the right one yourself: kill <pid>');
     }
   }
   fs.rmSync(pidfileOf(config), { force: true });
