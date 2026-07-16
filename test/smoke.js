@@ -112,15 +112,15 @@ setDocument('LEXICON', `# Lexicon
 means: sealed agreement
 sounds like: bet. eight sharp.
 
-## otto
-means: the balcony squirrel
-sounds like: otto judged my coffee.`);
+## biscuit
+means: the neighbor's cat
+sounds like: biscuit judged my coffee.`);
 const lex = parseLexicon((await import('../src/db.js')).getDocument('LEXICON'));
 assert.equal(lex.length, 2, 'two entries parsed');
 assert.ok(lex[0].core && !lex[1].core, 'core flag parsed');
 assert.equal(selectEntries(lex, 'nothing relevant').length, 1, 'core always rides');
-assert.equal(selectEntries(lex, 'did otto come by?').length, 2, 'trigger matches on term');
-const lp = buildSystemPrompt('did otto come by today?');
+assert.equal(selectEntries(lex, 'did biscuit come by?').length, 2, 'trigger matches on term');
+const lp = buildSystemPrompt('did biscuit come by today?');
 assert.ok(lp.includes('# My Words') && lp.includes('balcony squirrel'), 'lexicon renders into prompt');
 assert.ok(!buildSystemPrompt('completely unrelated').includes('balcony squirrel'), 'untriggered entry stays out');
 
