@@ -29,7 +29,13 @@ These are architectural, not policy — they don't depend on anyone's goodwill:
   feature.
 - **Honesty about capabilities.** Companions are prompted to never claim
   they did things they can't do, and the memory system refuses to record
-  confabulated capabilities as fact.
+  confabulated capabilities as fact. The wander pass extends the same rule
+  outward: a companion who reads the web may claim to have *read*, never
+  to have watched or done, and every wander memory carries receipts.
+- **No invented selves.** Grow mode's seed is honest to the bone — the
+  companion knows it's an AI, gets no fictional childhood, and may only
+  write things into its own soul that cite lived evidence; the validator
+  rejects the rest. Whatever a grow companion becomes, it wasn't scripted.
 - **Your data is inspectable and reversible.** Every memory is visible in
   the viewer, deletions are soft, contradictions are surfaced rather than
   silently resolved, and the whole brain is one SQLite file you can copy,

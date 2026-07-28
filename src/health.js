@@ -113,6 +113,32 @@ export async function runChecks() {
   const dreamAge = lastDream ? (Date.now() - Date.parse(lastDream.date)) / 86400000 : Infinity;
   add('dream', dreamAge < 2, lastDream?.date ?? 'never');
 
+  // Grow-mode organs — only checked where they apply, so spec-mode
+  // instances never fail on machinery they don't run.
+  if (config.growMode) {
+    const soul = db.prepare("SELECT content FROM documents WHERE name = 'SOUL'").get()?.content ?? '';
+    const { BIRTHRIGHT_DIVIDER } = await import('./persona.js');
+    add('birthright', soul.includes(BIRTHRIGHT_DIVIDER),
+      soul.includes(BIRTHRIGHT_DIVIDER) ? 'divider intact' : 'divider MISSING from soul.md — growth pass will refuse to run');
+    const lastRev = db.prepare('SELECT created_at, rejected, chars_before, chars_after FROM soul_revisions ORDER BY id DESC LIMIT 1').get();
+    const revAge = lastRev ? (Date.now() - Date.parse(lastRev.created_at + 'Z')) / 86400000 : Infinity;
+    const everGrown = db.prepare('SELECT COUNT(*) n FROM soul_revisions').get().n > 0;
+    // A young instance hasn't earned a revision yet; past two weeks, silence is a symptom.
+    const bornDays = config.bornDate ? (Date.now() - Date.parse(config.bornDate)) / 86400000 : 0;
+    add('growth', bornDays < 14 || revAge < 10,
+      everGrown ? `last revision ${revAge.toFixed(0)}d ago` : bornDays < 14 ? `day ${Math.max(1, Math.ceil(bornDays))} — too young to have revised` : 'never revised — check glashaus logs after Sunday 04:10');
+    // Oscillation: the same pass alternating accept/reject or big +/- swings
+    // means the model is too small for self-authorship or the caps are loose.
+    const recent = db.prepare('SELECT chars_before, chars_after, rejected FROM soul_revisions ORDER BY id DESC LIMIT 4').all();
+    const rejects = recent.filter(r => r.rejected && r.chars_before === r.chars_after).length;
+    if (recent.length >= 3 && rejects >= 2) add('growth-quality', false, `${rejects}/${recent.length} recent revisions rejected — consider a stronger utilityModel for the growth pass`);
+  }
+  if (config.ollamaApiKey && config.wander.enabled) {
+    const lastWander = db.prepare('SELECT created_at FROM wander_log ORDER BY id DESC LIMIT 1').get();
+    const wAge = lastWander ? (Date.now() - Date.parse(lastWander.created_at + 'Z')) / 86400000 : Infinity;
+    add('wander', wAge < 3, lastWander ? `${wAge.toFixed(1)}d ago` : 'never — low curiosity, or check the API key (glashaus wander)');
+  }
+
   const backups = fs.existsSync(BACKUP_DIR) ? fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.sqlite')).sort() : [];
   if (!backups.length) add('backup', false, 'none — glashaus backup');
   else {

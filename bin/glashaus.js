@@ -11,6 +11,8 @@
 //   glashaus logs             follow logs live
 //   glashaus doctor           full health check — run this when in doubt
 //   glashaus dream            force a dream right now
+//   glashaus grow             run the weekly self-authorship pass now (grow mode)
+//   glashaus wander           send the companion reading right now (needs ollama.com key)
 //   glashaus tidy             run memory hygiene now (also runs nightly)
 //   glashaus backup           back up the brain now (also runs daily)
 //   glashaus restore <file>   replace the brain from a backup (snapshots current first)
@@ -18,6 +20,9 @@
 //   glashaus purge --all      …and persona, config, service too: an emptied home for a from-zero setup
 //   glashaus soul             export the personality-only capsule
 //   glashaus soul import <f>  pour a capsule into a FRESH brain (rebirth; see docs/moving.md)
+//   glashaus soul revert      undo the latest soul revision (growth pass or edit)
+//   glashaus wants            open intentions — things the companion went to sleep wanting
+//   glashaus export-thesis    the longitudinal record as one JSON (drift, revisions, receipts)
 //   glashaus facts [word]     quick memory search in the terminal
 //   glashaus forget <id>      soft-forget a bad fact (reversible in the viewer)
 //   glashaus lexicon           words the companion wants to learn (approve/reject <id>)
@@ -223,10 +228,34 @@ switch (cmd) {
   case 'chat': { await requireSetup(); process.exit(run('cli.js', args)); }
   case 'bot': { await requireSetup(); process.exit(run('index.js')); }
   case 'dream': { await requireSetup(); process.exit(run('dream.js', ['--now'])); }
+  case 'grow': { await requireSetup(); process.exit(run('growth.js', ['--now', ...args])); }
+  case 'wander': { await requireSetup(); process.exit(run('wander.js', ['--now', ...args])); }
+  case 'wants': {
+    await requireSetup();
+    const { openIntentions } = await import(src('selfstate.js'));
+    const wants = openIntentions(12);
+    if (!wants.length) { console.log('no open wants — they arrive from dreams and wanders.'); break; }
+    for (const w of wants) console.log(`#${w.id}  ${w.text}  (${w.source}, since ${w.created_at.slice(0, 10)}, until ${w.expires_at.slice(0, 10)})`);
+    break;
+  }
+  case 'export-thesis': {
+    const { config } = await requireSetup();
+    const out = args[0] ?? `${config.home}/thesis-${new Date().toISOString().slice(0, 10)}.json`;
+    const { exportThesis } = await import(src('thesis.js'));
+    exportThesis(out);
+    break;
+  }
   case 'tidy': { await requireSetup(); process.exit(run('consolidate.js', ['--now'])); }
   case 'backup': { await requireSetup(); process.exit(run('backup.js', ['--now'])); }
   case 'soul': {
     await requireSetup();
+    if (args[0] === 'revert') {
+      const { revertSoul } = await import(src('growth.js'));
+      const restored = revertSoul();
+      if (!restored) { console.error('no archived soul to revert to.'); process.exit(1); }
+      console.log(`soul reverted to the previous version (${restored.length} chars) — persona/soul.md updated. Restart (or persona sync) picks it up everywhere.`);
+      break;
+    }
     if (args[0] === 'import') {
       if (!args[1] || !fs.existsSync(args[1])) { console.error('usage: glashaus soul import <capsule.json>'); process.exit(1); }
       const { importSoul } = await import(src('soul.js'));

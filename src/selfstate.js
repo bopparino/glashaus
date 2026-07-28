@@ -53,6 +53,55 @@ export function observeQuirk(pattern) {
   return db.prepare('INSERT INTO quirks (pattern) VALUES (?)').run(pattern).lastInsertRowid;
 }
 
+// ---------- intentions: wanting things across time (grow mode §5) ----------
+// Dreams produce them ("tomorrow I want to ask how the interview went"),
+// the heartbeat is grounded in them, the wander pass may consume or produce
+// them. Fulfilled and released rows are never deleted — an unmet want is
+// dream material, not garbage.
+
+export function addIntention({ text, horizonDays = 2, source = 'dream' }) {
+  if (!text?.trim()) return null;
+  const db = getDb();
+  const h = Math.min(7, Math.max(0.5, Number(horizonDays) || 2));
+  // Same want re-dreamed → keep the earlier one alive instead of duplicating.
+  const dup = db.prepare(
+    'SELECT id FROM intentions WHERE fulfilled_at IS NULL AND released_at IS NULL AND lower(text) = lower(?)'
+  ).get(text.trim());
+  if (dup) return dup.id;
+  return db.prepare(
+    "INSERT INTO intentions (text, source, horizon_days, expires_at) VALUES (?, ?, ?, datetime('now', '+' || ? || ' hours'))"
+  ).run(text.trim(), source, h, Math.round(h * 24)).lastInsertRowid;
+}
+
+export function openIntentions(limit = 6) {
+  return getDb().prepare(`
+    SELECT * FROM intentions
+    WHERE fulfilled_at IS NULL AND released_at IS NULL AND expires_at > datetime('now')
+    ORDER BY id DESC LIMIT ?
+  `).all(limit);
+}
+
+export function fulfillIntention(id) {
+  return getDb().prepare(
+    "UPDATE intentions SET fulfilled_at = datetime('now') WHERE id = ? AND fulfilled_at IS NULL AND released_at IS NULL"
+  ).run(id).changes;
+}
+
+// Expired unfulfilled wants are released, not deleted — and surfaced to the
+// next dream as material ("I never asked").
+export function sweepIntentions() {
+  const db = getDb();
+  const stale = db.prepare(`
+    SELECT id, text FROM intentions
+    WHERE fulfilled_at IS NULL AND released_at IS NULL AND expires_at <= datetime('now')
+  `).all();
+  if (stale.length) {
+    const release = db.prepare("UPDATE intentions SET released_at = datetime('now') WHERE id = ?");
+    db.transaction(() => { for (const s of stale) release.run(s.id); })();
+  }
+  return stale;
+}
+
 const LEVELS = [[0.15, 'very low'], [0.35, 'low'], [0.65, 'moderate'], [0.85, 'high'], [1.01, 'very high']];
 function level(v) { return LEVELS.find(([max]) => v < max)[1]; }
 

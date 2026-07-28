@@ -9,6 +9,9 @@ import { config, isConfigured, validateInstanceConfig } from './config.js';
 import { runDream } from './dream.js';
 import { consolidate } from './consolidate.js';
 import { heartbeat } from './heartbeat.js';
+import { runGrowth } from './growth.js';
+import { runWander } from './wander.js';
+import { fulfillIntention } from './selfstate.js';
 import { saveMessage } from './memory.js';
 import { runBackup } from './backup.js';
 import { backfillEmbeddings } from './embeddings.js';
@@ -64,17 +67,32 @@ cron.schedule(config.crons.consolidate, () => consolidate().catch(err => console
 cron.schedule(config.crons.backup, () => runBackup().catch(err => console.error('[backup]', err.message)), tz);
 runBackup().catch(err => console.error('[backup]', err.message));
 
+// Grow mode: the weekly self-authorship pass — she revises her own soul from
+// lived evidence (src/growth.js; every revision archived + reversible).
+if (config.growMode) {
+  cron.schedule(config.crons.growth, () => runGrowth().catch(err => console.error('[growth]', err.message)), tz);
+}
+
+// The wander pass: daytime reading of her own choosing (needs an ollama.com
+// API key; gates on curiosity and caps per day inside runWander).
+if (config.ollamaApiKey && config.wander.enabled) {
+  cron.schedule(config.crons.wander, () => runWander().catch(err => console.error('[wander]', err.message)), tz);
+}
+
 // Heartbeat: on each tick the companion considers reaching out — grounded in
-// real state, capped per day, quiet hours respected. Most ticks choose silence.
-// With Telegram, outreach persists only after delivery confirms; without it,
-// the message lands in the webview chat stream (visible next time it's open).
+// real state (including open intentions), capped per day, quiet hours
+// respected. Most ticks choose silence. With Telegram, outreach persists only
+// after delivery confirms; without it, the message lands in the webview chat
+// stream (visible next time it's open). An intention this message acts on is
+// marked fulfilled under the same rule: delivery first.
 cron.schedule(config.crons.heartbeat, async () => {
   try {
-    const message = await heartbeat({ pendingMorning: pendingMorningMessage });
-    if (message) {
-      if (telegram) await telegram.sendToOwner(message); // throws on failure — nothing persists
+    const out = await heartbeat({ pendingMorning: pendingMorningMessage });
+    if (out) {
+      if (telegram) await telegram.sendToOwner(out.text); // throws on failure — nothing persists
       pendingMorningMessage = null;
-      saveMessage('assistant', message, 'outreach');
+      saveMessage('assistant', out.text, 'outreach');
+      if (out.intentionId) fulfillIntention(out.intentionId);
     }
   } catch (err) {
     console.error('[heartbeat]', err.message);
@@ -84,7 +102,7 @@ cron.schedule(config.crons.heartbeat, async () => {
 // Backfill embeddings for anything that predates the vector branch.
 backfillEmbeddings(200).then(n => n && console.log(`[embed-backfill] ${n} memories embedded`)).catch(() => {});
 
-console.log(`${config.companionName} is up — model ${config.model}, viewer http://${config.viewerBind}:${config.viewerPort}, telegram ${telegram ? 'on' : 'off'}`);
+console.log(`${config.companionName} is up — model ${config.model}, viewer http://${config.viewerBind}:${config.viewerPort}, telegram ${telegram ? 'on' : 'off'}${config.growMode ? ', growing' : ''}${config.ollamaApiKey && config.wander.enabled ? ', wandering' : ''}`);
 
 if (telegram) {
   // If long-polling dies fatally, exit so the service manager resurrects the

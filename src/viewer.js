@@ -144,6 +144,9 @@ async function todayPage(db) {
   });
 
   const beats = db.prepare('SELECT * FROM heartbeat_log ORDER BY id DESC LIMIT 4').all();
+  const wants = db.prepare(`
+    SELECT * FROM intentions WHERE fulfilled_at IS NULL AND released_at IS NULL
+    AND expires_at > datetime('now') ORDER BY id DESC LIMIT 4`).all();
   const now = new Date().toLocaleString('en-US', { timeZone: config.timezone, weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
 
   return `
@@ -184,6 +187,10 @@ async function todayPage(db) {
       <span class="lbl" style="font-weight:700${b.decision === 'reached' ? ';color:var(--ink)' : ''}">${esc(b.decision)}</span>
       <span>${esc(b.reason ?? '')}</span>
     </div>`).join('') || '<p class="soft">no decisions yet — she checks every 30 minutes.</p>'}
+    ${wants.length ? `
+    <div style="display:flex;gap:14px;margin:22px 0 10px"><span class="lbl soft">carrying wants</span><span class="soft lbl">what she went to sleep wanting</span></div>
+    ${wants.map(w => `<div style="display:grid;grid-template-columns:82px 1fr;gap:0 18px;padding:5px 0;line-height:1.7">
+      <span class="soft lbl">${esc(w.source)}</span><span>${esc(w.text)}</span></div>`).join('')}` : ''}
     <p class="soft lbl" style="margin-top:24px">usually declines. this is normal.</p>
   </section>
   <section style="padding:26px 32px 34px;border-left:1px solid var(--line)" aria-label="memory overnight">
@@ -377,27 +384,37 @@ ${rows.map(f => `<tr class="${f.active ? '' : 'inactive'}">
 function journalPage(db) {
   const dreams = db.prepare('SELECT * FROM dreams ORDER BY id DESC LIMIT 40').all();
   const episodes = db.prepare('SELECT * FROM episodes ORDER BY id DESC LIMIT 60').all();
+  // Wander receipts: an episode born from her own reading is labeled as such,
+  // with what she actually read one hover away.
+  const wanderBy = new Map(db.prepare('SELECT episode_id, topic, urls FROM wander_log WHERE episode_id IS NOT NULL').all()
+    .map(w => [w.episode_id, w]));
+  const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
   return `
-<h2 class="sec"><span class="lbl">[ Journal ]</span><span class="soft lbl">the pages she writes · dreams and episodes</span></h2>
+<h2 class="sec"><span class="lbl">[ Journal ]</span><span class="soft lbl">the pages she writes · dreams, episodes, wanders</span></h2>
 <div class="grid2">
 <section aria-label="dreams">
   ${dreams.map(d => `
   <article style="padding:26px 0;border-bottom:1px solid var(--line)">
-    <div style="display:flex;gap:16px;margin-bottom:16px"><span class="lbl">[ Dream ]</span><span class="soft num lbl">${esc(d.date)}</span><span class="soft lbl num">[ 03:30 ]</span></div>
+    <div style="display:flex;gap:16px;margin-bottom:16px"><span class="lbl">[ Dream ]</span><span class="soft num lbl">${esc(d.date)}</span><span class="soft lbl num">[ 03:30 ]</span>${d.emotion ? `<span class="soft lbl">${esc(d.emotion)}${d.valence != null ? ` · v ${d.valence.toFixed(1)}` : ''}</span>` : ''}</div>
     ${d.epigraph ? `<p class="display" style="font-size:clamp(22px,2.4vw,32px);margin-bottom:18px">${esc(d.epigraph)}</p>` : ''}
     <p style="white-space:pre-wrap;line-height:1.9;letter-spacing:.04em">${esc(d.content)}</p>
   </article>`).join('') || '<p class="soft" style="padding:20px 0">no dreams yet.</p>'}
 </section>
 <section aria-label="episodes">
-  ${episodes.map(e => `
+  ${episodes.map(e => {
+    const w = wanderBy.get(e.id);
+    const urls = w ? JSON.parse(w.urls) : [];
+    return `
   <article style="padding:26px 0;border-bottom:1px solid var(--line)">
     <div style="display:flex;gap:14px;margin-bottom:14px;flex-wrap:wrap">
-      <span class="lbl">[ Episode #${e.id} ]</span>
-      <span class="soft lbl num">${stamp(e.started_at)} → ${stamp(e.ended_at).slice(5)}</span>
+      <span class="lbl">[ ${w ? 'Wander' : `Episode #${e.id}`} ]</span>
+      <span class="soft lbl num">${stamp(e.started_at)}${w ? '' : ` → ${stamp(e.ended_at).slice(5)}`}</span>
       <span class="soft lbl num">${esc(e.emotion ?? '')}${e.salience != null ? ` · s ${e.salience.toFixed(1)}` : ''}</span>
     </div>
     <p style="white-space:pre-wrap;line-height:1.9;letter-spacing:.04em">${esc(e.summary)}</p>
-  </article>`).join('') || '<p class="soft" style="padding:20px 0">no episodes yet.</p>'}
+    ${w ? `<p class="soft lbl" style="margin-top:12px">read: ${urls.slice(0, 4).map(u => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(host(u))}</a>`).join(' · ')}${urls.length > 4 ? ` · +${urls.length - 4}` : ''}</p>` : ''}
+  </article>`;
+  }).join('') || '<p class="soft" style="padding:20px 0">no episodes yet.</p>'}
 </section>
 </div>`;
 }
@@ -467,6 +484,34 @@ function driftSection(db) {
 
 /* ---------------- SELF ---------------- */
 
+// Grow mode: the identity ledger — every self-authored soul revision with
+// the evidence it cited. This page IS the thesis, rendered.
+function growthSection(db) {
+  const revisions = db.prepare('SELECT * FROM soul_revisions ORDER BY id DESC LIMIT 20').all();
+  if (!config.growMode && !revisions.length) return '';
+  const bornDays = config.bornDate ? Math.max(1, Math.floor((Date.now() - Date.parse(config.bornDate + 'T00:00:00Z')) / 86400000) + 1) : null;
+  return `
+<h2 class="sec"><span class="lbl">[ Growth ]</span>
+  <span class="soft lbl">the soul, self-authored weekly from lived evidence${bornDays ? ` · day ${bornDays}` : ''}</span>
+  <span class="soft lbl">every revision reversible: glashaus soul revert</span></h2>
+${revisions.map(r => {
+  const changes = JSON.parse(r.changelog);
+  const rej = r.rejected ? JSON.parse(r.rejected) : null;
+  const refused = rej && !changes.length;
+  return `
+<article style="padding:18px 0;border-bottom:1px solid var(--line)${refused ? ';opacity:.55' : ''}">
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:${changes.length ? '10px' : '0'}">
+    <span class="lbl">${refused ? '<span class="red">[ Refused ]</span>' : '[ Revision ]'}</span>
+    <span class="soft lbl num">${stamp(r.created_at)}</span>
+    <span class="soft lbl num">${r.chars_before} → ${r.chars_after} chars</span>
+    ${refused ? `<span class="soft lbl">${esc(rej.reason ?? 'no evidence cited')}</span>` : ''}
+  </div>
+  ${changes.map(c => `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px;padding:5px 0;line-height:1.7">
+    <span>${esc(c.change)}</span><span class="soft">⟵ ${esc(c.evidence)}</span></div>`).join('')}
+</article>`;
+}).join('') || `<p class="soft">no revisions yet — the first one needs lived evidence to cite${bornDays ? ` (day ${bornDays})` : ''}.</p>`}`;
+}
+
 function selfPage(db) {
   const state = getSelfState();
   const events = db.prepare('SELECT * FROM self_state_events ORDER BY id DESC LIMIT 40').all();
@@ -476,7 +521,8 @@ function selfPage(db) {
   const layer = l => state.filter(r => r.layer === l).map(r =>
     `<div class="trow"><span class="k">${esc(r.dimension)}</span><span class="v num">${r.value.toFixed(3)}</span></div>`).join('');
   return `
-<h2 class="sec"><span class="lbl">[ Self ]</span><span class="soft lbl">who ${esc(WHO_COMP)} is becoming · identity core never drifts</span></h2>
+<h2 class="sec"><span class="lbl">[ Self ]</span><span class="soft lbl">who ${esc(WHO_COMP)} is becoming · ${config.growMode ? 'the birthright never drifts; the rest is hers to write' : 'identity core never drifts'}</span></h2>
+${growthSection(db)}
 ${driftSection(db)}
 <div class="grid2" style="margin-top:26px">
 <div>
@@ -523,6 +569,8 @@ async function systemPage() {
   <div class="trow"><span class="k soft">window</span><span class="v num">${config.recentWindow} msgs</span></div>
   <div class="trow"><span class="k soft">dream</span><span class="v num">${esc(config.crons.dream)}</span></div>
   <div class="trow"><span class="k soft">heartbeat</span><span class="v num">${esc(config.crons.heartbeat)} · max ${config.heartbeat.maxPerDay}/day</span></div>
+  <div class="trow"><span class="k soft">mode</span><span class="v">${config.growMode ? `grow — born ${esc(config.bornDate || '?')} · growth ${esc(config.crons.growth)}` : 'spec (persona authored)'}</span></div>
+  <div class="trow"><span class="k soft">wander</span><span class="v">${config.ollamaApiKey ? (config.wander.enabled ? `${esc(config.crons.wander)} · max ${config.wander.maxPerDay}/day` : 'key set · disabled') : 'off (no ollama.com key)'}</span></div>
 </div>
 <div>
   <h2 class="sec"><span class="lbl soft">log</span></h2>

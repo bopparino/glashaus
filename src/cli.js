@@ -6,7 +6,7 @@
 import readline from 'node:readline/promises';
 import { handleUserMessage } from './chat.js';
 import { getDb } from './db.js';
-import { getSelfState } from './selfstate.js';
+import { getSelfState, openIntentions } from './selfstate.js';
 import { latestRelationshipState } from './memory.js';
 import { listCandidates } from './lexicon.js';
 import { redactMessages } from './memory.js';
@@ -40,6 +40,7 @@ const COMMANDS = {
       ['/facts [word]', 'what I know (optionally filtered)'],
       ['/mood', 'where we are — vibe and relational state'],
       ['/dream', 'last night, in my own words'],
+      ['/wants', 'things I went to sleep wanting'],
       ['/lex', 'words I want to learn (pending lexicon candidates)'],
       ['/redact-last', 'unhappen the last exchange (reversible)'],
       ['/ephemeral', 'toggle whether this session is remembered'],
@@ -70,6 +71,14 @@ const COMMANDS = {
     if (d.epigraph) console.log('  ' + brass(`“${d.epigraph}”`));
     console.log('  ' + faint(d.date));
     console.log(italic('  ' + d.content.split('\n').join('\n  ')));
+  },
+
+  '/wants': () => {
+    const wants = openIntentions(8);
+    if (!wants.length) return console.log(faint('  nothing open — wants arrive from dreams and wanders.'));
+    for (const w of wants) {
+      console.log('  ' + brass(`#${w.id}`) + ' ' + w.text + faint(`  (${w.source}, since ${w.created_at.slice(5, 10)})`));
+    }
   },
 
   '/lex': () => {

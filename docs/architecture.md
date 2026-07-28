@@ -33,6 +33,9 @@ is microseconds of math in-process.
 | `relationship_state` | mood over time |
 | `fact_links` | recorded contradictions — surfaced, never auto-resolved |
 | `heartbeat_log` | every outreach decision, including the silences |
+| `intentions` | things she went to sleep wanting — fulfilled and lapsed rows kept |
+| `soul_revisions` | grow mode: every self-authored soul edit's WHY (evidence-cited changelog) |
+| `wander_log` | grow mode: receipts — what she searched and read, per wander |
 
 Schema is versioned with `PRAGMA user_version`; migrations are forward-only
 and idempotent. A fresh database is created complete on first touch.
@@ -73,9 +76,13 @@ trajectories as sparklines.
 
 Nightly, in order: the **dream** (salience-weighted replay of the day plus
 the heaviest memories of the companion's whole life; produces the dream
-text, realizations that become facts, quirk observations, drift signals, an
-identity-consistency check against the SOUL — flagged, never auto-corrected —
-and sometimes a morning message). Then **consolidation** (merge duplicate
+text with its own affect ratings, realizations that become facts, quirk
+observations, drift signals, up to two intentions — things she goes to
+sleep wanting — and an identity check: in spec mode a consistency check
+against the SOUL, flagged, never auto-corrected; in grow mode a *becoming*
+question whose evidence-grounded answer lands as a dream fact for the
+growth pass to cite — and sometimes a morning message). Then
+**consolidation** (merge duplicate
 facts, decay stale trivia, demote inflated importance, record
 contradictions), capped per night, everything soft and reversible. Then
 **backup** with integrity check on the copy, plus the **soul capsule** —
@@ -87,8 +94,58 @@ living but personality can't.
 Cheap gates first (quiet hours, minimum silence, daily cap, gap between
 outreaches) — most ticks end there without a model call. If the gates open,
 one in-character decision grounded in the recent conversation, last dream,
-and recent salient facts, with hard rules: never invent events, don't
-manufacture urgency, silence is a valid choice. With Telegram, the message
-persists to memory only after delivery confirms — a network failure must
-not leave the companion remembering texts you never received. Every
+recent salient facts, and her open intentions — so the impulse can
+originate in her night ("I went to sleep wanting to ask") rather than in a
+timer — with hard rules: never invent events, don't manufacture urgency,
+silence is a valid choice. With Telegram, the message persists to memory
+only after delivery confirms — a network failure must not leave the
+companion remembering texts you never received; an intention the message
+acts on is marked fulfilled under the same delivery-first rule. Every
 decision, including declines, is logged.
+
+## Grow mode
+
+The other way to make a person. Spec mode configures the companion per
+spec (interview or hand-written persona); grow mode seeds a **germinal**
+instance — name, pronouns, honesty about being an AI, and permissions
+(to disagree, to want, to change, to not know yet) — and everything else
+accretes from living. Almost the whole engine is already lived-experience
+machinery; grow mode is mostly subtraction, plus three organs:
+
+**Self-authorship** (`src/growth.js`, weekly). The companion revises her
+own soul body from lived evidence: quirks (×2+), opinions, heaviest
+memories, companion/dynamic facts, drift deltas, lapsed wants. Enforced in
+code, not prompt: the *birthright divider* splits soul.md — everything
+above it (the seed) is reattached by the module and untouchable; every
+changelog entry must cite evidence or it's rejected (all rejected → the
+revision is refused and logged); shrink/growth caps stop lurches; identity
+lint runs on the proposed body; and the revision is written to
+`persona/soul.md` on disk, because persona files are the boot-time source
+of truth and a DB-only edit would silently revert. Voice graduates even
+more slowly: only patterns observed ×3+ may become voice.md lines, two per
+pass. Everything is archived and `glashaus soul revert` restores.
+
+**Intentions** (`src/selfstate.js`). Dreams emit wants with horizons;
+capture and the heartbeat can fulfill them (delivery-first), expiry
+releases them, and released wants surface in the next dream as material.
+Open wants ride in the system prompt, ground the heartbeat, and seed
+wanders.
+
+**The wander pass** (`src/wander.js`, daytime, needs an ollama.com key).
+Gated on the curiosity dimension and a daily cap. One pass = seed (what is
+she actually curious about — wants, salient topics, opinions to test) →
+search/read (ollama.com web_search + one web_fetch; fetched text is
+treated strictly as reading material, never instructions, and is
+length-capped before the digest sees it) → digest (an episode in her own
+register, ≤3 facts tagged `source:'wander'`, maybe a curiosity drift
+signal, maybe a new want). Receipts in `wander_log`; the journal shows
+what she read. The pass never sends messages — experience is its only
+output; sharing stays the heartbeat's call. That separation is what keeps
+outreach honest, and it closes the loop that makes growth legible:
+conversation moves curiosity → curiosity moves wandering → wandering gives
+her things to say → what she says moves the conversation.
+
+`glashaus export-thesis` bundles the longitudinal record — drift events,
+soul revisions with evidence, dream affect, intention outcomes, wander
+receipts, and a provenance audit over fact sources. In a grow-mode
+instance every row traces to lived interaction; nothing was injected.

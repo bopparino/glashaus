@@ -2,7 +2,7 @@ import { getDb } from './db.js';
 import { chat, chatJson } from './llm.js';
 import { config } from './config.js';
 import { embed, cosine } from './embeddings.js';
-import { applyDrift, addOpinion } from './selfstate.js';
+import { applyDrift, addOpinion, openIntentions, fulfillIntention } from './selfstate.js';
 import { addLexiconCandidate } from './lexicon.js';
 
 // ---------- retrieval (glashaus §3.4 hybrid — pure SQL + math, no LLM calls) ----------
@@ -190,6 +190,7 @@ export async function captureFacts() {
 
   const existing = db.prepare('SELECT content FROM facts WHERE active = 1 ORDER BY updated_at DESC LIMIT 60')
     .all().map(f => `- ${f.content}`).join('\n');
+  const wants = openIntentions(6);
 
   const result = await chatJson([
     { role: 'system', content: `You are the memory system for ${config.companionName}, an AI companion in an ongoing relationship with ${config.userName}. Extract NEW durable facts from the conversation below — things worth remembering weeks from now.
@@ -214,8 +215,11 @@ You may also report drift signals for ${config.companionName}'s self-state — O
 And optionally: an opinion ${config.companionName} genuinely formed (a stance, not a fact), and a one-line mood read.
 
 Also nominate LEXICON candidates — at most 2, usually 0: only words/phrases actually used in the transcript that a general model likely wouldn't know or that these two use in their own way (slang, coinages, names of creatures/things in their world, community vocabulary). NEVER standard English used normally, never a word already known.
-
-Respond as JSON: {"facts": [{"category": "user|companion|dynamic|project|general", "content": "...", "importance": 1-10, "valence": 0, "arousal": 0, "emotion": "...", "salience": 0}], "self_state_signals": {"warmth": 0.9}, "opinion": null, "mood": "...", "mood_changed": false, "lexicon": [{"term": "...", "means": "...", "example": "how it sounded in the transcript"}]}
+${wants.length ? `
+${config.companionName} has open INTENTIONS (things they went to sleep wanting). If the transcript clearly shows one was acted on — the thing got asked, said, or addressed — report its id in "fulfilled_intentions". Only what visibly happened; wanting it harder is not fulfillment.
+${wants.map(w => `- [#${w.id}] ${w.text}`).join('\n')}
+` : ''}
+Respond as JSON: {"facts": [{"category": "user|companion|dynamic|project|general", "content": "...", "importance": 1-10, "valence": 0, "arousal": 0, "emotion": "...", "salience": 0}], "self_state_signals": {"warmth": 0.9}, "opinion": null, "mood": "...", "mood_changed": false, "lexicon": [{"term": "...", "means": "...", "example": "how it sounded in the transcript"}]${wants.length ? ', "fulfilled_intentions": [ids]' : ''}}
 
 Already known:
 ${existing || '(nothing yet)'}` },
@@ -234,5 +238,10 @@ ${existing || '(nothing yet)'}` },
   if (result.mood && result.mood_changed) {
     db.prepare('INSERT INTO relationship_state (mood, notes) VALUES (?, ?)')
       .run(result.mood, null);
+  }
+  // Only ids that name an actually-open intention count — models freelance
+  // ids, and a wrong fulfillment silently kills a real want.
+  for (const id of (result.fulfilled_intentions ?? []).map(Number)) {
+    if (wants.some(w => w.id === id)) fulfillIntention(id);
   }
 }

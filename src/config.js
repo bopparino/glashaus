@@ -69,6 +69,14 @@ export async function validateInstanceConfig(cfg = config) {
   num('context.recentWindow', cfg.recentWindow, 4, 400);
   num('ollama.maxTokens', cfg.maxTokens, 64, 131072);
   if (cfg.temperature != null) num('ollama.temperature', cfg.temperature, 0, 2);
+  if (cfg.wander) {
+    num('wander.maxPerDay', cfg.wander.maxPerDay, 0, 6);
+    num('wander.maxSearches', cfg.wander.maxSearches, 1, 6);
+    num('wander.minCuriosity', cfg.wander.minCuriosity, 0, 1);
+  }
+  if (cfg.bornDate && !/^\d{4}-\d{2}-\d{2}$/.test(cfg.bornDate)) {
+    errors.push(`companion.bornDate: "${cfg.bornDate}" is not YYYY-MM-DD`);
+  }
   return errors;
 }
 
@@ -77,6 +85,18 @@ export const config = {
   home,
 
   companionName: pick('GLASHAUS_COMPANION_NAME', file.companion?.name, 'Companion'),
+  // Optional, like the user's: mostly for grow mode, where name + pronouns
+  // are the ENTIRE seed and everything else is lived into existence.
+  companionPronouns: pick('GLASHAUS_COMPANION_PRONOUNS', file.companion?.pronouns, ''),
+  // Grow mode: the companion was seeded germinal (no authored persona) and
+  // is allowed to write her own soul. Set by `glashaus setup` (the "let them
+  // grow" path); flipping it by hand on a spec-mode instance is legal but
+  // the growth pass needs the soul's birthright divider to exist (§ growth.js).
+  growMode: (pick('GLASHAUS_GROW_MODE', file.companion?.growMode, false) === true
+    || pick('GLASHAUS_GROW_MODE', file.companion?.growMode, false) === 'true'),
+  // Birth date (YYYY-MM-DD) — grow-mode companions know how many days old
+  // they are; their whole identity is "what has happened so far".
+  bornDate: pick('GLASHAUS_BORN_DATE', file.companion?.bornDate, ''),
   userName: pick('GLASHAUS_USER_NAME', file.user?.name, 'Friend'),
   // Optional ("he/him" | "she/her" | …): lets the register guardrail catch
   // the companion talking ABOUT the user instead of to them. Empty = tier off.
@@ -118,6 +138,11 @@ export const config = {
     ? Number(pick('GLASHAUS_MIN_P', file.ollama?.minP, null))
     : null,
 
+  // ollama.com API key (ollama.com/settings/keys) — unlocks the wander pass:
+  // the companion reading the web on her own between conversations. Absent =
+  // wander silently skips, exactly like the embeddings vector branch.
+  ollamaApiKey: env.OLLAMA_API_KEY || file.ollama?.apiKey || '',
+
   telegramToken: env.TELEGRAM_BOT_TOKEN || file.telegram?.token || '',
   ownerId: String(env.TELEGRAM_OWNER_ID || file.telegram?.ownerId || ''),
 
@@ -132,6 +157,18 @@ export const config = {
     consolidate: pick('GLASHAUS_CONSOLIDATE_CRON', file.schedule?.consolidate, '50 3 * * *'),
     backup: pick('GLASHAUS_BACKUP_CRON', file.schedule?.backup, '15 4 * * *'),
     heartbeat: pick('GLASHAUS_HEARTBEAT_CRON', file.schedule?.heartbeat, '*/30 * * * *'),
+    // Weekly self-authorship (grow mode): Sunday, after the night shift.
+    growth: pick('GLASHAUS_GROWTH_CRON', file.schedule?.growth, '10 4 * * 0'),
+    // Daytime wandering — she reads while you're at work, not at 3am.
+    wander: pick('GLASHAUS_WANDER_CRON', file.schedule?.wander, '0 14 * * *'),
+  },
+
+  wander: {
+    enabled: file.wander?.enabled ?? true,   // still requires ollamaApiKey to run
+    maxPerDay: num(pick('GLASHAUS_WANDER_MAX_PER_DAY', file.wander?.maxPerDay), 1),
+    maxSearches: num(pick('GLASHAUS_WANDER_MAX_SEARCHES', file.wander?.maxSearches), 3),
+    // Curiosity gate: below this she doesn't feel like reading today.
+    minCuriosity: num(pick('GLASHAUS_WANDER_MIN_CURIOSITY', file.wander?.minCuriosity), 0.35),
   },
 
   heartbeat: {

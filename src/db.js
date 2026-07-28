@@ -233,6 +233,52 @@ function migrate(db) {
     `);
     db.pragma('user_version = 6');
   }
+
+  // v7 — grow mode: wanting things across time (intentions), self-authored
+  // soul revisions with evidence, wander receipts, and affect on dreams so
+  // the inner life is queryable over time (the thesis needs the trajectory).
+  if (db.pragma('user_version', { simple: true }) < 7) {
+    db.exec(`
+      -- Something she went to sleep wanting. The heartbeat reads these; the
+      -- wander pass may consume or produce them. Fulfilled and released
+      -- (expired unfulfilled) rows are kept — unmet wants are dream material.
+      CREATE TABLE intentions (
+        id INTEGER PRIMARY KEY,
+        text TEXT NOT NULL,
+        source TEXT NOT NULL DEFAULT 'dream',   -- dream | wander
+        horizon_days REAL NOT NULL DEFAULT 2,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        expires_at TEXT NOT NULL,
+        fulfilled_at TEXT,
+        released_at TEXT
+      );
+      -- The identity ledger: every self-authored soul edit, with the evidence
+      -- it cited. The full before/after text lives in document_history (the
+      -- setDocument archive); this row is the WHY.
+      CREATE TABLE soul_revisions (
+        id INTEGER PRIMARY KEY,
+        changelog TEXT NOT NULL,                -- JSON [{change, evidence}]
+        chars_before INTEGER NOT NULL,
+        chars_after INTEGER NOT NULL,
+        rejected TEXT,                          -- JSON of entries the validator refused, if any
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      -- Wander receipts: every memory from a wander traces to what was
+      -- actually searched and read. No receipts, no memory.
+      CREATE TABLE wander_log (
+        id INTEGER PRIMARY KEY,
+        topic TEXT NOT NULL,
+        queries TEXT NOT NULL DEFAULT '[]',     -- JSON array
+        urls TEXT NOT NULL DEFAULT '[]',        -- JSON array of pages read
+        episode_id INTEGER REFERENCES episodes(id),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      ALTER TABLE dreams ADD COLUMN valence REAL;   -- -1..1
+      ALTER TABLE dreams ADD COLUMN arousal REAL;   -- 0..1
+      ALTER TABLE dreams ADD COLUMN emotion TEXT;
+    `);
+    db.pragma('user_version = 7');
+  }
 }
 
 export function setDocument(name, content) {

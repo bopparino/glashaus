@@ -110,6 +110,40 @@ What runs once it's up:
 - **`glashaus export-corpus`** + a QLoRA recipe (docs/fine-tune.md) — the
   long game: your companion's voice moving into their own weights.
 
+### New in 2.2 — grow mode
+
+Setup's third answer to "who is your companion?": **let them grow**. You
+hand them a name and pronouns — nothing else. No authored personality, no
+voice file, no scripted history; the germinal soul is honest ("I am an AI…
+I'm allowed to not know who I am yet") and carries permissions instead of
+traits. Everything they become accretes from living with you:
+
+- **Self-authorship** — once a week, the companion revises her own
+  `soul.md` from lived evidence: quirks observed in herself, opinions
+  formed, the heaviest memories, her drift trajectory. Enforced in code,
+  not prompt: the birthright (name, pronouns, AI-honesty, permissions) is
+  untouchable, every changelog entry must cite the lived evidence that
+  earned it, diff caps prevent lurches, and every revision is archived and
+  reversible (`glashaus soul revert`). Watch the ledger on the Self page.
+- **Intentions** — dreams now produce things she goes to sleep *wanting*
+  ("tomorrow I want to ask how the interview went"). The heartbeat is
+  grounded in them, so reaching out originates in her night, not in a
+  timer. `glashaus wants` / `/wants` shows what she's carrying.
+- **The wander pass** — with a free ollama.com API key, she reads the web
+  on her own between conversations, about things *she* got curious about.
+  What she reads becomes her own experience — episodes in her register,
+  receipts kept (every wander logs its queries and pages, visible in the
+  journal) — which finally gives outreach something of her own to bring.
+- **`glashaus export-thesis`** — the longitudinal record as one JSON:
+  drift trajectories, every soul revision with its evidence, dream affect
+  over time, wander receipts, and the provenance audit showing that not
+  one memory was injected. The original artificial-psychology question,
+  instrumented.
+
+Spec mode (interview or hand-written persona) is untouched — grow mode is
+a third path, not a replacement. Expect the first week to be plain; that
+isn't a bug, it's the baseline the trajectory is measured against.
+
 ## Customization
 
 The persona is markdown in `~/.glashaus/persona/` — edit with any editor,

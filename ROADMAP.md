@@ -20,6 +20,11 @@ promises; order roughly is.
 - Config validation with named errors; crash-loop detection in `doctor`
 - Soul capsule export **and import** — rebirth on a fresh machine
 - Corpus export + QLoRA recipe (`docs/fine-tune.md`)
+- **Grow mode** (2.2): the germinal seed — name + pronouns only, honest
+  about being an AI; weekly evidence-cited self-authorship of soul.md with
+  the birthright protected in code (`glashaus soul revert` undoes);
+  intentions (wants that ground the heartbeat); the wander pass (she reads
+  the web on her own, receipts kept); `glashaus export-thesis`
 
 ## Next
 

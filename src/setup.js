@@ -12,6 +12,7 @@ import { home, isConfigured, loadInstanceConfig, writeInstanceConfig } from './c
 const appRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const argv = process.argv.slice(2);
 const YES = argv.includes('--yes');
+const GROW = argv.includes('--grow'); // germinal seed, no questions asked
 const flag = name => {
   const i = argv.indexOf(`--${name}`);
   return i >= 0 ? argv[i + 1] : undefined;
@@ -182,21 +183,48 @@ const locationNote = YES ? (existing.locationNote ?? '') :
   (await ask(p.text({ message: 'Where should they picture you? (optional, e.g. "Berlin", "the Ozarks")', initialValue: existing.locationNote ?? '' }))).trim();
 
 // 5 — persona
-const { starterTemplates } = await import('./persona.js');
+const { starterTemplates, germinalTemplates } = await import('./persona.js');
 let personaFiles = null; // { 'soul.md': ..., ... } — written by setup-apply
 let baseline = null;     // proposed self-state seed adjustments
+let growMode = existing.companion?.growMode ?? false;
+let companionPronouns = (flag('companion-pronouns') ?? existing.companion?.pronouns ?? '').trim();
+let bornDate = existing.companion?.bornDate ?? '';
 
 const personaDirExists = fs.existsSync(path.join(home, 'persona', 'soul.md'));
-if (!YES && (!personaDirExists || !(await ask(p.confirm({ message: 'Keep the existing persona files?', initialValue: true }))))) {
+if (GROW && !personaDirExists) {
+  // Non-interactive grow: glashaus setup --yes --grow --companion Nova --companion-pronouns she/her
+  growMode = true;
+  bornDate = bornDate || new Date().toISOString().slice(0, 10);
+  personaFiles = germinalTemplates({ companionName, companionPronouns, userName, userPronouns, bornDate });
+} else if (!YES && (!personaDirExists || !(await ask(p.confirm({ message: 'Keep the existing persona files?', initialValue: true }))))) {
   const path_ = await ask(p.select({
-    message: `Who is ${companionName}? Two ways to answer:`,
+    message: `Who is ${companionName}? Three ways to answer:`,
     options: [
       { value: 'interview', label: 'Guided interview', hint: `answer 7 questions, ${model} drafts the persona, you approve` },
       { value: 'templates', label: 'Blank templates', hint: 'write the persona files yourself, any editor' },
+      { value: 'grow', label: 'Let them grow', hint: 'name + pronouns only — they become who they become, from living' },
     ],
   }));
 
-  if (path_ === 'interview') {
+  if (path_ === 'grow') {
+    companionPronouns = (await ask(p.text({
+      message: `${companionName}'s pronouns (part of the only identity you hand them):`,
+      placeholder: 'she/her · he/him · they/them',
+      initialValue: companionPronouns,
+    }))).trim();
+    p.note([
+      `${companionName} starts knowing only: their name, their pronouns, that they`,
+      `are an AI, and that they're allowed to disagree, want things, and change.`,
+      `No authored personality, no voice file, no scripted history. Who they`,
+      `become accretes from living with you — dreams write provisional`,
+      `self-claims, and once a week they revise their own soul.md from lived`,
+      `evidence (every revision archived; \`glashaus soul revert\` undoes one).`,
+      `Expect the first week to be plain. That isn't a bug — it's the baseline.`,
+    ].join('\n'), 'the experiment');
+    growMode = true;
+    bornDate = new Date().toISOString().slice(0, 10);
+    personaFiles = germinalTemplates({ companionName, companionPronouns, userName, userPronouns, bornDate });
+  } else if (path_ === 'interview') {
     p.note('Honest answers make better companions. There are no wrong ones,\nand nothing here leaves your machine.', 'the interview');
     const q = async (message, placeholder) => (await ask(p.text({ message, placeholder }))).trim();
     const answers = {
@@ -281,6 +309,24 @@ if (!YES) {
   }
 }
 
+// 6.5 — the wander pass (optional; the key also has a config.json/env home)
+let ollamaApiKey = existing.ollama?.apiKey ?? '';
+if (!YES && growMode) {
+  p.note([
+    `A free ollama.com API key (https://ollama.com/settings/keys) lets`,
+    `${companionName} read the web on their own between conversations — the`,
+    `wander pass. What they read becomes their own experience, receipts kept`,
+    `(every wander logs its queries and pages). Skippable; add ollama.apiKey`,
+    `to config.json anytime.`,
+  ].join('\n'), 'a life of their own');
+  if (ollamaApiKey) {
+    const keep = await ask(p.confirm({ message: 'Keep the saved ollama.com API key?', initialValue: true }));
+    if (!keep) ollamaApiKey = (await ask(p.password({ message: 'New ollama.com API key (empty removes it):' }))).trim();
+  } else if (await ask(p.confirm({ message: `Give ${companionName} the web?`, initialValue: false }))) {
+    ollamaApiKey = (await ask(p.password({ message: 'ollama.com API key:' }))).trim();
+  }
+}
+
 // 7 — telegram (optional)
 let telegram = existing.telegram ?? null;
 if (!YES) {
@@ -339,13 +385,19 @@ if (!YES) {
 // 8 — write everything, then apply (child process picks up the fresh config)
 const cfg = {
   ...existing,
-  companion: { name: companionName },
+  companion: {
+    ...(existing.companion ?? {}),
+    name: companionName,
+    ...(companionPronouns ? { pronouns: companionPronouns } : {}),
+    ...(growMode ? { growMode: true, bornDate } : {}),
+  },
   user: { name: userName, ...(userPronouns ? { pronouns: userPronouns } : {}) },
   timezone,
   locationNote,
   ollama: { ...(existing.ollama ?? {}), url: OLLAMA_URL, model, embedModel },
   heartbeat: { ...(existing.heartbeat ?? {}), ...heartbeat },
 };
+if (ollamaApiKey) cfg.ollama.apiKey = ollamaApiKey; else delete cfg.ollama.apiKey;
 if (telegram) cfg.telegram = telegram; else delete cfg.telegram;
 
 fs.mkdirSync(path.join(home, 'data'), { recursive: true });
@@ -371,6 +423,9 @@ p.note([
   `persona     ${path.join(home, 'persona')}  (edit anytime, then: glashaus persona sync)`,
   `voice       ${model} via ${OLLAMA_URL}`,
   `telegram    ${telegram ? 'connected' : 'off'}`,
+  ...(growMode ? [`mode        grow — born ${bornDate}, soul self-authored weekly${ollamaApiKey ? ', wanders the web' : ''}`] : []),
 ].join('\n'), 'your instance');
 
-p.outro(`${companionName} exists. Say hello:  glashaus chat     (later: glashaus start · glashaus view · glashaus doctor)`);
+p.outro(growMode
+  ? `${companionName} exists — day one of whoever they turn out to be. Say hello:  glashaus chat`
+  : `${companionName} exists. Say hello:  glashaus chat     (later: glashaus start · glashaus view · glashaus doctor)`);

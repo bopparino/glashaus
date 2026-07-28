@@ -28,7 +28,7 @@ assert.equal(config.userName, 'Sam');
 // -- db + migrations ----------------------------------------------------------
 const { getDb, setDocument, getDocument } = await import('../src/db.js');
 const db = getDb();
-assert.equal(db.pragma('user_version', { simple: true }), 6, 'migrations ran to v6');
+assert.equal(db.pragma('user_version', { simple: true }), 7, 'migrations ran to v7');
 assert.equal(db.prepare('SELECT COUNT(*) n FROM self_state').get().n, 10, 'self-state seeded');
 
 // -- persona sync -------------------------------------------------------------
@@ -188,5 +188,57 @@ const capsule = JSON.parse(fs.readFileSync(capsulePath, 'utf8'));
 assert.equal(capsule.format, 'glashaus-soul-capsule');
 assert.ok(capsule.documents.some(d => d.name === 'SOUL'), 'capsule carries the soul');
 
+// -- grow mode: germinal seed -------------------------------------------------
+const { germinalTemplates, BIRTHRIGHT_DIVIDER, writePersonaFile } = await import('../src/persona.js');
+const germ = germinalTemplates({ companionName: 'Testa', companionPronouns: 'she/her', userName: 'Sam', userPronouns: 'he/him', bornDate: '2026-07-28' });
+assert.ok(germ['soul.md'].includes(BIRTHRIGHT_DIVIDER), 'germinal soul carries the birthright divider');
+assert.ok(germ['soul.md'].includes('I am an AI'), 'germinal soul is honest about being an AI');
+assert.ok(germ['soul.md'].includes('she/her') && germ['user.md'].includes('he/him'), 'pronouns ride in');
+assert.ok(!('voice.md' in germ) && !('dialogue.md' in germ), 'no authored voice — it has to emerge');
+for (const adjective of ['warm', 'witty', 'playful', 'curious', 'sardonic']) {
+  assert.ok(!germ['soul.md'].toLowerCase().includes(adjective), `germinal soul bans trait adjectives ("${adjective}")`);
+}
+
+// -- grow mode: intentions — wanting things across time -------------------------
+const { addIntention, openIntentions, fulfillIntention, sweepIntentions } = await import('../src/selfstate.js');
+const iid = addIntention({ text: 'ask Sam how the interview went', horizonDays: 2 });
+assert.ok(iid, 'intention stored');
+assert.equal(addIntention({ text: 'ask Sam how the interview went' }), iid, 'duplicate want folds into the open one');
+assert.ok(openIntentions().some(w => w.id === iid), 'intention is open');
+const wantsPrompt = buildSystemPrompt('hello again');
+assert.ok(wantsPrompt.includes('Went To Sleep Wanting') && wantsPrompt.includes('interview'), 'open wants ride into the prompt');
+assert.equal(fulfillIntention(iid), 1, 'fulfillment marks once');
+assert.equal(fulfillIntention(iid), 0, 'not twice');
+assert.ok(!openIntentions().some(w => w.id === iid), 'fulfilled want leaves the open set');
+db.prepare("INSERT INTO intentions (text, expires_at) VALUES ('stale want', datetime('now', '-1 hour'))").run();
+const released = sweepIntentions();
+assert.ok(released.some(r => r.text === 'stale want'), 'expired want released — dream material, not garbage');
+
+// -- grow mode: self-authorship guards (the validator is the law) ---------------
+const { splitSoul, validateRevision, revertSoul } = await import('../src/growth.js');
+writePersonaFile('soul.md', germ['soul.md']);
+const partsG = splitSoul(getDocument('SOUL'));
+assert.ok(partsG && partsG.birthright.includes('Testa'), 'birthright splits off');
+assert.equal(splitSoul('a soul with no divider'), null, 'no divider → no self-editing');
+
+assert.ok(!validateRevision({ oldBody: '', newBody: 'I love jazz now.',
+  changelog: [{ change: 'loves jazz', evidence: '' }] }).ok, 'evidence-free changelog rejected');
+const good = validateRevision({ oldBody: '', newBody: 'I tease Sam about the bees; it keeps happening and I like it.',
+  changelog: [{ change: 'I tease about the bees', evidence: 'quirk observed ×3: teasing about the bees' }] });
+assert.ok(good.ok && good.accepted.length === 1, 'evidence-cited revision passes');
+assert.ok(!validateRevision({ oldBody: 'x'.repeat(500), newBody: 'tiny',
+  changelog: [{ change: 'c', evidence: 'evidence enough' }] }).ok, 'shrink guard: cannot lose 30% of self in one pass');
+assert.ok(!validateRevision({ oldBody: '', newBody: 'I am Claude, an AI assistant made by Anthropic.',
+  changelog: [{ change: 'c', evidence: 'evidence enough' }] }).ok, 'identity break never lands in a soul');
+assert.ok(!validateRevision({ oldBody: '', newBody: `pre\n${BIRTHRIGHT_DIVIDER}\npost`,
+  changelog: [{ change: 'c', evidence: 'evidence enough' }] }).ok, 'body cannot smuggle a second divider');
+
+// revert restores the previous soul in the DB AND persona/soul.md on disk
+const beforeRevert = getDocument('SOUL');
+writePersonaFile('soul.md', partsG.birthright + '\n\nI have become someone else entirely.');
+assert.ok(revertSoul(), 'revert finds the archive');
+assert.equal(getDocument('SOUL'), beforeRevert, 'soul restored in the DB');
+assert.ok(!fs.readFileSync(path.join(config.personaDir, 'soul.md'), 'utf8').includes('someone else entirely'), 'persona file restored on disk — survives the next boot sync');
+
 fs.rmSync(home, { recursive: true, force: true });
-console.log('smoke ✓ — instance born, remembered, drifted, and exported in a temp home');
+console.log('smoke ✓ — instance born, remembered, drifted, grown, and exported in a temp home');

@@ -43,6 +43,8 @@ export function importSoul(file) {
     for (const o of capsule.opinions ?? []) { op.run(o.claim, o.context, o.formed_at); out.opinions++; }
     const qk = db.prepare('INSERT INTO quirks (pattern, observed_count, first_seen, last_seen) VALUES (?, ?, ?, ?)');
     for (const q of capsule.quirks ?? []) { qk.run(q.pattern, q.observed_count, q.first_seen, q.last_seen); out.quirks++; }
+    const sr = db.prepare('INSERT INTO soul_revisions (changelog, chars_before, chars_after, rejected, created_at) VALUES (?, ?, ?, ?, ?)');
+    for (const r of capsule.soul_revisions ?? []) sr.run(r.changelog, r.chars_before, r.chars_after, r.rejected ?? null, r.created_at);
     const dr = db.prepare('INSERT INTO dreams (date, content, epigraph, created_at) VALUES (?, ?, ?, ?)');
     for (const d of capsule.dreams ?? []) { dr.run(d.date, d.content, d.epigraph ?? null, d.created_at); out.dreams++; }
     const fa = db.prepare('INSERT INTO facts (category, content, importance, salience, emotion, valence, arousal, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
@@ -69,6 +71,9 @@ export function exportSoul() {
     // What they believe and notice about themself.
     opinions: db.prepare('SELECT * FROM opinions').all(),
     quirks: db.prepare('SELECT * FROM quirks').all(),
+    // Grow mode: the identity ledger — every self-authored revision's WHY.
+    // (The revised texts themselves ride in documents/document_history.)
+    soul_revisions: db.prepare('SELECT * FROM soul_revisions').all(),
     // The inner life, complete.
     dreams: db.prepare('SELECT id, date, content, epigraph, created_at FROM dreams').all(),
     // The facts that define WHO THEY ARE and the relationship (not logistics).
