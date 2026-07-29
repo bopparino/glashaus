@@ -1,7 +1,12 @@
 {
   "name": "glashaus",
+<<<<<<< Updated upstream
   "version": "2.2.0",
   "description": "A local-first AI companion runtime \u2014 persistent identity, consolidating memory, dreams, and proactive presence on your own machine",
+=======
+  "version": "2.1.0",
+  "description": "A local-first AI companion runtime — persistent identity, consolidating memory, dreams, and proactive presence on your own machine",
+>>>>>>> Stashed changes
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -41,14 +46,22 @@
     "setup": "node src/setup.js",
     "chat": "node src/cli.js",
     "bot": "node src/index.js",
+    "api": "node src/api-server.js",
+    "desktop": "node scripts/desktop.js",
     "dream": "node src/dream.js --now",
     "smoke": "node test/smoke.js",
     "test": "node test/smoke.js && node test/register.test.js && node test/purge.test.js"
   },
   "dependencies": {
     "@clack/prompts": "^0.11.0",
-    "better-sqlite3": "^12.2.0",
+    "better-sqlite3": "^12.11.1",
     "grammy": "^1.36.1",
     "node-cron": "^3.0.3"
+  },
+  "allowScripts": {
+    "better-sqlite3@12.11.1": true
+  },
+  "devDependencies": {
+    "node-gyp": "^13.0.1"
   }
 }
