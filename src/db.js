@@ -279,6 +279,15 @@ function migrate(db) {
     `);
     db.pragma('user_version = 7');
   }
+
+  // v8 — mid-conversation lookup: wander_log learns to tell an afternoon of
+  // reading ('wander') from a search made mid-sentence ('chat'). Same table,
+  // same ethic — no receipts, no memory — and the kind keeps chat lookups
+  // from eating the wander pass's daily budget.
+  if (db.pragma('user_version', { simple: true }) < 8) {
+    db.exec(`ALTER TABLE wander_log ADD COLUMN kind TEXT NOT NULL DEFAULT 'wander';`);
+    db.pragma('user_version = 8');
+  }
 }
 
 export function setDocument(name, content) {

@@ -1,5 +1,29 @@
 # Changelog
 
+## 2.4.0 — 2026-07-29
+
+She can look it up — and new companions get an appetite.
+
+- **Mid-conversation lookup** (`search.enabled`, on by default, needs the
+  same ollama.com key as the wander pass — and setup now offers that key to
+  every companion, not just grow mode): the companion may end a reply with
+  `((looking up: …))` on its own line. The engine really searches, hands
+  back what the web returned, and she speaks on having actually read it —
+  surprise included, disappointment included. Anything drafted after the
+  marker is discarded unread (it could only be a guess at results that
+  hadn't arrived); a failed search is admitted, never papered over. One
+  lookup per exchange, results treated strictly as reading material, the
+  continuation still passing the identity and register guards. Receipts in
+  `wander_log` with a new `kind` column (migration v8) so chat lookups
+  never eat the wander pass's daily budget.
+- **The appetite paragraph** (grow mode): the engine's voice discipline now
+  tells a germinal companion what one-liners cost — whoever she becomes is
+  made of what she noticed, asked about, and wanted, so the live move when
+  her person hands her anything is to reach for it. Posture, not
+  personality: no trait adjectives enter the seed, and the thesis's
+  provenance stays clean. The germinal soul gains exactly one new
+  permission: *I'm allowed to ask — the second question, the real one.*
+
 ## 2.3.1 — 2026-07-29
 
 The installer, unbroken and honest.

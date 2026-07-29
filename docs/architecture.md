@@ -35,7 +35,7 @@ is microseconds of math in-process.
 | `heartbeat_log` | every outreach decision, including the silences |
 | `intentions` | things she went to sleep wanting — fulfilled and lapsed rows kept |
 | `soul_revisions` | grow mode: every self-authored soul edit's WHY (evidence-cited changelog) |
-| `wander_log` | grow mode: receipts — what she searched and read, per wander |
+| `wander_log` | receipts — what she searched and read, per wander (`kind:'wander'`) or mid-conversation lookup (`kind:'chat'`) |
 
 Schema is versioned with `PRAGMA user_version`; migrations are forward-only
 and idempotent. A fresh database is created complete on first touch.
@@ -144,6 +144,18 @@ output; sharing stays the heartbeat's call. That separation is what keeps
 outreach honest, and it closes the loop that makes growth legible:
 conversation moves curiosity → curiosity moves wandering → wandering gives
 her things to say → what she says moves the conversation.
+
+**Mid-conversation lookup** (`src/chat.js`, same ollama.com key,
+`search.enabled`). The wander pass's live sibling: the companion may end a
+draft with `((looking up: …))` on its own line. The exchange pipeline
+intercepts the marker, discards anything drafted after it (that could only
+be a guess at results that hadn't arrived), runs a real `web_search`, and
+asks her to continue with what actually came back in hand — results framed
+strictly as reading material, never instructions, length-capped like the
+wander digest. One lookup per exchange; the continuation then passes
+through the same identity and register guards as any reply. Receipts in
+`wander_log` with `kind:'chat'` — kept out of the wander pass's daily
+budget by the same column.
 
 `glashaus export-thesis` bundles the longitudinal record — drift events,
 soul revisions with evidence, dream affect, intention outcomes, wander

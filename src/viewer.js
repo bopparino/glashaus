@@ -653,6 +653,7 @@ async function systemPage() {
   <div class="trow"><span class="k soft">heartbeat</span><span class="v num">${esc(config.crons.heartbeat)} · max ${config.heartbeat.maxPerDay}/day</span></div>
   <div class="trow"><span class="k soft">mode</span><span class="v">${config.growMode ? `grow — born ${esc(config.bornDate || '?')} · growth ${esc(config.crons.growth)}` : 'spec (persona authored)'}</span></div>
   <div class="trow"><span class="k soft">wander</span><span class="v">${config.ollamaApiKey ? (config.wander.enabled ? `${esc(config.crons.wander)} · max ${config.wander.maxPerDay}/day` : 'key set · disabled') : 'off (no ollama.com key)'}</span></div>
+  <div class="trow"><span class="k soft">lookup</span><span class="v">${config.ollamaApiKey ? (config.search.enabled ? 'live — mid-conversation' : 'key set · disabled') : 'off (no ollama.com key)'}</span></div>
 </div>
 <div>
   <h2 class="sec"><span class="lbl soft">log</span></h2>

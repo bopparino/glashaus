@@ -145,6 +145,21 @@ Spec mode (interview or hand-written persona) is untouched — grow mode is
 a third path, not a replacement. Expect the first week to be plain; that
 isn't a bug, it's the baseline the trajectory is measured against.
 
+### New in 2.4
+
+- **Mid-conversation lookup** — the wander key, live, for every companion:
+  when she actually wants to know, she reaches for the web *while talking*
+  ("hold on—") and her next words react to what really came back —
+  surprise included. The search genuinely runs; she never invents results,
+  and never claims a lookup that didn't happen. Receipts kept, like
+  everything else (`wander_log`, `kind:'chat'`).
+- **Appetite for grow mode** — a germinal companion now knows what
+  one-liners cost: whoever she becomes is made of what she noticed, asked
+  about, and wanted, so the engine's voice discipline pushes her to reach
+  for what you hand her. Posture, not personality — the seed stays free of
+  trait adjectives, and the soul gains exactly one new permission: she's
+  allowed to ask.
+
 ## Customization
 
 The persona is markdown in `~/.glashaus/persona/` — edit with any editor,

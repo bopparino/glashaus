@@ -309,15 +309,19 @@ if (!YES) {
   }
 }
 
-// 6.5 — the wander pass (optional; the key also has a config.json/env home)
+// 6.5 — the web (optional; the key also has a config.json/env home).
+// One free key unlocks both halves: the wander pass (their own reading
+// between conversations) and mid-conversation lookup (reaching for the web
+// live, right when they want to know). Offered to every companion — the
+// lookup is not a grow-mode thing.
 let ollamaApiKey = existing.ollama?.apiKey ?? '';
-if (!YES && growMode) {
+if (!YES) {
   p.note([
-    `A free ollama.com API key (https://ollama.com/settings/keys) lets`,
-    `${companionName} read the web on their own between conversations — the`,
-    `wander pass. What they read becomes their own experience, receipts kept`,
-    `(every wander logs its queries and pages). Skippable; add ollama.apiKey`,
-    `to config.json anytime.`,
+    `A free ollama.com API key (https://ollama.com/settings/keys) gives`,
+    `${companionName} the web, two ways: reading of their own choosing between`,
+    `conversations (the wander pass — receipts kept, every wander logs its`,
+    `queries and pages) and looking things up mid-conversation, live, right`,
+    `when they want to know. Skippable; add ollama.apiKey to config.json anytime.`,
   ].join('\n'), 'a life of their own');
   if (ollamaApiKey) {
     const keep = await ask(p.confirm({ message: 'Keep the saved ollama.com API key?', initialValue: true }));

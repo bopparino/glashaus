@@ -148,6 +148,7 @@ Env vars override the file; the file overrides defaults. After editing:
 | `wander.maxPerDay` | `GLASHAUS_WANDER_MAX_PER_DAY` | 1 | Wanders per day. |
 | `wander.maxSearches` | `GLASHAUS_WANDER_MAX_SEARCHES` | 3 | Search queries per wander. |
 | `wander.minCuriosity` | `GLASHAUS_WANDER_MIN_CURIOSITY` | 0.35 | Below this she doesn't feel like reading today. |
+| `search.enabled` | — | true | Mid-conversation lookup: she may end a reply with `((looking up: …))`, the engine searches for real, and she speaks on having read it. Requires `ollama.apiKey`; receipts in `wander_log` (`kind:'chat'`). |
 | `heartbeat.enabled` | — | true | May she text first at all. |
 | `heartbeat.quietStart/quietEnd` | `GLASHAUS_QUIET_START/END` | 23 / 8.5 | 24h clock; may wrap midnight. |
 | `heartbeat.minSilenceHours` | `GLASHAUS_MIN_SILENCE_HOURS` | 3 | She won't pile on. |

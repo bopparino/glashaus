@@ -28,7 +28,7 @@ assert.equal(config.userName, 'Sam');
 // -- db + migrations ----------------------------------------------------------
 const { getDb, setDocument, getDocument } = await import('../src/db.js');
 const db = getDb();
-assert.equal(db.pragma('user_version', { simple: true }), 7, 'migrations ran to v7');
+assert.equal(db.pragma('user_version', { simple: true }), 8, 'migrations ran to v8');
 assert.equal(db.prepare('SELECT COUNT(*) n FROM self_state').get().n, 10, 'self-state seeded');
 
 // -- persona sync -------------------------------------------------------------
@@ -198,6 +198,13 @@ assert.ok(!('voice.md' in germ) && !('dialogue.md' in germ), 'no authored voice 
 for (const adjective of ['warm', 'witty', 'playful', 'curious', 'sardonic']) {
   assert.ok(!germ['soul.md'].toLowerCase().includes(adjective), `germinal soul bans trait adjectives ("${adjective}")`);
 }
+assert.ok(germ['soul.md'].includes("I'm allowed to ask"), 'germinal soul permits asking — appetite without adjectives');
+
+// -- grow mode: the appetite paragraph (engine posture, not seeded personality) --
+config.growMode = true;
+assert.ok(buildSystemPrompt('hello').includes('becoming runs on attention'), 'grow mode: the appetite paragraph rides in');
+config.growMode = false;
+assert.ok(!buildSystemPrompt('hello').includes('becoming runs on attention'), 'spec mode: it stays out');
 
 // -- grow mode: intentions — wanting things across time -------------------------
 const { addIntention, openIntentions, fulfillIntention, sweepIntentions } = await import('../src/selfstate.js');
@@ -232,6 +239,29 @@ assert.ok(!validateRevision({ oldBody: '', newBody: 'I am Claude, an AI assistan
   changelog: [{ change: 'c', evidence: 'evidence enough' }] }).ok, 'identity break never lands in a soul');
 assert.ok(!validateRevision({ oldBody: '', newBody: `pre\n${BIRTHRIGHT_DIVIDER}\npost`,
   changelog: [{ change: 'c', evidence: 'evidence enough' }] }).ok, 'body cannot smuggle a second divider');
+
+// -- mid-conversation lookup: the marker protocol -------------------------------
+const { parseLookup } = await import('../src/chat.js');
+const lu = parseLookup('hold on—\n((looking up: tuvan throat singing))\nI bet it says…');
+assert.ok(lu && lu.query === 'tuvan throat singing' && lu.lead === 'hold on—', 'marker parses: lead kept, query trimmed, tail left for the caller to discard');
+assert.equal(parseLookup('no marker here, just talk'), null, 'no marker → no lookup');
+assert.equal(parseLookup('((looking up:    ))'), null, 'empty query → no lookup');
+assert.equal(parseLookup('((LOOKING UP: the moon))').query, 'the moon', 'marker is case-insensitive');
+assert.equal(parseLookup('((looking up: the bees))').lead, '', 'marker-first reply has no lead');
+
+// The prompt only promises the tool when the key can cash it.
+const noKeyPrompt = buildSystemPrompt('hello');
+assert.ok(noKeyPrompt.includes('cannot browse the web mid-chat') && !noKeyPrompt.includes('((looking up:'), 'without a key, no phantom tool is promised');
+config.ollamaApiKey = 'test-key';
+const keyPrompt = buildSystemPrompt('hello');
+assert.ok(keyPrompt.includes('((looking up:') && !keyPrompt.includes('cannot browse the web mid-chat'), 'with a key, she knows how to reach for the web');
+config.ollamaApiKey = '';
+
+// wander_log tells an afternoon of reading from a mid-sentence lookup.
+db.prepare("INSERT INTO wander_log (topic, kind) VALUES ('smoke lookup', 'chat')").run();
+db.prepare("INSERT INTO wander_log (topic) VALUES ('smoke wander')").run();
+assert.equal(db.prepare("SELECT kind FROM wander_log WHERE topic = 'smoke wander'").get().kind, 'wander', 'wander_log rows default to kind wander');
+assert.equal(db.prepare("SELECT COUNT(*) n FROM wander_log WHERE kind = 'chat'").get().n, 1, 'chat lookups carry their own kind — they never eat the wander budget');
 
 // revert restores the previous soul in the DB AND persona/soul.md on disk
 const beforeRevert = getDocument('SOUL');

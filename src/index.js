@@ -102,7 +102,7 @@ cron.schedule(config.crons.heartbeat, async () => {
 // Backfill embeddings for anything that predates the vector branch.
 backfillEmbeddings(200).then(n => n && console.log(`[embed-backfill] ${n} memories embedded`)).catch(() => {});
 
-console.log(`${config.companionName} is up — model ${config.model}, viewer http://${config.viewerBind}:${config.viewerPort}, telegram ${telegram ? 'on' : 'off'}${config.growMode ? ', growing' : ''}${config.ollamaApiKey && config.wander.enabled ? ', wandering' : ''}`);
+console.log(`${config.companionName} is up — model ${config.model}, viewer http://${config.viewerBind}:${config.viewerPort}, telegram ${telegram ? 'on' : 'off'}${config.growMode ? ', growing' : ''}${config.ollamaApiKey && config.wander.enabled ? ', wandering' : ''}${config.ollamaApiKey && config.search.enabled ? ', lookup live' : ''}`);
 
 if (telegram) {
   // If long-polling dies fatally, exit so the service manager resurrects the

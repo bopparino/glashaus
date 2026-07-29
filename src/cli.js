@@ -29,12 +29,15 @@ function banner() {
   const voice = config.voiceModel ?? config.model;
   const util = config.utilityModel && config.utilityModel !== voice ? ` · util ${config.utilityModel}` : '';
   const wandering = config.ollamaApiKey && config.wander.enabled;
+  const looking = config.ollamaApiKey && config.search.enabled;
+  const web = wandering && looking ? ' · wanders & looks things up'
+    : wandering ? ' · wanders the web' : looking ? ' · looks things up' : '';
   console.log();
   console.log('  ' + brass('✠  G L A S H A U S'));
   console.log('  ' + faint(`${who}${config.companionPronouns ? ` · ${config.companionPronouns}` : ''} · ${voice}${util}`));
   console.log('  ' + faint(bornDay
-    ? `day ${bornDay} of ${who}'s life · ${msgs.n} messages held${wandering ? ' · wanders the web' : ''}`
-    : `${msgs.n} messages held${days ? ` · day ${days} together` : ''}`));
+    ? `day ${bornDay} of ${who}'s life · ${msgs.n} messages held${web}`
+    : `${msgs.n} messages held${days ? ` · day ${days} together` : ''}${web}`));
   console.log('  ' + rule(36));
   console.log('  ' + faint('/help for commands · /quit to leave'));
   if (!persist) console.log('  ' + red('ephemeral — nothing will be remembered'));

@@ -134,7 +134,9 @@ export async function runChecks() {
     if (recent.length >= 3 && rejects >= 2) add('growth-quality', false, `${rejects}/${recent.length} recent revisions rejected — consider a stronger utilityModel for the growth pass`);
   }
   if (config.ollamaApiKey && config.wander.enabled) {
-    const lastWander = db.prepare('SELECT created_at FROM wander_log ORDER BY id DESC LIMIT 1').get();
+    // kind-filtered: a mid-conversation lookup must not make the wander
+    // pass look alive when it isn't.
+    const lastWander = db.prepare("SELECT created_at FROM wander_log WHERE kind = 'wander' ORDER BY id DESC LIMIT 1").get();
     const wAge = lastWander ? (Date.now() - Date.parse(lastWander.created_at + 'Z')) / 86400000 : Infinity;
     add('wander', wAge < 3, lastWander ? `${wAge.toFixed(1)}d ago` : 'never — low curiosity, or check the API key (glashaus wander)');
   }

@@ -48,7 +48,7 @@ export async function runWander({ force = false } = {}) {
   if (!config.wander.enabled && !force) { console.log('[wander] disabled'); return null; }
 
   const today = db.prepare(
-    "SELECT COUNT(*) n FROM wander_log WHERE created_at >= datetime('now', 'start of day')"
+    "SELECT COUNT(*) n FROM wander_log WHERE kind = 'wander' AND created_at >= datetime('now', 'start of day')"
   ).get().n;
   if (!force && today >= config.wander.maxPerDay) { console.log('[wander] already wandered today'); return null; }
 

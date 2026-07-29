@@ -171,6 +171,13 @@ export const config = {
     minCuriosity: num(pick('GLASHAUS_WANDER_MIN_CURIOSITY', file.wander?.minCuriosity), 0.35),
   },
 
+  // Mid-conversation lookup — the wander pass's live sibling: the companion
+  // may reach for the web WHILE talking, via the ((looking up: …)) marker
+  // (src/chat.js). Same ollama.com key; without it this stays quietly off.
+  search: {
+    enabled: file.search?.enabled ?? true,
+  },
+
   heartbeat: {
     enabled: file.heartbeat?.enabled ?? true,
     quietStart: num(pick('GLASHAUS_QUIET_START', file.heartbeat?.quietStart), 23),
