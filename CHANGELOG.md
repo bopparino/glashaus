@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.3.1 — 2026-07-29
+
+The installer, unbroken and honest.
+
+- Repair: `package.json` / `package-lock.json` on main carried unresolved
+  merge conflict markers — every `npm install` from GitHub (and therefore
+  the curl installer) failed with EJSONPARSE. Rebuilt both, preserving the
+  local additions the conflict was hiding (`api`/`desktop` scripts,
+  better-sqlite3 ^12.11.1, allowScripts, node-gyp).
+- install.sh: GitHub is now the primary install source (the npm registry
+  package was unpublished in May 2026 — that arm 404s forever, so it is
+  demoted to fallback); git presence is checked up front; and failures are
+  no longer swallowed — the installer prints npm's actual error, the log
+  path, and the three usual fixes instead of a mystery.
+
 ## 2.3.0 — 2026-07-29
 
 Reliquary dark: the whole interface, redesigned to be lived in.
