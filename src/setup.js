@@ -363,14 +363,14 @@ if (!YES) {
       s.stop(`Token valid — @${me.result.username}`);
 
       s.start(`Now open t.me/${me.result.username} and send it any message — listening…`);
-      let ownerId = null, offset = 0;
+      let ownerId = null, ownerFirst = null, offset = 0;
       const deadline = Date.now() + 120000;
       while (Date.now() < deadline && !ownerId) {
         try {
           const upd = await (await fetch(`https://api.telegram.org/bot${token}/getUpdates?timeout=10&offset=${offset}`, { signal: AbortSignal.timeout(15000) })).json();
           for (const u of upd.result ?? []) {
             offset = u.update_id + 1;
-            if (u.message?.chat?.id) { ownerId = String(u.message.chat.id); var ownerFirst = u.message.from?.first_name; }
+            if (u.message?.chat?.id) { ownerId = String(u.message.chat.id); ownerFirst = u.message.from?.first_name; }
           }
         } catch { /* keep listening */ }
       }

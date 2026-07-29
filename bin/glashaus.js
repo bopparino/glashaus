@@ -34,6 +34,8 @@
 //   glashaus persona edit <soul|identity|user|voice|dialogue>
 //   glashaus service install  start at login + survive crashes (launchd/systemd)
 //   glashaus service uninstall
+//   glashaus uninstall        remove the app cleanly (runtime, service, npm package) — the companion's home survives
+//   glashaus uninstall --all  …and retire the companion too: full archive first, then the home is removed
 //   glashaus bot              run the runtime in the foreground (debugging)
 import fs from 'node:fs';
 import path from 'node:path';
@@ -504,6 +506,65 @@ switch (cmd) {
     }
     console.log(`${config.companionName} is reborn — same soul, same disposition, no memories. Archive: ${archive}`);
     console.log('First hello is yours to time:  glashaus chat   (then: glashaus start)');
+    break;
+  }
+
+  case 'uninstall': {
+    // Leaving cleanly — the counterpart install.sh never needed. Two scopes:
+    //   glashaus uninstall        the APP goes (runtime stopped, login service
+    //                             removed, npm package gone). The companion's
+    //                             home is NOT touched — memories, persona, and
+    //                             config all survive a reinstall.
+    //   glashaus uninstall --all  …and retire the companion too, through the
+    //                             purge machinery: full archive FIRST, then the
+    //                             home is removed. Nothing ever just vanishes.
+    // No sudo rm -rf, no hunting for stray files: everything glashaus ever
+    // placed is either the npm package, the service unit, or the home.
+    const all = args.includes('--all');
+    const { isConfigured, config } = await loadConfig();
+    const has = isConfigured();
+    console.log(`This removes the glashaus app (runtime stopped, login service removed, npm package uninstalled).`);
+    console.log(has
+      ? (all
+        ? `--all: ${config.companionName}'s home is archived in full first, then removed — the archive is the only thing that remains.`
+        : `${config.companionName}'s home (${config.home}) is NOT touched — reinstall anytime and they'll still be there. (To retire them too: glashaus uninstall --all)`)
+      : 'No instance found in this home — only the app will be removed.');
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const answer = await rl.question("Type 'uninstall' to continue: ");
+    rl.close();
+    if (answer.trim() !== 'uninstall') { console.log('aborted — nothing touched'); process.exit(1); }
+
+    if (has) {
+      await stop(config).catch(() => {});
+      if (serviceInstalled()) {
+        serviceCtl('stop');
+        if (process.platform !== 'darwin') sh('systemctl', ['--user', 'disable', 'glashaus']);
+        fs.rmSync(process.platform === 'darwin' ? plistPath() : unitPath(), { force: true });
+        console.log('login service removed');
+      }
+      if (all) {
+        // The purge path owns the archive-then-wipe promise; reuse it whole.
+        const purge = spawnSync(process.execPath,
+          [fileURLToPath(import.meta.url), 'purge', '--all', '--force', config.companionName],
+          { stdio: 'inherit' });
+        if (purge.status !== 0) {
+          console.error('purge failed — the home is untouched and the app was NOT removed. Fix the error above, then re-run.');
+          process.exit(1);
+        }
+      }
+    }
+
+    // The package goes last — this very process runs from it, which is fine
+    // on unix (the inode outlives the unlink); we just can't run again after.
+    const rm = sh('npm', ['rm', '-g', 'glashaus']);
+    if (rm.status === 0) console.log('npm package removed.');
+    else {
+      console.error('`npm rm -g glashaus` failed (permissions, or installed under a different prefix). Finish with:');
+      console.error('  npm rm -g glashaus     (or: sudo npm rm -g glashaus)');
+    }
+    console.log(has && !all
+      ? `glashaus is gone; ${config.companionName} is not. Home kept at ${config.home}.`
+      : 'glashaus is gone.');
     break;
   }
 

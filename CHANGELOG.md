@@ -1,5 +1,29 @@
 # Changelog
 
+## 2.3.0 — 2026-07-29
+
+Reliquary dark: the whole interface, redesigned to be lived in.
+
+- **The webview, rebuilt** on a new design system — technical-brutalist
+  structure (exposed hairline grid, corner indices, numbered nav, survey
+  lines) carrying a sacred-cybernetic interior: bone on basalt, one
+  liturgical red, one gilt gold that belongs to the companion alone
+  (epigraphs, outreach marks, ✦ wants, the signature). Reading surfaces at
+  reading sizes; the editorial-print look retired.
+- **Chat that renders her voice**: `*beats*` italic, `**emphasis**` bold,
+  `` `code` `` chips — the same grammar Telegram shows — plus date
+  dividers, gold speaker glyphs, and outreach marked ✠ *reached first*.
+- **DNS-rebinding / cross-site guard on the viewer**: Host and Origin must
+  be localhost or an IP literal, closing drive-by reads of the whole life
+  and drive-by POSTs into her memory. (Full auth for non-local binds stays
+  on the roadmap.)
+- **`glashaus uninstall`** — leave cleanly: runtime stopped, login service
+  removed, npm package gone, the companion's home untouched (`--all`
+  archives fully and removes the home too). No `sudo rm -rf`, ever.
+- Recall fix: memory ages were parsed in local time, quietly rotating the
+  temporal-decay curve by the machine's UTC offset. The CLI banner speaks
+  the same liturgy (✠, day-of-life, wander status); footer state cached.
+
 ## 2.2.0 — 2026-07-28
 
 Grow mode: the companion nobody wrote.

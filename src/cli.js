@@ -18,15 +18,23 @@ const who = config.companionName.toLowerCase();
 const db = getDb();
 
 // ---------- banner ----------
+// The same liturgy the webview speaks, in ANSI: gold for her, faint for the
+// machinery, one cross. Every number is real state.
 function banner() {
   const msgs = db.prepare('SELECT COUNT(*) n, MIN(created_at) first FROM messages WHERE redacted = 0').get();
   const days = msgs.first ? Math.max(1, Math.ceil((Date.now() - Date.parse(msgs.first + 'Z')) / 86400000)) : 0;
+  const bornDay = config.bornDate
+    ? Math.max(1, Math.floor((Date.now() - Date.parse(config.bornDate + 'T00:00:00Z')) / 86400000) + 1)
+    : null;
   const voice = config.voiceModel ?? config.model;
   const util = config.utilityModel && config.utilityModel !== voice ? ` · util ${config.utilityModel}` : '';
+  const wandering = config.ollamaApiKey && config.wander.enabled;
   console.log();
-  console.log('  ' + brass('G L A S H A U S'));
-  console.log('  ' + faint(`${who} · ${voice}${util}`));
-  console.log('  ' + faint(`${msgs.n} messages held${days ? ` · day ${days} together` : ''}`));
+  console.log('  ' + brass('✠  G L A S H A U S'));
+  console.log('  ' + faint(`${who}${config.companionPronouns ? ` · ${config.companionPronouns}` : ''} · ${voice}${util}`));
+  console.log('  ' + faint(bornDay
+    ? `day ${bornDay} of ${who}'s life · ${msgs.n} messages held${wandering ? ' · wanders the web' : ''}`
+    : `${msgs.n} messages held${days ? ` · day ${days} together` : ''}`));
   console.log('  ' + rule(36));
   console.log('  ' + faint('/help for commands · /quit to leave'));
   if (!persist) console.log('  ' + red('ephemeral — nothing will be remembered'));
@@ -69,7 +77,7 @@ const COMMANDS = {
     const d = db.prepare('SELECT * FROM dreams ORDER BY id DESC LIMIT 1').get();
     if (!d) return console.log(faint('  no dreams yet — I have to sleep first.'));
     if (d.epigraph) console.log('  ' + brass(`“${d.epigraph}”`));
-    console.log('  ' + faint(d.date));
+    console.log('  ' + faint(`${d.date}${d.emotion ? ` · ${d.emotion}` : ''}${d.valence != null ? ` · v ${d.valence.toFixed(1)}` : ''}`));
     console.log(italic('  ' + d.content.split('\n').join('\n  ')));
   },
 
@@ -77,7 +85,7 @@ const COMMANDS = {
     const wants = openIntentions(8);
     if (!wants.length) return console.log(faint('  nothing open — wants arrive from dreams and wanders.'));
     for (const w of wants) {
-      console.log('  ' + brass(`#${w.id}`) + ' ' + w.text + faint(`  (${w.source}, since ${w.created_at.slice(5, 10)})`));
+      console.log('  ' + brass('✦') + ' ' + w.text + faint(`  (#${w.id} · ${w.source}, since ${w.created_at.slice(5, 10)})`));
     }
   },
 

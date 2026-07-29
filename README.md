@@ -60,6 +60,7 @@ glashaus persona edit soul    open persona files in your editor
 glashaus lexicon              words the companion wants to learn
 glashaus audition <model>     screen-test a model against your persona
 glashaus export-corpus        your history as a fine-tuning dataset
+glashaus uninstall            leave cleanly — app gone, companion's home kept
 ```
 
 What runs once it's up:

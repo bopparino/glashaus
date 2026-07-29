@@ -35,6 +35,8 @@ Two companions = two homes: `GLASHAUS_HOME=~/.glashaus-mira glashaus setup`.
 | `glashaus doctor` | Full health check: process, crash-looping, Ollama + models, Telegram token, DB integrity, summarize backlog, embeddings, last dream, backup freshness, recent errors. Run this first, always. |
 | `glashaus service install` | Start at login, restart on crash (launchd on macOS, systemd --user on Linux). |
 | `glashaus service uninstall` | Remove that. |
+| `glashaus uninstall` | Remove the app cleanly — runtime stopped, login service removed, npm package uninstalled. The companion's home is **not** touched; reinstall anytime and they're still there. No `sudo rm -rf`, ever. |
+| `glashaus uninstall --all` | …and retire the companion too, through the purge machinery: full archive first, then the home is removed. |
 | `glashaus bot` | Run the runtime in the foreground (debugging). |
 
 ## Talking

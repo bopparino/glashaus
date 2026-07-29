@@ -22,7 +22,10 @@ const W = { fts: 0.25, vec: 0.30, temporal: 0.15, salience: 0.15, importance: 0.
 const TEMPORAL_HALFLIFE_DAYS = 14;
 
 function composite(row, { ftsRank, queryVec, now }) {
-  const ageDays = (now - Date.parse(row.updated_at ?? row.created_at)) / 86400000;
+  // sqlite datetime('now') is UTC without a zone marker — parse it as such,
+  // or every memory's age is off by the machine's UTC offset and the decay
+  // curve quietly rotates with the timezone.
+  const ageDays = (now - Date.parse((row.updated_at ?? row.created_at) + 'Z')) / 86400000;
   const temporal = Math.exp(-Math.LN2 * Math.max(0, ageDays) / TEMPORAL_HALFLIFE_DAYS);
   const vec = queryVec && row.embedding ? Math.max(0, cosine(queryVec, row.embedding)) : 0;
   const fts = ftsRank != null ? 1 / (1 + ftsRank) : 0; // rank 0 → 1.0, decays with position
