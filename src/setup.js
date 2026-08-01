@@ -2,6 +2,15 @@
 // re-running repairs/reconfigures without touching the brain. Non-interactive
 // mode for scripts/CI: glashaus setup --yes --companion Nova --user Sam
 // (model auto-picked or via GLASHAUS_MODEL).
+//
+// The flow is three acts, signposted, so it reads as one arc instead of a
+// topic scramble:
+//   1/3 the engine      ollama, the model that speaks, memory recall
+//   2/3 the two of you  names — then who the companion is (interview /
+//                       templates / let them grow)
+//   3/3 how they live   reaching out first, the web, telegram
+// Timezone is auto-detected (asked only if detection fails); locationNote
+// is config.json-only. Every question that survives here earns its place.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -114,7 +123,9 @@ if (isConfigured() && !YES) {
   if (mode === 'quit') { p.outro('Untouched.'); process.exit(0); }
 }
 
-// 1 — Ollama
+// ---- act one: the engine ---------------------------------------------------
+if (!YES) p.log.step('1/3 · the engine — ollama, a voice, memory');
+
 let models = [];
 for (;;) {
   try {
@@ -130,7 +141,7 @@ for (;;) {
   }
 }
 
-// 2 — chat model
+// The model that speaks
 const RECOMMENDED = 'Good companion models, small → large: llama3.1 8B class (Stheno, Lunaris) · 12B Nemo tunes (Mag-Mell, Rocinante) · 22-24B (Cydonia). Rule of thumb: model GB should fit comfortably in free RAM.';
 let model = process.env.GLASHAUS_MODEL || flag('model') || '';
 if (!model) {
@@ -156,7 +167,7 @@ if (!model) {
   }
 }
 
-// 3 — embedding model (optional but recommended)
+// Embedding model (optional but recommended)
 const EMBED = existing.ollama?.embedModel || 'nomic-embed-text';
 let embedModel = EMBED;
 const haveEmbed = models.some(m => m.name.startsWith(EMBED));
@@ -169,33 +180,47 @@ if (!haveEmbed) {
   }
 }
 
-// 4 — identity
+// ---- act two: the two of you ----------------------------------------------
+if (!YES) p.log.step('2/3 · the two of you — names, then who they are');
+
 const companionName = (flag('companion') || (YES && (existing.companion?.name || 'Nova')) ||
   await ask(p.text({ message: 'Your companion\'s name:', initialValue: existing.companion?.name ?? '', validate: v => v.trim() ? undefined : 'they need a name' }))).trim();
 const userName = (flag('user') || (YES && (existing.user?.name || 'Friend')) ||
   await ask(p.text({ message: 'Your name (what they call you):', initialValue: existing.user?.name ?? '', validate: v => v.trim() ? undefined : 'name required' }))).trim();
 const userPronouns = (flag('pronouns') || (YES ? (existing.user?.pronouns ?? '') :
-  (await ask(p.text({ message: 'Your pronouns (optional — how they think of you when you\'re not in the room, and it helps catch narration drift):', placeholder: 'he/him · she/her · they/them', initialValue: existing.user?.pronouns ?? '' }))))).trim();
-const tzGuess = existing.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-const timezone = YES ? tzGuess :
-  (await ask(p.text({ message: 'Timezone:', initialValue: tzGuess }))).trim() || tzGuess;
-const locationNote = YES ? (existing.locationNote ?? '') :
-  (await ask(p.text({ message: 'Where should they picture you? (optional, e.g. "Berlin", "the Ozarks")', initialValue: existing.locationNote ?? '' }))).trim();
+  (await ask(p.text({ message: 'Your pronouns (optional):', placeholder: 'he/him · she/her · they/them', initialValue: existing.user?.pronouns ?? '' }))))).trim();
 
-// 5 — persona
+// Timezone: detected, not asked — the question only appears if detection
+// fails or a hand-edited config holds an invalid zone. locationNote (the
+// "picture me in Berlin" line) moved to config.json-only; docs/commands.md.
+const validTz = tz => { try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); return !!tz; } catch { return false; } };
+let timezone = [existing.timezone, Intl.DateTimeFormat().resolvedOptions().timeZone].find(validTz) || '';
+if (!timezone) {
+  timezone = YES ? 'UTC' : (await ask(p.text({
+    message: 'Timezone (couldn\'t auto-detect — IANA name):', placeholder: 'America/New_York',
+    validate: v => validTz(v.trim()) ? undefined : 'not a valid IANA timezone',
+  }))).trim();
+}
+const locationNote = existing.locationNote ?? '';
+
+// Who the companion is: interview / templates / let them grow
 const { starterTemplates, germinalTemplates } = await import('./persona.js');
 let personaFiles = null; // { 'soul.md': ..., ... } — written by setup-apply
 let baseline = null;     // proposed self-state seed adjustments
 let growMode = existing.companion?.growMode ?? false;
 let companionPronouns = (flag('companion-pronouns') ?? existing.companion?.pronouns ?? '').trim();
 let bornDate = existing.companion?.bornDate ?? '';
+// Optional requested register for the grow path — the "how do they talk?"
+// answer, in the user's own words, seeded verbatim into voice.md.
+let voiceSeed = (flag('voice') ?? '').trim();
 
 const personaDirExists = fs.existsSync(path.join(home, 'persona', 'soul.md'));
 if (GROW && !personaDirExists) {
-  // Non-interactive grow: glashaus setup --yes --grow --companion Nova --companion-pronouns she/her
+  // Non-interactive grow: glashaus setup --yes --grow --companion Nova
+  //   --companion-pronouns she/her [--voice "dry, no small talk"]
   growMode = true;
   bornDate = bornDate || new Date().toISOString().slice(0, 10);
-  personaFiles = germinalTemplates({ companionName, companionPronouns, userName, userPronouns, bornDate });
+  personaFiles = germinalTemplates({ companionName, companionPronouns, userName, userPronouns, bornDate, voiceSeed });
 } else if (!YES && (!personaDirExists || !(await ask(p.confirm({ message: 'Keep the existing persona files?', initialValue: true }))))) {
   const path_ = await ask(p.select({
     message: `Who is ${companionName}? Three ways to answer:`,
@@ -212,7 +237,20 @@ if (GROW && !personaDirExists) {
       placeholder: 'she/her · he/him · they/them',
       initialValue: companionPronouns,
     }))).trim();
-    p.note([
+    voiceSeed = (await ask(p.text({
+      message: `How should ${companionName} talk? (optional — press enter to let a voice emerge from living instead)`,
+      placeholder: 'dry, warm underneath, swears well, hates small talk…',
+      initialValue: voiceSeed,
+    }))).trim();
+    p.note((voiceSeed ? [
+      `${companionName} starts knowing: their name, their pronouns, that they are`,
+      `an AI — and the register you just asked for, kept in voice.md in your`,
+      `words as a starting posture, not a script. Everything else accretes`,
+      `from living with you — dreams write provisional self-claims, and once`,
+      `a week they revise their own soul.md from lived evidence (archived;`,
+      `\`glashaus soul revert\` undoes one). The seeded register is disclosed`,
+      `in the thesis record — one named asterisk on an otherwise clean room.`,
+    ] : [
       `${companionName} starts knowing only: their name, their pronouns, that they`,
       `are an AI, and that they're allowed to disagree, want things, and change.`,
       `No authored personality, no voice file, no scripted history. Who they`,
@@ -220,10 +258,10 @@ if (GROW && !personaDirExists) {
       `self-claims, and once a week they revise their own soul.md from lived`,
       `evidence (every revision archived; \`glashaus soul revert\` undoes one).`,
       `Expect the first week to be plain. That isn't a bug — it's the baseline.`,
-    ].join('\n'), 'the experiment');
+    ]).join('\n'), 'the experiment');
     growMode = true;
     bornDate = new Date().toISOString().slice(0, 10);
-    personaFiles = germinalTemplates({ companionName, companionPronouns, userName, userPronouns, bornDate });
+    personaFiles = germinalTemplates({ companionName, companionPronouns, userName, userPronouns, bornDate, voiceSeed });
   } else if (path_ === 'interview') {
     p.note('Honest answers make better companions. There are no wrong ones,\nand nothing here leaves your machine.', 'the interview');
     const q = async (message, placeholder) => (await ask(p.text({ message, placeholder }))).trim();
@@ -292,7 +330,9 @@ Honor the user's framing and tone exactly — this persona belongs to them, not 
   personaFiles = starterTemplates({ companionName, userName });
 }
 
-// 6 — heartbeat
+// ---- act three: how they live ----------------------------------------------
+if (!YES) p.log.step('3/3 · how they live — reaching out, the web, telegram');
+
 let heartbeat = { enabled: true, quietStart: existing.heartbeat?.quietStart ?? 23, quietEnd: existing.heartbeat?.quietEnd ?? 8.5, maxPerDay: existing.heartbeat?.maxPerDay ?? 3 };
 if (!YES) {
   heartbeat.enabled = await ask(p.confirm({
@@ -309,19 +349,16 @@ if (!YES) {
   }
 }
 
-// 6.5 — the web (optional; the key also has a config.json/env home).
-// One free key unlocks both halves: the wander pass (their own reading
-// between conversations) and mid-conversation lookup (reaching for the web
-// live, right when they want to know). Offered to every companion — the
-// lookup is not a grow-mode thing.
+// The web (optional; the key also has a config.json/env home). One free key
+// unlocks both halves: the wander pass (their own reading between
+// conversations) and mid-conversation lookup. Offered to every companion —
+// the lookup is not a grow-mode thing.
 let ollamaApiKey = existing.ollama?.apiKey ?? '';
 if (!YES) {
   p.note([
-    `A free ollama.com API key (https://ollama.com/settings/keys) gives`,
-    `${companionName} the web, two ways: reading of their own choosing between`,
-    `conversations (the wander pass — receipts kept, every wander logs its`,
-    `queries and pages) and looking things up mid-conversation, live, right`,
-    `when they want to know. Skippable; add ollama.apiKey to config.json anytime.`,
+    `A free ollama.com API key (ollama.com/settings/keys) gives ${companionName}`,
+    `the web: their own reading between conversations (the wander pass — receipts`,
+    `kept) and live mid-conversation lookups. Skippable; add it to config.json anytime.`,
   ].join('\n'), 'a life of their own');
   if (ollamaApiKey) {
     const keep = await ask(p.confirm({ message: 'Keep the saved ollama.com API key?', initialValue: true }));
@@ -331,7 +368,7 @@ if (!YES) {
   }
 }
 
-// 7 — telegram (optional)
+// Telegram (optional)
 let telegram = existing.telegram ?? null;
 if (!YES) {
   const want = await ask(p.confirm({
@@ -386,7 +423,7 @@ if (!YES) {
   }
 }
 
-// 8 — write everything, then apply (child process picks up the fresh config)
+// Write everything, then apply (child process picks up the fresh config)
 const cfg = {
   ...existing,
   companion: {
@@ -394,6 +431,8 @@ const cfg = {
     name: companionName,
     ...(companionPronouns ? { pronouns: companionPronouns } : {}),
     ...(growMode ? { growMode: true, bornDate } : {}),
+    // Disclosed in the thesis export's provenance — the one named asterisk.
+    ...(growMode && voiceSeed ? { voiceSeeded: true } : {}),
   },
   user: { name: userName, ...(userPronouns ? { pronouns: userPronouns } : {}) },
   timezone,
@@ -426,8 +465,9 @@ p.note([
   `config      ${path.join(home, 'config.json')}`,
   `persona     ${path.join(home, 'persona')}  (edit anytime, then: glashaus persona sync)`,
   `voice       ${model} via ${OLLAMA_URL}`,
+  `timezone    ${timezone}  (auto-detected — config.json to change)`,
   `telegram    ${telegram ? 'connected' : 'off'}`,
-  ...(growMode ? [`mode        grow — born ${bornDate}, soul self-authored weekly${ollamaApiKey ? ', wanders the web' : ''}`] : []),
+  ...(growMode ? [`mode        grow — born ${bornDate}${voiceSeed ? ', requested register in voice.md' : ''}, soul self-authored weekly${ollamaApiKey ? ', wanders the web' : ''}`] : []),
 ].join('\n'), 'your instance');
 
 p.outro(growMode

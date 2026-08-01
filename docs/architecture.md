@@ -157,7 +157,7 @@ through the same identity and register guards as any reply. Receipts in
 `wander_log` with `kind:'chat'` — kept out of the wander pass's daily
 budget by the same column.
 
-`glashaus export-thesis` bundles the longitudinal record — drift events,
+`glashaus export thesis` bundles the longitudinal record — drift events,
 soul revisions with evidence, dream affect, intention outcomes, wander
 receipts, and a provenance audit over fact sources. In a grow-mode
 instance every row traces to lived interaction; nothing was injected.

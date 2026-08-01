@@ -9,7 +9,7 @@ identity breaks there is: a model whose "I" was trained on one person only.
 ## 1. Export the corpus
 
 ```sh
-glashaus export-corpus            # → ~/.glashaus/corpus-YYYY-MM-DD.jsonl
+glashaus export corpus            # → ~/.glashaus/corpus-YYYY-MM-DD.jsonl
 ```
 
 Chat-format JSONL, one real exchange per line. Redacted stretches are

@@ -200,6 +200,13 @@ for (const adjective of ['warm', 'witty', 'playful', 'curious', 'sardonic']) {
 }
 assert.ok(germ['soul.md'].includes("I'm allowed to ask"), 'germinal soul permits asking — appetite without adjectives');
 
+// -- grow mode: the requested register (optional voice seed) --------------------
+const germV = germinalTemplates({ companionName: 'Testa', companionPronouns: 'she/her', userName: 'Sam', userPronouns: 'he/him', bornDate: '2026-07-28', voiceSeed: 'short sentences, dry as gin, no small talk' });
+assert.ok(germV['voice.md']?.includes('dry as gin'), 'requested register lands in voice.md verbatim');
+assert.ok(germV['voice.md'].includes('not a'), 'seeded voice framed as posture, not script');
+assert.equal(germV['soul.md'], germ['soul.md'], 'voice seed never touches the germinal soul');
+assert.ok(!('dialogue.md' in germV), 'voice seed adds voice.md only');
+
 // -- grow mode: the appetite paragraph (engine posture, not seeded personality) --
 config.growMode = true;
 assert.ok(buildSystemPrompt('hello').includes('becoming runs on attention'), 'grow mode: the appetite paragraph rides in');

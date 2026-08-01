@@ -10,33 +10,30 @@
 //   glashaus status           is it up? recent log lines
 //   glashaus logs             follow logs live
 //   glashaus doctor           full health check — run this when in doubt
-//   glashaus dream            force a dream right now
 //   glashaus grow             run the weekly self-authorship pass now (grow mode)
 //   glashaus wander           send the companion reading right now (needs ollama.com key)
-//   glashaus tidy             run memory hygiene now (also runs nightly)
-//   glashaus backup           back up the brain now (also runs daily)
-//   glashaus restore <file>   replace the brain from a backup (snapshots current first)
-//   glashaus purge            retire the companion: archive everything, wipe the brain — persona + config stay
-//   glashaus purge --all      …and persona, config, service too: an emptied home for a from-zero setup
-//   glashaus soul             export the personality-only capsule
-//   glashaus soul import <f>  pour a capsule into a FRESH brain (rebirth; see docs/moving.md)
 //   glashaus soul revert      undo the latest soul revision (growth pass or edit)
-//   glashaus wants            open intentions — things the companion went to sleep wanting
-//   glashaus export-thesis    the longitudinal record as one JSON (drift, revisions, receipts)
-//   glashaus facts [word]     quick memory search in the terminal
-//   glashaus forget <id>      soft-forget a bad fact (reversible in the viewer)
-//   glashaus lexicon           words the companion wants to learn (approve/reject <id>)
-//   glashaus audition <model>  screen-test a model against this persona before casting it
-//   glashaus export-corpus     dump clean chat JSONL for fine-tuning (docs/fine-tune.md)
-//   glashaus redact <a> [b]    cut a glitched message range from the companion's mind (reversible)
-//   glashaus unredact <a> [b]  restore a redacted range
+//   glashaus soul import <f>  pour a capsule into a FRESH brain (rebirth; see docs/moving.md)
+//   glashaus export <what>    soul (portable capsule) · thesis (the record) · corpus (fine-tune JSONL)
+//   glashaus lexicon          words the companion wants to learn (approve/reject <id>)
+//   glashaus redact <a> [b]   cut a glitched message range from the companion's mind (--undo restores)
 //   glashaus persona sync     push persona/*.md edits into the live documents
 //   glashaus persona edit <soul|identity|user|voice|dialogue>
-//   glashaus service install  start at login + survive crashes (launchd/systemd)
-//   glashaus service uninstall
-//   glashaus uninstall        remove the app cleanly (runtime, service, npm package) — the companion's home survives
-//   glashaus uninstall --all  …and retire the companion too: full archive first, then the home is removed
-//   glashaus bot              run the runtime in the foreground (debugging)
+//   glashaus audition <model> screen-test a model against this persona before casting it
+//   glashaus backup           back up the brain now (also runs daily)
+//   glashaus restore <file>   replace the brain from a backup (snapshots current first)
+//   glashaus purge            retire the companion: archive first, wipe the brain (--all empties the home)
+//   glashaus service install  start at login + survive crashes (launchd/systemd; `uninstall` removes)
+//   glashaus uninstall        remove the app cleanly — the companion's home survives (--all retires them too)
+//
+// Quiet commands — they work, they're just not the front door:
+//   dream · tidy      manual runs of the nightly jobs (dreaming, memory hygiene)
+//   bot               the runtime in the foreground, for debugging
+//   soul · unredact · export-thesis · export-corpus
+//                     long-hand aliases of `export soul` / `redact --undo` / `export …`
+// Retired in 2.5 (the capability lives where you already look):
+//   facts, wants → /facts and /wants inside chat, or the viewer
+//   forget       → the viewer's memory page (forget/restore buttons)
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
@@ -53,8 +50,17 @@ const loadConfig = () => import(src('config.js'));
 function help() {
   const lines = fs.readFileSync(fileURLToPath(import.meta.url), 'utf8')
     .split('\n').filter(l => l.startsWith('//   glashaus')).map(l => l.slice(5));
-  console.log(['glashaus — a companion runtime. https://github.com/bopparino/glashaus', '', ...lines].join('\n'));
+  console.log(['glashaus — a companion runtime. https://github.com/bopparino/glashaus', '', ...lines,
+    '', 'quieter, still working: dream · tidy (manual runs of nightly jobs) · bot (foreground runtime)'].join('\n'));
 }
+
+// Retired top-level commands (2.5) — each points at where the capability
+// lives now, instead of a blank "unknown command".
+const RETIRED = {
+  facts: "inside chat it's /facts [word]; or the viewer's memory page (glashaus view)",
+  wants: "inside chat it's /wants; or the Today page (glashaus view)",
+  forget: "the viewer's memory page has forget/restore buttons (glashaus view)",
+};
 
 const run = (file, extra = [], opts = {}) =>
   spawnSync(process.execPath, [src(file), ...extra], { stdio: 'inherit', ...opts }).status ?? 0;
@@ -232,21 +238,6 @@ switch (cmd) {
   case 'dream': { await requireSetup(); process.exit(run('dream.js', ['--now'])); }
   case 'grow': { await requireSetup(); process.exit(run('growth.js', ['--now', ...args])); }
   case 'wander': { await requireSetup(); process.exit(run('wander.js', ['--now', ...args])); }
-  case 'wants': {
-    await requireSetup();
-    const { openIntentions } = await import(src('selfstate.js'));
-    const wants = openIntentions(12);
-    if (!wants.length) { console.log('no open wants — they arrive from dreams and wanders.'); break; }
-    for (const w of wants) console.log(`#${w.id}  ${w.text}  (${w.source}, since ${w.created_at.slice(0, 10)}, until ${w.expires_at.slice(0, 10)})`);
-    break;
-  }
-  case 'export-thesis': {
-    const { config } = await requireSetup();
-    const out = args[0] ?? `${config.home}/thesis-${new Date().toISOString().slice(0, 10)}.json`;
-    const { exportThesis } = await import(src('thesis.js'));
-    exportThesis(out);
-    break;
-  }
   case 'tidy': { await requireSetup(); process.exit(run('consolidate.js', ['--now'])); }
   case 'backup': { await requireSetup(); process.exit(run('backup.js', ['--now'])); }
   case 'soul': {
@@ -268,8 +259,40 @@ switch (cmd) {
       } catch (err) { console.error(err.message); process.exit(1); }
       break;
     }
+    // Bare `glashaus soul` stays as a quiet alias of `glashaus export soul`.
     process.exit(run('soul.js', ['--now']));
   }
+
+  // One export door, three things worth taking with you.
+  //   glashaus export soul     the personality capsule (docs/moving.md)
+  //   glashaus export thesis   the longitudinal record: drift, revisions, receipts
+  //   glashaus export corpus   clean chat JSONL for fine-tuning (docs/fine-tune.md)
+  // `export-thesis` / `export-corpus` remain as quiet long-hand aliases.
+  case 'export': case 'export-thesis': case 'export-corpus': {
+    const { config } = await requireSetup();
+    const what = cmd === 'export' ? args[0] : cmd.slice('export-'.length);
+    const out = cmd === 'export' ? args[1] : args[0];
+    if (what === 'soul') process.exit(run('soul.js', ['--now']));
+    if (what === 'thesis') {
+      const { exportThesis } = await import(src('thesis.js'));
+      exportThesis(out ?? `${config.home}/thesis-${new Date().toISOString().slice(0, 10)}.json`);
+      break;
+    }
+    if (what === 'corpus') {
+      const dest = out ?? `${config.home}/corpus-${new Date().toISOString().slice(0, 10)}.jsonl`;
+      const { exportCorpus } = await import(src('corpus.js'));
+      const { pairs, skipped } = exportCorpus(dest);
+      console.log(`${pairs} exchange(s) exported to ${dest}${skipped ? ` (${skipped} skipped: register/identity impurities)` : ''}`);
+      console.log('recipe: docs/fine-tune.md');
+      break;
+    }
+    console.error('usage: glashaus export <soul|thesis|corpus> [out]');
+    console.error('  soul    the personality capsule — everything that makes them THEM (docs/moving.md)');
+    console.error('  thesis  the longitudinal record: drift, soul revisions, receipts, provenance');
+    console.error('  corpus  clean chat JSONL for fine-tuning (docs/fine-tune.md)');
+    process.exit(1);
+  }
+
   case 'doctor': { await requireSetup(); process.exit(run('doctor.js')); }
 
   case 'start': { const { config } = await requireSetup(); await start(config); break; }
@@ -301,25 +324,6 @@ switch (cmd) {
     }
     console.log(url);
     openBrowser(url);
-    break;
-  }
-
-  case 'facts': {
-    await requireSetup();
-    const { getDb } = await import(src('db.js'));
-    const rows = args[0]
-      ? getDb().prepare("SELECT category, importance, content FROM facts WHERE active = 1 AND content LIKE '%' || ? || '%' ORDER BY importance DESC").all(args[0])
-      : getDb().prepare('SELECT category, importance, content FROM facts WHERE active = 1 ORDER BY importance DESC, updated_at DESC LIMIT 30').all();
-    for (const f of rows) console.log(`[${f.category} ${f.importance}] ${f.content}`);
-    break;
-  }
-
-  case 'forget': {
-    await requireSetup();
-    if (!args[0]) { console.error("usage: glashaus forget <fact-id>  (find ids with 'glashaus facts' or the viewer)"); process.exit(1); }
-    const { forgetFact } = await import(src('memory.js'));
-    forgetFact(Number(args[0]));
-    console.log(`fact ${args[0]} forgotten (restore in the viewer)`);
     break;
   }
 
@@ -369,27 +373,19 @@ switch (cmd) {
     break;
   }
 
-  case 'export-corpus': {
-    const { config } = await requireSetup();
-    const out = args[0] ?? `${config.home}/corpus-${new Date().toISOString().slice(0, 10)}.jsonl`;
-    const { exportCorpus } = await import(src('corpus.js'));
-    const { pairs, skipped } = exportCorpus(out);
-    console.log(`${pairs} exchange(s) exported to ${out}${skipped ? ` (${skipped} skipped: register/identity impurities)` : ''}`);
-    console.log('recipe: docs/fine-tune.md');
-    break;
-  }
-
   case 'redact': case 'unredact': {
     await requireSetup();
-    const [from, to = args[0]] = args.map(Number);
+    const undo = cmd === 'unredact' || args.includes('--undo'); // `unredact` stays as a quiet alias
+    const ids = args.filter(a => a !== '--undo').map(Number);
+    const [from, to = ids[0]] = ids;
     if (!Number.isInteger(from) || !Number.isInteger(to) || to < from) {
-      console.error('usage: glashaus redact <fromId> [toId]   (ids from the viewer or `glashaus facts`-adjacent queries)');
+      console.error('usage: glashaus redact [--undo] <fromId> [toId]   (ids from the viewer chat page)');
       process.exit(1);
     }
     const { redactMessages } = await import(src('memory.js'));
-    const n = redactMessages(from, to, cmd === 'redact');
-    console.log(cmd === 'redact'
-      ? `redacted ${n} message(s) [${from}..${to}] — gone from context, summaries, and the viewer; rows remain on disk (reversible: glashaus unredact ${from} ${to})`
+    const n = redactMessages(from, to, !undo);
+    console.log(!undo
+      ? `redacted ${n} message(s) [${from}..${to}] — gone from context, summaries, and the viewer; rows remain on disk (reversible: glashaus redact --undo ${from} ${to})`
       : `restored ${n} message(s) [${from}..${to}]`);
     break;
   }
@@ -594,6 +590,10 @@ switch (cmd) {
   }
 
   default:
+    if (RETIRED[cmd]) {
+      console.error(`\`glashaus ${cmd}\` was retired in 2.5 — ${RETIRED[cmd]}`);
+      process.exit(1);
+    }
     help();
     process.exit(1);
 }

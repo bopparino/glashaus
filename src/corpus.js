@@ -1,4 +1,4 @@
-// glashaus export-corpus — the messages table IS a fine-tuning dataset,
+// glashaus export corpus — the messages table IS a fine-tuning dataset,
 // collecting itself every day. This exports clean chat-format JSONL: real
 // user→companion exchanges, redacted stretches excluded, replies that broke
 // identity or register filtered out. Feed it to the recipe in

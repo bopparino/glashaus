@@ -110,7 +110,7 @@ const COMMANDS = {
     const yn = (await rl.question(faint('  unhappen these? (y/N) '))).trim().toLowerCase();
     if (yn === 'y') {
       redactMessages(last.a, last.b);
-      console.log(faint(`  gone from my mind (rows kept; glashaus unredact ${last.a} ${last.b} reverses).`));
+      console.log(faint(`  gone from my mind (rows kept; glashaus redact --undo ${last.a} ${last.b} reverses).`));
     } else console.log(faint('  kept.'));
   },
 

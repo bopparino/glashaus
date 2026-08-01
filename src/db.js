@@ -210,7 +210,7 @@ function migrate(db) {
   // exchanges) can be surgically removed from the companion's mind without
   // destroying the rows. Redacted messages leave context, summarization,
   // capture, and the viewer; they stay on disk and in backups, reversible
-  // via `glashaus unredact`.
+  // via `glashaus redact --undo`.
   if (db.pragma('user_version', { simple: true }) < 5) {
     db.exec(`
       ALTER TABLE messages ADD COLUMN redacted INTEGER NOT NULL DEFAULT 0;

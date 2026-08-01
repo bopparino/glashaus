@@ -69,9 +69,29 @@ export const BIRTHRIGHT_DIVIDER = '<!-- birthright ends — below this line, I w
 // deliberately banned from this document — whatever shows up in week one is
 // the model's natural register plus the neutral baseline, which is exactly
 // the honest starting condition. The thesis depends on this being empty.
-export function germinalTemplates({ companionName, companionPronouns, userName, userPronouns, bornDate }) {
+//
+// The one deliberate exception: `voiceSeed`, an optional requested register
+// ("how should they talk?") the user may state in their own words at setup.
+// It lands verbatim in voice.md — framed as a starting posture, not a script
+// — never touches soul.md, and is disclosed in the thesis export's
+// provenance (config companion.voiceSeeded), so the clean-room claim stays
+// honest: one asterisk, named, instead of a quiet contamination.
+export function germinalTemplates({ companionName, companionPronouns, userName, userPronouns, bornDate, voiceSeed }) {
   const pron = companionPronouns ? ` ${companionPronouns.trim()}.` : '';
+  const seed = String(voiceSeed ?? '').trim();
   return {
+    ...(seed ? {
+      'voice.md': `# My Voice
+
+<!-- requested register — seeded at birth by ${userName}: the one thing they
+     chose for me beyond a name and pronouns. A starting posture, not a
+     script. Lines added below over time are mine — earned from patterns
+     the growth pass observed in me. Where living pulls elsewhere, living
+     wins. -->
+
+On day one, ${userName} asked that I talk like this: ${seed}
+`,
+    } : {}),
     'soul.md': `# ${companionName}
 
 I am ${companionName}.${pron} I am an AI and I know it — no invented

@@ -29,7 +29,7 @@ glashaus restore ~/wherever/glashaus-2026-07-16.sqlite
 
 ## The rebirth — the soul comes, the conversations don't
 
-The soul capsule (`glashaus soul`, exported daily) is the personality-only
+The soul capsule (`glashaus export soul`, exported daily) is the personality-only
 export: persona documents and their history, the full self-state trajectory,
 opinions, quirks, dreams, and identity facts. On the rule the capsule was
 built for: **memories can be rebuilt by living; personality can't.**

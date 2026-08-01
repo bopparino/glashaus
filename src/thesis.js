@@ -8,7 +8,7 @@
 // the clean-room claim checkable in one look: in a grow-mode instance, no
 // memory has a source that isn't lived.
 //
-//   glashaus export-thesis [out.json]
+//   glashaus export thesis [out.json]
 import fs from 'node:fs';
 import { getDb } from './db.js';
 import { config } from './config.js';
@@ -24,7 +24,10 @@ export function exportThesis(out) {
     born: config.bornDate || null,
 
     // The clean-room claim, auditable in one query: every source is lived.
+    // voice_seeded is the one named asterisk: true means the user stated a
+    // requested register at setup and voice.md was seeded from their words.
     provenance: {
+      voice_seeded: config.voiceSeeded === true,
       facts: db.prepare('SELECT source, COUNT(*) n FROM facts GROUP BY source ORDER BY n DESC').all(),
       episodes_total: db.prepare('SELECT COUNT(*) n FROM episodes').get().n,
       episodes_from_wander: db.prepare('SELECT COUNT(DISTINCT episode_id) n FROM wander_log WHERE episode_id IS NOT NULL').get().n,

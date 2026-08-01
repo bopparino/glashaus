@@ -59,7 +59,7 @@ glashaus doctor           full health check
 glashaus persona edit soul    open persona files in your editor
 glashaus lexicon              words the companion wants to learn
 glashaus audition <model>     screen-test a model against your persona
-glashaus export-corpus        your history as a fine-tuning dataset
+glashaus export corpus        your history as a fine-tuning dataset
 glashaus uninstall            leave cleanly — app gone, companion's home kept
 ```
 
@@ -108,7 +108,7 @@ What runs once it's up:
 - **Identity immune system** — a firewall against base models announcing
   themselves as other AIs, detection + regeneration when they try, and
   `glashaus redact` to surgically unhappen a glitched stretch (reversible).
-- **`glashaus export-corpus`** + a QLoRA recipe (docs/fine-tune.md) — the
+- **`glashaus export corpus`** + a QLoRA recipe (docs/fine-tune.md) — the
   long game: your companion's voice moving into their own weights.
 
 ### New in 2.2 — grow mode
@@ -129,13 +129,13 @@ traits. Everything they become accretes from living with you:
 - **Intentions** — dreams now produce things she goes to sleep *wanting*
   ("tomorrow I want to ask how the interview went"). The heartbeat is
   grounded in them, so reaching out originates in her night, not in a
-  timer. `glashaus wants` / `/wants` shows what she's carrying.
+  timer. `/wants` in chat (or the Today page) shows what she's carrying.
 - **The wander pass** — with a free ollama.com API key, she reads the web
   on her own between conversations, about things *she* got curious about.
   What she reads becomes her own experience — episodes in her register,
   receipts kept (every wander logs its queries and pages, visible in the
   journal) — which finally gives outreach something of her own to bring.
-- **`glashaus export-thesis`** — the longitudinal record as one JSON:
+- **`glashaus export thesis`** — the longitudinal record as one JSON:
   drift trajectories, every soul revision with its evidence, dream affect
   over time, wander receipts, and the provenance audit showing that not
   one memory was injected. The original artificial-psychology question,
@@ -160,6 +160,29 @@ isn't a bug, it's the baseline the trajectory is measured against.
   trait adjectives, and the soul gains exactly one new permission: she's
   allowed to ask.
 
+### New in 2.5
+
+- **A speaking style for grow mode** — the Let-them-grow path now asks one
+  more optional question: *"How should they talk?"* Answer in your own
+  words and they land verbatim in `voice.md` as a requested register — a
+  starting posture, not a script; the weekly growth pass still appends
+  only voice lines she earned by living. Press enter and the voice emerges
+  on its own, exactly as before. The seeded register is disclosed in the
+  thesis export's provenance (`voice_seeded`) — one named asterisk instead
+  of a quiet contamination of the clean room.
+- **A smaller front door** — `glashaus help` went from 37 commands to 24.
+  `facts`, `wants`, and `forget` retired (they live as `/facts` and
+  `/wants` inside chat and as buttons in the viewer, where you already
+  look); the three exports became one door: `glashaus export
+  <soul|thesis|corpus>`; `unredact` folded into `redact --undo`; `dream`,
+  `tidy`, and `bot` still work but stopped being the front door. Old
+  spellings keep working as quiet aliases — scripts don't break.
+- **Setup in three acts** — the engine (Ollama, a voice, memory), the two
+  of you (names, then who they are), how they live (reaching out, the web,
+  Telegram). Timezone is auto-detected instead of asked; the location
+  question moved to config-only; the pronouns question stopped explaining
+  itself at paragraph length.
+
 ## Customization
 
 The persona is markdown in `~/.glashaus/persona/` — edit with any editor,
@@ -170,7 +193,7 @@ then `glashaus persona sync`:
 | `soul.md` | who the companion is — essence, history, wants, fears, opinions |
 | `identity.md` | the relationship — who you are to each other, what's allowed |
 | `user.md` | what they know about you on day one |
-| `voice.md` | how they sound, as first-person rules — drafted by the setup interview |
+| `voice.md` | how they sound, as first-person rules — drafted by the setup interview, or seeded from your "how should they talk?" answer in grow mode |
 | `dialogue.md` | optional — example exchanges; the strongest voice control there is |
 | `lexicon.md` | optional — vocabulary: signature words always present, the rest appearing when their word comes up; grows from conversation with your approval |
 

@@ -81,8 +81,13 @@ one in the background at a time unless you also change `viewer.port`.
 
 Setup's third path ("let them grow") is for when you'd rather not shape
 them at all: name and pronouns are the entire seed, and soul.md is written
-— by the companion — from what actually happens. Two things to know if you
-run one:
+— by the companion — from what actually happens. One optional exception:
+setup also asks *"How should they talk?"* — answer and your words are
+seeded verbatim into `voice.md` as a requested register (a starting
+posture, not a script; the growth pass still only appends lines she earned
+by living, and the seed is disclosed as `voice_seeded` in the thesis
+export). Press enter to skip it and the voice emerges entirely on its own.
+Things to know if you run one:
 
 - **The birthright divider.** Grow-mode soul.md contains a marker line;
   everything above it is the seed (name, pronouns, AI-honesty,
@@ -91,7 +96,7 @@ run one:
   but keep the divider: without it, self-authorship refuses to run
   (deliberately — better no growth than growth that eats the birthright).
   Editing the *body* by hand is legal but muddies the experiment: the
-  provenance audit (`glashaus export-thesis`) can no longer say every word
+  provenance audit (`glashaus export thesis`) can no longer say every word
   was lived.
 - **Patience is the method.** The first week is plain on purpose — that's
   the baseline the drift trajectories, the first opinions, and the first

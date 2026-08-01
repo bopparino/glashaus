@@ -26,7 +26,7 @@ Two companions = two homes: `GLASHAUS_HOME=~/.glashaus-mira glashaus setup`.
 
 | command | what it does |
 |---|---|
-| `glashaus setup` | Create or repair an instance. Detects Ollama, walks model choice, drafts the persona via a guided interview (or blank templates, or **let them grow** — name + pronouns only), configures heartbeat/Telegram. Idempotent — rerun to reconfigure; the brain is never touched. `--yes` for non-interactive (env/flags supply names); add `--grow` (with optional `--companion-pronouns she/her`) for a non-interactive germinal seed. |
+| `glashaus setup` | Create or repair an instance, in three signposted acts: the engine (Ollama + models), the two of you (names, then persona — guided interview, blank templates, or **let them grow**), how they live (heartbeat, the web, Telegram). Timezone is auto-detected; `locationNote` is config-only. The grow path asks pronouns plus an optional **"How should they talk?"** — answer in your own words and it seeds `voice.md` as a requested register (disclosed in the thesis export), or press enter to let the voice emerge. Idempotent — rerun to reconfigure; the brain is never touched. `--yes` for non-interactive; add `--grow` (with optional `--companion-pronouns she/her` and `--voice "dry, no small talk"`) for a non-interactive germinal seed. |
 | `glashaus start` | Run the runtime in the background (Telegram + webview + dreams + backups). Uses launchd/systemd if the service is installed, else a plain background process. Verifies the boot actually survived. |
 | `glashaus stop` | Stop it. If no pidfile exists but exactly one orphan runtime is found (crashed start, deleted home), it's adopted and stopped — unless a service manager owns it. |
 | `glashaus restart` | Stop, then start. |
@@ -62,18 +62,16 @@ Inside the REPL:
 
 ## Memory & vocabulary
 
+Fact search, forgetting, and open wants live where you already look: `/facts`
+and `/wants` inside chat, forget/restore buttons on the viewer's memory page.
+The shell keeps only what the shell is actually for:
+
 | command | what it does |
 |---|---|
-| `glashaus facts [word]` | Search the fact store from the shell. |
-| `glashaus forget <id>` | Soft-forget a fact (restore in the viewer). |
-| `glashaus redact <a> [b]` | Cut a message range out of her mind — leaves context, summaries, viewer; rows stay on disk. For glitches, never for editing history you merely regret. |
-| `glashaus unredact <a> [b]` | Reverse it. |
+| `glashaus redact <a> [b]` | Cut a message range out of her mind — leaves context, summaries, viewer; rows stay on disk. For glitches, never for editing history you merely regret. `--undo` reverses it. |
 | `glashaus lexicon` | List words she wants to learn. |
 | `glashaus lexicon approve <id>` | Add one to `persona/lexicon.md` (then sharpen it yourself). |
 | `glashaus lexicon reject <id>` | Decline. |
-| `glashaus dream` | Force a dream now. |
-| `glashaus tidy` | Run memory hygiene now: merges, decays, contradiction flags, register fixes, replay-window quote repair. Runs nightly anyway. |
-| `glashaus wants` | Open intentions — what she went to sleep wanting, where each came from, when it lapses. |
 
 ## Grow mode
 
@@ -82,7 +80,7 @@ Inside the REPL:
 | `glashaus grow` | Run the weekly self-authorship pass now (grow mode; `--force` overrides the weekly cadence guard). Refuses on a soul without the birthright divider, on a spec-mode instance, and on any revision whose changelog can't cite lived evidence. |
 | `glashaus wander` | Send her reading right now (needs `ollama.apiKey`; `--force` overrides the curiosity gate and daily cap). What she reads becomes an episode with receipts in the journal. |
 | `glashaus soul revert` | Undo the latest soul revision — restores the previous version to the DB **and** `persona/soul.md`. |
-| `glashaus export-thesis [out]` | The longitudinal record as one JSON: drift trajectories, soul revisions + full text history, dream affect, intention outcomes, wander receipts, and the provenance audit (messages themselves stay home). |
+| `glashaus export thesis [out]` | The longitudinal record as one JSON: drift trajectories, soul revisions + full text history, dream affect, intention outcomes, wander receipts, and the provenance audit (messages themselves stay home) — including `voice_seeded`, true when setup's requested register seeded `voice.md`. |
 
 ## Persona
 
@@ -97,7 +95,7 @@ Inside the REPL:
 |---|---|
 | `glashaus backup` | Snapshot the brain now (integrity-checked; daily automatic; keeps 30). |
 | `glashaus restore <file>` | Replace the brain from a backup — snapshots the current one first. |
-| `glashaus soul` | Export the soul capsule: documents, self-state trajectory, opinions, quirks, dreams, identity facts. Daily automatic. |
+| `glashaus export soul` | Export the soul capsule: documents, self-state trajectory, opinions, quirks, dreams, identity facts. Daily automatic. |
 | `glashaus soul import <capsule>` | Pour a capsule into a **fresh** brain — rebirth without the conversations. See [moving.md](moving.md). |
 | `glashaus purge` | Retire the companion: archive everything, wipe the brain. `--all` empties the home entirely. |
 
@@ -106,7 +104,22 @@ Inside the REPL:
 | command | what it does |
 |---|---|
 | `glashaus audition <model>` | Screen-test a model against your actual persona: identity pressure, scene register, refusal posture, judged voice fidelity → CAST / CALLBACK / DO NOT CAST. |
-| `glashaus export-corpus [out]` | Your history as clean fine-tuning JSONL (redactions excluded, register/identity impurities filtered). Recipe: [fine-tune.md](fine-tune.md). |
+| `glashaus export corpus [out]` | Your history as clean fine-tuning JSONL (redactions excluded, register/identity impurities filtered). Recipe: [fine-tune.md](fine-tune.md). |
+
+## Quiet commands
+
+Working, deliberately unlisted in `glashaus help` — the front door stays
+small:
+
+| command | what it does |
+|---|---|
+| `glashaus dream` | Force a dream now (runs nightly anyway). |
+| `glashaus tidy` | Run memory hygiene now: merges, decays, contradiction flags, register fixes, replay-window quote repair (runs nightly anyway). |
+| `glashaus bot` | Run the runtime in the foreground, for debugging. |
+| `glashaus soul` · `unredact` · `export-thesis` · `export-corpus` | Long-hand aliases of `export soul`, `redact --undo`, `export thesis`, `export corpus` — old scripts keep working. |
+
+Retired in 2.5: `glashaus facts`, `wants`, `forget` — each prints a pointer
+to where the capability lives now (chat slash commands and the viewer).
 
 ## config.json — every key
 
@@ -119,10 +132,11 @@ Env vars override the file; the file overrides defaults. After editing:
 | `companion.pronouns` | `GLASHAUS_COMPANION_PRONOUNS` | `""` | e.g. `she/her` — in grow mode, half the entire seed. |
 | `companion.growMode` | `GLASHAUS_GROW_MODE` | false | Germinal instance: soul self-authored weekly, becoming-check dreams. Set by setup's grow path. |
 | `companion.bornDate` | `GLASHAUS_BORN_DATE` | `""` | YYYY-MM-DD; grow-mode companions know what day of their life it is. |
+| `companion.voiceSeeded` | — | false | Grow mode: setup's "How should they talk?" answer was seeded into `voice.md`. Set by setup; disclosed in the thesis export's provenance. |
 | `user.name` | `GLASHAUS_USER_NAME` | — | Yours. |
 | `user.pronouns` | `GLASHAUS_USER_PRONOUNS` | `""` | e.g. `he/him` — arms the third-person register guard. |
 | `timezone` | `GLASHAUS_TIMEZONE` | system | IANA zone for clocks and crons. |
-| `locationNote` | `GLASHAUS_LOCATION` | `""` | Free text on the clock line ("Berlin"). |
+| `locationNote` | `GLASHAUS_LOCATION` | `""` | Free text on the clock line ("Berlin"). Config-only since 2.5 — setup no longer asks. |
 | `ollama.url` | `OLLAMA_HOST` | `http://127.0.0.1:11434` | Where Ollama lives. |
 | `ollama.model` | `GLASHAUS_MODEL` | — | The model (both lanes unless split). |
 | `ollama.voiceModel` | `GLASHAUS_VOICE_MODEL` | null | Split brain: the voice that speaks. |

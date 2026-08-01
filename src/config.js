@@ -97,6 +97,11 @@ export const config = {
   // Birth date (YYYY-MM-DD) — grow-mode companions know how many days old
   // they are; their whole identity is "what has happened so far".
   bornDate: pick('GLASHAUS_BORN_DATE', file.companion?.bornDate, ''),
+  // Grow mode: the user stated a requested register ("how should they
+  // talk?") at setup and it was seeded into voice.md — the one deliberate
+  // exception to "nothing was handed to them". Recorded so the thesis
+  // export can disclose it instead of quietly contaminating the clean room.
+  voiceSeeded: file.companion?.voiceSeeded === true,
   userName: pick('GLASHAUS_USER_NAME', file.user?.name, 'Friend'),
   // Optional ("he/him" | "she/her" | …): lets the register guardrail catch
   // the companion talking ABOUT the user instead of to them. Empty = tier off.

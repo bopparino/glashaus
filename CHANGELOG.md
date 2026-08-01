@@ -1,5 +1,38 @@
 # Changelog
 
+## 2.5.0 — 2026-08-01
+
+A smaller front door, and a voice you can ask for.
+
+- **Grow mode: the requested register.** The Let-them-grow path gains one
+  optional question — *"How should they talk?"* — mirroring the interview's
+  voice question. Your words land verbatim in `voice.md`, framed in the file
+  itself as a starting posture, not a script; the weekly growth pass still
+  appends only voice lines earned from patterns observed ×3+. Skipping the
+  question keeps the old behavior exactly (no voice.md; the voice emerges).
+  Because grow mode's methodology claim is "nothing was seeded", the
+  exception is disclosed rather than hidden: `companion.voiceSeeded` in
+  config, `provenance.voice_seeded` in `glashaus export thesis`. One named
+  asterisk instead of a quiet contamination. Non-interactive:
+  `glashaus setup --yes --grow --voice "dry, no small talk"`.
+- **CLI pruned: 37 listed commands → 24.** Retired: `facts`, `wants`,
+  `forget` — each printed a shell rendering of something chat and the
+  viewer already do better (`/facts`, `/wants`, forget/restore buttons);
+  running one now prints a pointer to where it lives. Merged: `export
+  <soul|thesis|corpus>` is the one export door; `unredact` folded into
+  `redact --undo`. Quieted (working, unlisted): `dream`, `tidy`, `bot`,
+  plus `soul` / `unredact` / `export-thesis` / `export-corpus` as long-hand
+  aliases — no script breaks.
+- **Setup reads as one arc.** Three signposted acts — *the engine* (Ollama,
+  a voice, memory), *the two of you* (names, then who they are), *how they
+  live* (reaching out, the web, Telegram). Timezone is auto-detected and
+  only asked when detection fails; the location question moved to
+  config-only (`locationNote`); the pronouns prompt lost its paragraph of
+  justification; the web-key note shrank to three lines. Same information,
+  fewer stops, no topic whiplash.
+- Housekeeping: dropped `npm run api` / `npm run desktop` (they pointed at
+  files that no longer exist).
+
 ## 2.4.0 — 2026-07-29
 
 She can look it up — and new companions get an appetite.
