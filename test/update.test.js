@@ -110,5 +110,49 @@ for (const field of ['fromVersion', 'fromTarball', 'toVersion', 'backup', 'mode'
 }
 assert.ok(entry.schemaBefore < entry.schemaAfter, 'and records that a migration happened');
 
+// -- the CLI's own surface -----------------------------------------------------
+// `glashaus update` not appearing after a successful update is the failure
+// this pair of commands exists to explain, so both are pinned.
+const { spawnSync } = await import('node:child_process');
+const bin = new URL('../bin/glashaus.js', import.meta.url).pathname;
+const cli = (args, env = {}) => spawnSync(process.execPath, [bin, ...args],
+  { encoding: 'utf8', env: { ...process.env, ...env } });
+
+const help = cli(['help']).stdout;
+assert.ok(help.includes('glashaus update '), 'help lists update');
+assert.ok(help.includes('glashaus version '), 'help lists version');
+assert.ok(help.includes('glashaus setup'), 'and still points a newcomer at setup');
+
+// A–Z, checked rather than eyeballed — a hand-maintained list drifts, and it
+// drifts silently because nobody re-reads a help screen they wrote.
+// Exactly one space then a lowercase word is a command; that deliberately
+// excludes the `glashaus 2.6.1 — …` banner and the bare `glashaus` entry,
+// which is the zero-argument form and belongs at the top, not under C.
+const names = help.split('\n')
+  .map(l => l.match(/^glashaus ([a-z-]+)/)?.[1])
+  .filter(Boolean);
+assert.ok(names.length > 20, `expected the full command list, parsed ${names.length}`);
+assert.deepEqual(names, [...names].sort(),
+  `the command list is not alphabetical:\n  got    ${names.join(' ')}\n  sorted ${[...names].sort().join(' ')}`);
+assert.ok(help.indexOf('\nglashaus  ') < help.indexOf('\nglashaus audition'),
+  'the bare form still leads the list');
+
+// An unknown command must SAY so. Printing help alone reads like success,
+// which is exactly how `glashaus update` on an older build looked like it had
+// worked when it hadn't.
+const unknown = cli(['frobnicate']);
+assert.equal(unknown.status, 1, 'an unknown command exits non-zero');
+assert.match(unknown.stderr, /No such command/, 'and says what happened');
+assert.match(unknown.stderr, /\d+\.\d+\.\d+/, 'and names the version, so a stale binary is visible');
+
+// version reports the copy that is actually executing.
+for (const flag of ['version', '--version', '-v']) {
+  const v = cli([flag]);
+  assert.equal(v.status, 0, `${flag} exits 0`);
+  assert.match(v.stdout, /^glashaus \d+\.\d+\.\d+/, `${flag} prints the version`);
+  assert.match(v.stdout, /running from {2}\//, `${flag} prints the resolved path — the whole point`);
+  assert.match(v.stdout, /installed as/, `${flag} prints the install mode`);
+}
+
 fs.rmSync(home, { recursive: true, force: true });
-console.log('update ✓ — versions ordered, changelog sliced, install mode known, ledger contract held');
+console.log('update ✓ — versions ordered, changelog sliced, install mode known, ledger held, CLI surface A-Z');

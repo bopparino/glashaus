@@ -1,31 +1,32 @@
 #!/usr/bin/env node
 // glashaus — one command for everything.
 //
-//   glashaus setup            create (or repair) your companion — start here
 //   glashaus                  chat in the terminal
-//   glashaus view             open the memory webview in the browser
-//   glashaus start            run in the background (channels + dreaming + viewer)
-//   glashaus stop             stop the background process
-//   glashaus restart          restart it
-//   glashaus status           is it up? recent log lines
-//   glashaus logs             follow logs live
-//   glashaus doctor           full health check — run this when in doubt
-//   glashaus grow             run the weekly self-authorship pass now (grow mode)
-//   glashaus wander           send the companion reading right now (needs ollama.com key)
-//   glashaus soul revert      undo the latest soul revision (growth pass or edit)
-//   glashaus soul import <f>  pour a capsule into a FRESH brain (rebirth; see docs/moving.md)
-//   glashaus export <what>    soul (portable capsule) · thesis (the record) · corpus (fine-tune JSONL)
-//   glashaus lexicon          words the companion wants to learn (approve/reject <id>)
-//   glashaus redact <a> [b]   cut a glitched message range from the companion's mind (--undo restores)
-//   glashaus persona sync     push persona/*.md edits into the live documents
-//   glashaus persona edit <soul|identity|user|voice|dialogue>
 //   glashaus audition <model> screen-test a model against this persona before casting it
 //   glashaus backup           back up the brain now (also runs daily)
-//   glashaus restore <file>   replace the brain from a backup (snapshots current first)
+//   glashaus doctor           full health check — run this when in doubt
+//   glashaus export <what>    soul (portable capsule) · thesis (the record) · corpus (fine-tune JSONL)
+//   glashaus grow             run the weekly self-authorship pass now (grow mode)
+//   glashaus lexicon          words the companion wants to learn (approve/reject <id>)
+//   glashaus logs             follow logs live
+//   glashaus persona edit <soul|identity|user|voice|dialogue>
+//   glashaus persona sync     push persona/*.md edits into the live documents
 //   glashaus purge            retire the companion: archive first, wipe the brain (--all empties the home)
-//   glashaus update           pull the latest version — backs up, verifies, rolls back if it breaks
+//   glashaus redact <a> [b]   cut a glitched message range from the companion's mind (--undo restores)
+//   glashaus restart          restart it
+//   glashaus restore <file>   replace the brain from a backup (snapshots current first)
 //   glashaus service install  start at login + survive crashes (launchd/systemd; `uninstall` removes)
+//   glashaus setup            create (or repair) your companion — START HERE
+//   glashaus soul import <f>  pour a capsule into a FRESH brain (rebirth; see docs/moving.md)
+//   glashaus soul revert      undo the latest soul revision (growth pass or edit)
+//   glashaus start            run in the background (channels + dreaming + viewer)
+//   glashaus status           is it up? recent log lines
+//   glashaus stop             stop the background process
 //   glashaus uninstall        remove the app cleanly — the companion's home survives (--all retires them too)
+//   glashaus update           pull the latest version — backs up, verifies, rolls back if it breaks
+//   glashaus version          which copy is running, and from where
+//   glashaus view             open the memory webview in the browser
+//   glashaus wander           send the companion reading right now (needs ollama.com key)
 //
 // Quiet commands — they work, they're just not the front door:
 //   dream · tidy      manual runs of the nightly jobs (dreaming, memory hygiene)
@@ -48,11 +49,54 @@ const [cmd = 'chat', ...args] = process.argv.slice(2);
 // config.js reads GLASHAUS_HOME; import lazily so `setup`/`help` never touch it.
 const loadConfig = () => import(src('config.js'));
 
+// The list is A–Z, parsed straight out of this file's own header so there is
+// exactly one place to edit. Alphabetical is right for a reference you scan
+// with a name already in mind — which is what this is, nearly always. The one
+// case it serves badly is the first five minutes, when you don't have a name
+// yet and `setup` is sitting between `service` and `soul`, so that one gets
+// said out loud above the list rather than reordered into a special case.
 function help() {
   const lines = fs.readFileSync(fileURLToPath(import.meta.url), 'utf8')
     .split('\n').filter(l => l.startsWith('//   glashaus')).map(l => l.slice(5));
-  console.log(['glashaus — a companion runtime. https://github.com/bopparino/glashaus', '', ...lines,
-    '', 'quieter, still working: dream · tidy (manual runs of nightly jobs) · bot (foreground runtime)'].join('\n'));
+  console.log([
+    `glashaus ${version()} — a companion runtime. https://github.com/bopparino/glashaus`,
+    '',
+    'New here?  glashaus setup   ·   Already have a companion?  glashaus',
+    '',
+    ...lines,
+    '',
+    'quieter, still working: dream · tidy (manual runs of nightly jobs) · bot (foreground runtime)',
+  ].join('\n'));
+}
+
+const version = () => {
+  try { return JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8')).version; }
+  catch { return '?'; }
+};
+
+// Which copy is running, and from where. This exists because "I installed the
+// update and the command still isn't there" is the single most likely
+// confusion with a global npm package: `npm root -g` answers for the npm you
+// just ran, while the binary on your PATH may come from an entirely different
+// node install. One command should answer both at once.
+function showVersion() {
+  const home = process.env.GLASHAUS_HOME || path.join(process.env.HOME ?? '~', '.glashaus');
+  const mode = fs.existsSync(path.join(appRoot, '.git')) ? 'a git checkout'
+    : /[\\/]node_modules[\\/]glashaus$/.test(appRoot) ? 'a global npm package'
+    : 'an unrecognised layout';
+  console.log(`glashaus ${version()}`);
+  console.log(`  running from  ${appRoot}`);
+  console.log(`  installed as  ${mode}`);
+  console.log(`  node ${process.version} on ${process.platform} ${process.arch}`);
+  console.log(`  companion home ${fs.existsSync(path.join(home, 'config.json')) ? '' : '(empty) '}${home}`);
+  // The trap this command exists to catch: a second copy earlier in PATH.
+  const found = (spawnSync('sh', ['-c', 'command -v -a glashaus 2>/dev/null || which -a glashaus 2>/dev/null'],
+    { encoding: 'utf8' }).stdout ?? '').trim().split('\n').filter(Boolean);
+  if (found.length > 1) {
+    console.log(`\n  ⚠ ${found.length} copies of \`glashaus\` are on your PATH — the first one wins:`);
+    for (const f of found) console.log(`      ${f}`);
+    console.log('  If an update seems not to have landed, that is almost always why.');
+  }
 }
 
 // Retired top-level commands (2.5) — each points at where the capability
@@ -232,6 +276,7 @@ function openBrowser(url) {
 
 switch (cmd) {
   case 'help': case '-h': case '--help': help(); break;
+  case 'version': case '-v': case '--version': showVersion(); break;
   case 'setup': process.exit(run('setup.js', args));
 
   case 'chat': { await requireSetup(); process.exit(run('cli.js', args)); }

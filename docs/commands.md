@@ -125,6 +125,18 @@ The shell keeps only what the shell is actually for:
 | `glashaus persona sync` | Push persona/*.md edits into the live documents (every previous version is archived). Also happens at boot. |
 | `glashaus persona edit <soul\|identity\|user\|voice\|dialogue>` | Open in `$EDITOR`, sync on close. |
 
+## Which copy am I running?
+
+| command | what it does |
+|---|---|
+| `glashaus version` (`-v`, `--version`) | Version, the path it's running from, how it was installed, node/platform, and the companion home. Warns if more than one `glashaus` is on your PATH. |
+
+Worth knowing before it bites you: `npm root -g` answers for the npm you just
+ran, while `which glashaus` answers for whatever is earliest on your PATH. With
+two node installs (Homebrew and nvm, say) those are different directories, and
+an update lands in one while the other keeps running. `glashaus version` is the
+one command that answers both at once.
+
 ## Updating
 
 | command | what it does |

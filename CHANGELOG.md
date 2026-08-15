@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.6.2 — 2026-08-15
+
+- **`glashaus version`** (`--version`, `-v`) — which copy is running, and from
+  where: version, resolved install path, install mode, node/platform, and the
+  companion home. Written after an update appeared to do nothing: `npm root
+  -g` reported 2.6.1 while the binary on PATH was an older copy from a
+  different node install. So `version` also warns when more than one
+  `glashaus` is on your PATH and names them in order, because the first one
+  wins and that is almost always the answer to "the update didn't land".
+- **The command list is A–Z.** It had grown in the order features arrived,
+  which is only useful to whoever added the last one. Alphabetical serves the
+  way a reference is actually read — you scan it with a name already in mind.
+  The first five minutes are the exception, when you have no name yet, so help
+  now opens with one line pointing at `setup` rather than reordering the list
+  around a special case. A test asserts the ordering; a hand-maintained list
+  drifts silently, because nobody re-reads a help screen they wrote.
+
 ## 2.6.1 — 2026-08-15
 
 `glashaus update`.
