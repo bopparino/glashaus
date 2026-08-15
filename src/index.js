@@ -8,7 +8,8 @@ import cron from 'node-cron';
 import { config, isConfigured, validateInstanceConfig } from './config.js';
 import { runDream } from './dream.js';
 import { consolidate } from './consolidate.js';
-import { heartbeat } from './heartbeat.js';
+import { heartbeat, markDelivered } from './heartbeat.js';
+import { raiseThread } from './threads.js';
 import { runGrowth } from './growth.js';
 import { runWander } from './wander.js';
 import { fulfillIntention } from './selfstate.js';
@@ -91,8 +92,12 @@ cron.schedule(config.crons.heartbeat, async () => {
     if (out) {
       if (telegram) await telegram.sendToOwner(out.text); // throws on failure — nothing persists
       pendingMorningMessage = null;
-      saveMessage('assistant', out.text, 'outreach');
+      const messageId = saveMessage('assistant', out.text, 'outreach');
       if (out.intentionId) fulfillIntention(out.intentionId);
+      // She raised it herself — recorded so the anti-nag gate can hold her to
+      // it, and so the next decision can see that she already brought it up.
+      if (out.threadId) raiseThread(out.threadId, { actor: 'outreach', note: out.text.slice(0, 200), messageId });
+      markDelivered(out.logId);
     }
   } catch (err) {
     console.error('[heartbeat]', err.message);

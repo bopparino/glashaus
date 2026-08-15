@@ -14,10 +14,15 @@ import { forgetFact } from './memory.js';
 import { config } from './config.js';
 import { runChecks, backupList } from './health.js';
 import { handleUserMessage } from './chat.js';
+import { runCommand, isCommand, renderPlain } from './commands.js';
 import { getSelfState } from './selfstate.js';
 
 const PORT = config.viewerPort;
 const BIND = config.viewerBind;
+// Whether this viewer is reachable only from the machine it runs on. Gates
+// the mutating half of the slash-command registry: POST /chat is
+// unauthenticated, so on a LAN bind the commands stay read-only.
+const LOOPBACK_BIND = ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(String(BIND));
 const STARTED = Date.now();
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -382,7 +387,15 @@ form.addEventListener('submit', async e => {
   try {
     const res = await fetch('/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
     const data = await res.json();
-    thinking.lastChild.innerHTML = fmt(data.reply ?? ('(error: ' + (data.error || res.status) + ')'));
+    // A command answer is the ENGINE talking, not her — monospaced, dimmer,
+    // whitespace preserved, and never labelled with her name.
+    if (data.command) {
+      thinking.firstChild.innerHTML = '<span class="soft">✠ engine</span>';
+      thinking.lastChild.style.cssText = 'white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--soft)';
+      thinking.lastChild.textContent = data.reply ?? '';
+    } else {
+      thinking.lastChild.innerHTML = fmt(data.reply ?? ('(error: ' + (data.error || res.status) + ')'));
+    }
     if (data.lastId) lastId = data.lastId;
   } catch (err) { thinking.lastChild.textContent = '(unreachable: ' + err.message + ')'; }
   inFlight = false; input.disabled = false; input.focus(); toBottom();
@@ -709,6 +722,24 @@ export function startViewer() {
         let text = '';
         try { text = JSON.parse(body).text?.trim() ?? ''; } catch { /* bad json */ }
         if (!text) { res.writeHead(400, { 'Content-Type': 'application/json' }).end('{"error":"empty"}'); return; }
+        // A slash command is spoken to the ENGINE, not to her: it runs from
+        // the registry the terminal and Telegram share, and never reaches the
+        // model or enters memory as something said.
+        //
+        // On the default loopback bind this is the same person's room as the
+        // terminal, so it gets the same powers. On a LAN bind it is NOT —
+        // POST /chat has no authentication (see hostAllowed, and the standing
+        // "keep it on localhost until viewer auth ships" in docs), and an
+        // unauthenticated caller must not be able to revert a soul, redact
+        // history, or read every recalled memory out of /why. Reads only,
+        // there, until the viewer has a login.
+        if (isCommand(text)) {
+          const result = await runCommand(text, { surface: 'viewer', allowActions: LOOPBACK_BIND });
+          const lastId = db.prepare('SELECT COALESCE(MAX(id),0) m FROM messages').get().m;
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+            .end(JSON.stringify({ reply: renderPlain(result), command: true, lastId }));
+          return;
+        }
         const reply = await handleUserMessage(text);
         const lastId = db.prepare('SELECT COALESCE(MAX(id),0) m FROM messages').get().m;
         res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ reply, lastId }));

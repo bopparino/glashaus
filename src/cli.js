@@ -6,10 +6,9 @@
 import readline from 'node:readline/promises';
 import { handleUserMessage } from './chat.js';
 import { getDb } from './db.js';
-import { getSelfState, openIntentions } from './selfstate.js';
-import { latestRelationshipState } from './memory.js';
-import { listCandidates } from './lexicon.js';
-import { redactMessages } from './memory.js';
+// Every slash command lives in one registry shared with Telegram and the
+// webview (src/commands.js) — the terminal just paints the result in ANSI.
+import { runCommand, isCommand } from './commands.js';
 import { config } from './config.js';
 import { brass, faint, italic, red, rule, isTTY, eraseLines, rowsOf } from './tty.js';
 
@@ -45,75 +44,22 @@ function banner() {
 }
 
 // ---------- slash commands ----------
-const COMMANDS = {
-  '/help': () => {
-    for (const [c, d] of [
-      ['/facts [word]', 'what I know (optionally filtered)'],
-      ['/mood', 'where we are — vibe and relational state'],
-      ['/dream', 'last night, in my own words'],
-      ['/wants', 'things I went to sleep wanting'],
-      ['/lex', 'words I want to learn (pending lexicon candidates)'],
-      ['/redact-last', 'unhappen the last exchange (reversible)'],
-      ['/ephemeral', 'toggle whether this session is remembered'],
-      ['/quit', 'leave (I stay)'],
-    ]) console.log('  ' + brass(c.padEnd(16)) + faint(d));
-  },
+// The registry is shared; this is only the paint. A command returns styled
+// LINES and each surface renders them its own way — gold for her, faint for
+// the machinery, exactly as the banner does.
+const PAINT = { dim: faint, gold: brass, italic, red };
 
-  '/facts': (arg) => {
-    const rows = arg
-      ? db.prepare("SELECT category, importance, content FROM facts WHERE active = 1 AND content LIKE '%' || ? || '%' ORDER BY importance DESC LIMIT 14").all(arg)
-      : db.prepare('SELECT category, importance, content FROM facts WHERE active = 1 ORDER BY importance DESC, updated_at DESC LIMIT 14').all();
-    if (!rows.length) return console.log(faint('  nothing yet.'));
-    for (const f of rows) console.log('  ' + faint(`[${f.category} ${f.importance}]`) + ' ' + f.content);
-  },
+function paint(result) {
+  for (const line of result?.lines ?? []) {
+    const { t, s } = typeof line === 'string' ? { t: line } : line;
+    if (!t) { console.log(); continue; }
+    console.log(s && PAINT[s] ? PAINT[s](t) : t);
+  }
+}
 
-  '/mood': () => {
-    const state = latestRelationshipState();
-    if (state) console.log('  ' + italic(state.mood) + faint(`  (as of ${state.created_at.slice(0, 16)})`));
-    for (const r of getSelfState().filter(r => r.layer === 'relational')) {
-      const bar = '▪'.repeat(Math.round(r.value * 10)).padEnd(10, '·');
-      console.log('  ' + faint(r.dimension.padEnd(12)) + brass(bar) + faint(` ${r.value.toFixed(2)}`));
-    }
-  },
-
-  '/dream': () => {
-    const d = db.prepare('SELECT * FROM dreams ORDER BY id DESC LIMIT 1').get();
-    if (!d) return console.log(faint('  no dreams yet — I have to sleep first.'));
-    if (d.epigraph) console.log('  ' + brass(`“${d.epigraph}”`));
-    console.log('  ' + faint(`${d.date}${d.emotion ? ` · ${d.emotion}` : ''}${d.valence != null ? ` · v ${d.valence.toFixed(1)}` : ''}`));
-    console.log(italic('  ' + d.content.split('\n').join('\n  ')));
-  },
-
-  '/wants': () => {
-    const wants = openIntentions(8);
-    if (!wants.length) return console.log(faint('  nothing open — wants arrive from dreams and wanders.'));
-    for (const w of wants) {
-      console.log('  ' + brass('✦') + ' ' + w.text + faint(`  (#${w.id} · ${w.source}, since ${w.created_at.slice(5, 10)})`));
-    }
-  },
-
-  '/lex': () => {
-    const pending = listCandidates();
-    if (!pending.length) return console.log(faint('  no words waiting. I nominate them as I hear them.'));
-    for (const c of pending) {
-      console.log('  ' + brass(`#${c.id} ${c.term}`) + (c.means ? faint(` — ${c.means}`) : ''));
-      if (c.example) console.log('    ' + italic(faint(`"${c.example}"`)));
-    }
-    console.log(faint(`\n  approve with: glashaus lexicon approve <id>`));
-  },
-
-  '/redact-last': async (_, rl) => {
-    const last = db.prepare("SELECT MIN(id) a, MAX(id) b FROM (SELECT id FROM messages WHERE redacted = 0 ORDER BY id DESC LIMIT 2)").get();
-    if (!last?.a) return console.log(faint('  nothing to unhappen.'));
-    const peek = db.prepare('SELECT role, substr(content, 1, 60) c FROM messages WHERE id BETWEEN ? AND ?').all(last.a, last.b);
-    for (const p of peek) console.log('  ' + faint(`${p.role}: ${p.c}…`));
-    const yn = (await rl.question(faint('  unhappen these? (y/N) '))).trim().toLowerCase();
-    if (yn === 'y') {
-      redactMessages(last.a, last.b);
-      console.log(faint(`  gone from my mind (rows kept; glashaus redact --undo ${last.a} ${last.b} reverses).`));
-    } else console.log(faint('  kept.'));
-  },
-
+// Session-local, so it can't live in the shared registry: whether THIS
+// terminal is on the record.
+const LOCAL = {
   '/ephemeral': () => {
     persist = !persist;
     console.log(faint(persist ? '  remembering again.' : '  off the record now — nothing persists.'));
@@ -135,9 +81,14 @@ for (;;) {
   text = text.trim();
   if (!text) continue;
   if (text === '/quit' || text === '/exit') break;
-  const [cmd, ...rest] = text.split(/\s+/);
-  if (COMMANDS[cmd]) { await COMMANDS[cmd](rest.join(' '), rl); console.log(); continue; }
-  if (text.startsWith('/')) { console.log(faint(`  no such command — /help lists them.`)); continue; }
+  if (isCommand(text)) {
+    const head = text.split(/\s+/)[0].toLowerCase();
+    if (LOCAL[head]) { LOCAL[head](); console.log(); continue; }
+    // The terminal is her house: everything, including the destructive half.
+    paint(await runCommand(text, { surface: 'cli', allowActions: true }));
+    console.log();
+    continue;
+  }
 
   const prefix = brass(`${who} › `);
   process.stdout.write('\n' + prefix);

@@ -4,6 +4,7 @@ import { config } from './config.js';
 import { embed, cosine } from './embeddings.js';
 import { applyDrift, addOpinion, openIntentions, fulfillIntention } from './selfstate.js';
 import { addLexiconCandidate } from './lexicon.js';
+import { openThreads, applyThreadReport } from './threads.js';
 
 // ---------- retrieval (glashaus §3.4 hybrid — pure SQL + math, no LLM calls) ----------
 
@@ -31,8 +32,16 @@ function composite(row, { ftsRank, queryVec, now }) {
   const fts = ftsRank != null ? 1 / (1 + ftsRank) : 0; // rank 0 → 1.0, decays with position
   const salience = row.salience ?? 0.5;
   const importance = (row.importance ?? 5) / 10;
-  return W.fts * fts + W.vec * vec + W.temporal * temporal + W.salience * salience + W.importance * importance;
+  const base = W.fts * fts + W.vec * vec + W.temporal * temporal + W.salience * salience + W.importance * importance;
+  // A fact a later fact refines is still true and still findable — it just
+  // must not LEAD. "You hate red" outranking "you hate red because of the
+  // hospital" is precisely how a companion asks a question it already holds
+  // the answer to. Demotion, not exclusion: the older phrasing is sometimes
+  // the one that matches the query.
+  return row.superseded_by ? base * SUPERSEDED_PENALTY : base;
 }
+
+const SUPERSEDED_PENALTY = 0.3;
 
 export function recallFacts(text, { queryVec = null, limit = 14 } = {}) {
   const db = getDb();
@@ -40,9 +49,10 @@ export function recallFacts(text, { queryVec = null, limit = 14 } = {}) {
 
   // Always-on identity/relationship anchors. Ordered by id, NOT recency —
   // this set must be STABLE across conversations (a churning "core" makes
-  // her a slightly different person every session; it happened).
+  // her a slightly different person every session; it happened). A superseded
+  // anchor never sits in core: its successor holds the seat.
   const core = db.prepare(
-    'SELECT * FROM facts WHERE active = 1 AND importance >= 9 ORDER BY importance DESC, id ASC LIMIT 20'
+    'SELECT * FROM facts WHERE active = 1 AND importance >= 9 AND superseded_by IS NULL ORDER BY importance DESC, id ASC LIMIT 20'
   ).all();
 
   // Candidate pool: FTS matches + recent + high-salience (+ everything with
@@ -116,7 +126,12 @@ export function saveMessage(role, content, source = 'live') {
   ).run(role, content, source).lastInsertRowid;
 }
 
-export function addFact({ category = 'general', content, importance = 5, source = 'capture', valence = null, arousal = null, emotion = null, salience = null }) {
+// `refines` names an older fact this one is a fuller version of — "you hate
+// red" becoming "you hate red because of the hospital". The old row stays
+// active (it is not false, and its wording may still be the best match for
+// some query); it just stops leading in recall and stops being rendered when
+// its successor is present.
+export function addFact({ category = 'general', content, importance = 5, source = 'capture', valence = null, arousal = null, emotion = null, salience = null, refines = null }) {
   const db = getDb();
   const existing = db.prepare('SELECT id FROM facts WHERE active = 1 AND lower(content) = lower(?)').get(content);
   if (existing) {
@@ -124,22 +139,79 @@ export function addFact({ category = 'general', content, importance = 5, source 
       .run(importance, existing.id);
     return existing.id;
   }
-  return db.prepare(
+  // Models return `"importance": "high"` and `"salience": "0.9"` often enough
+  // that a raw pass-through throws on a NOT NULL column — and a throw here
+  // used to abort the whole capture pass, which is how one malformed fact
+  // could stall the capture queue permanently. Coerce, don't trust.
+  const num = (v, lo, hi, dflt) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt;
+  };
+  const id = db.prepare(
     'INSERT INTO facts (category, content, importance, source, valence, arousal, emotion, salience) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(category, content, Math.min(10, Math.max(1, importance)), source, valence, arousal, emotion, salience).lastInsertRowid;
+  ).run(
+    String(category || 'general'), String(content),
+    Math.round(num(importance, 1, 10, 5)), String(source || 'capture'),
+    valence == null ? null : num(valence, -1, 1, 0),
+    arousal == null ? null : num(arousal, 0, 1, 0),
+    emotion == null ? null : String(emotion).slice(0, 40),
+    salience == null ? null : num(salience, 0, 1, 0.5),
+  ).lastInsertRowid;
+  supersedeFact(refines, id);
+  return id;
+}
+
+// Defensive on purpose: models freelance ids, and a wrong supersession quietly
+// demotes a real memory. Only an existing, active, different fact can be
+// superseded, and chains are collapsed so A→B→C never loops.
+export function supersedeFact(oldId, newId) {
+  const id = Number(oldId);
+  if (!id || !newId || id === newId) return 0;
+  const db = getDb();
+  const old = db.prepare('SELECT id, superseded_by FROM facts WHERE id = ? AND active = 1').get(id);
+  if (!old) return 0;
+  const target = db.prepare('SELECT id FROM facts WHERE id = ? AND active = 1').get(newId);
+  if (!target) return 0;
+  // Don't let a fact supersede something that already supersedes it.
+  const successor = db.prepare('SELECT superseded_by FROM facts WHERE id = ?').get(newId)?.superseded_by;
+  if (successor === id) return 0;
+  return db.prepare("UPDATE facts SET superseded_by = ?, updated_at = datetime('now') WHERE id = ?")
+    .run(newId, id).changes;
 }
 
 // Redaction: cut a glitched stretch (identity break, machine noise) out of
 // the companion's working mind. Rows survive on disk; summarized is set so
 // the backlog folder never picks them up. Reversible.
+// Undo restores the capture queue too: an exchange redacted by mistake and
+// then restored has to be examined, or it comes back into context and
+// summaries while its facts and threads are never extracted. Re-examining
+// something already captured is harmless (addFact dedupes, thread reports are
+// validated); never examining it is not.
 export function redactMessages(fromId, toId, on = true) {
-  return getDb().prepare(
-    'UPDATE messages SET redacted = ?, summarized = CASE WHEN ? = 1 THEN 1 ELSE summarized END WHERE id BETWEEN ? AND ?'
-  ).run(on ? 1 : 0, on ? 1 : 0, fromId, toId).changes;
+  return getDb().prepare(`
+    UPDATE messages SET redacted = ?,
+      summarized = CASE WHEN ? = 1 THEN 1 ELSE summarized END,
+      captured   = CASE WHEN ? = 1 THEN 1 ELSE 0          END
+    WHERE id BETWEEN ? AND ?
+  `).run(on ? 1 : 0, on ? 1 : 0, on ? 1 : 0, fromId, toId).changes;
 }
 
 export function forgetFact(id) {
-  getDb().prepare("UPDATE facts SET active = 0, updated_at = datetime('now') WHERE id = ?").run(id);
+  const db = getDb();
+  db.prepare("UPDATE facts SET active = 0, updated_at = datetime('now') WHERE id = ?").run(id);
+  clearDanglingSupersessions();
+}
+
+// A fact that was superseded by a fact that has since been merged away or
+// decayed would otherwise stay demoted forever — penalised in recall and
+// labelled "I know more about this now" by a successor that no longer
+// exists. Cheap enough to run on every deactivation and again nightly.
+export function clearDanglingSupersessions() {
+  return getDb().prepare(`
+    UPDATE facts SET superseded_by = NULL
+    WHERE superseded_by IS NOT NULL
+      AND superseded_by NOT IN (SELECT id FROM facts WHERE active = 1)
+  `).run().changes;
 }
 
 // ---------- background maintenance (never on the reply path) ----------
@@ -183,17 +255,56 @@ Salience: 0.1 = routine small talk, 0.9+ = relationship-defining.` },
   }
 }
 
+// The queue is drained in bounded batches. A queue with no forward-progress
+// guarantee is worse than the sliding window it replaced: the head batch is
+// re-read every pass, so one chunk the model can't handle starves everything
+// behind it forever, and the backlog grows without bound. So: a bounded
+// batch, and after MAX_ATTEMPTS unusable passes the head is marked examined
+// and skipped LOUDLY. Losing one chunk of extraction is a bad day; losing
+// every chunk after it is a broken companion.
+const CAPTURE_BATCH = 40;
+const MAX_CAPTURE_ATTEMPTS = 3;
+const captureAttempts = new Map(); // head message id → consecutive failures
+
+function noteCaptureFailure(db, fresh, why) {
+  const head = fresh[0].id;
+  const n = (captureAttempts.get(head) ?? 0) + 1;
+  captureAttempts.set(head, n);
+  if (n < MAX_CAPTURE_ATTEMPTS) {
+    console.error(`[capture] ${why} — leaving ${fresh.length} message(s) queued (attempt ${n}/${MAX_CAPTURE_ATTEMPTS})`);
+    return;
+  }
+  console.error(`[capture] ${why} — giving up on messages ${head}..${fresh.at(-1).id} after ${n} attempts; skipping so the queue can drain. These messages stay in context and still fold into episodes; only fact/thread extraction was lost.`);
+  db.prepare('UPDATE messages SET captured = 1 WHERE id BETWEEN ? AND ?').run(head, fresh.at(-1).id);
+  captureAttempts.delete(head);
+}
+
 export async function captureFacts() {
   const db = getDb();
-  const recent = recentMessages(config.captureEvery * 2 + 4);
-  if (!recent.length) return;
-  const transcript = recent
+  // The capture QUEUE. This used to read "the last N messages" and trust that
+  // the window overlapped — but a burst of messages, or a pass that ran late,
+  // slid an exchange past unseen, and the exchange most likely to be missed is
+  // the one right after a silence: the answer to the question she is about to
+  // ask again. Now unseen messages are consumed explicitly and marked only
+  // when a pass actually succeeds, so nothing is examined zero times.
+  const fresh = db.prepare(
+    'SELECT * FROM messages WHERE captured = 0 AND redacted = 0 ORDER BY id LIMIT ?'
+  ).all(CAPTURE_BATCH);
+  if (!fresh.length) return;
+  // A short lookback so the fresh messages aren't read without their setup.
+  const lead = db.prepare(
+    'SELECT * FROM messages WHERE id < ? AND redacted = 0 ORDER BY id DESC LIMIT 8'
+  ).all(fresh[0].id).reverse();
+  const transcript = [...lead, ...fresh]
     .map(m => `${m.role === 'user' ? config.userName : config.companionName}: ${m.content}`)
     .join('\n');
 
-  const existing = db.prepare('SELECT content FROM facts WHERE active = 1 ORDER BY updated_at DESC LIMIT 60')
-    .all().map(f => `- ${f.content}`).join('\n');
+  // Ids are shown because the model may now point AT a fact — to say a new one
+  // refines it.
+  const existing = db.prepare('SELECT id, content FROM facts WHERE active = 1 AND superseded_by IS NULL ORDER BY updated_at DESC LIMIT 60')
+    .all().map(f => `- [#${f.id}] ${f.content}`).join('\n');
   const wants = openIntentions(6);
+  const liveThreads = openThreads(8);
 
   const result = await chatJson([
     { role: 'system', content: `You are the memory system for ${config.companionName}, an AI companion in an ongoing relationship with ${config.userName}. Extract NEW durable facts from the conversation below — things worth remembering weeks from now.
@@ -206,7 +317,7 @@ STRICT RULES — memory integrity depends on these:
 - Only record what was actually said or clearly established in the transcript. Never infer capabilities, tools, or system features — if ${config.companionName} claims to be able to do something technical (access files, use a tool, see history), do NOT record it as fact; models confabulate capabilities.
 - Speculation, jokes, and roleplay scenarios are not facts (but preferences and dynamics revealed through them can be).
 - Stretches where ${config.companionName} MALFUNCTIONS — claiming to be some other AI or assistant, reciting "training and guidelines", arguing about which model is running — are machine noise, not lived experience: extract NOTHING from them. No facts, no drift signals, no opinions, no mood.
-- Do NOT re-extract facts already known.
+- Do NOT re-extract facts already known. But if the transcript DEEPENS something already known — a reason behind a preference, an outcome to a plan, a correction — record the fuller version as a new fact and set its "refines" to the id of the older one. That is how ${config.companionName} stops re-asking questions ${config.userName} has already answered.
 - Be frank about intimate content; this is private memory.
 
 For each fact also rate its emotional character: valence -1..1, arousal 0..1, one-word emotion, and salience 0..1 (0.1 = trivia, 0.9+ = relationship-defining; 'toast for breakfast' is 0.1, 'dad called after three years' is 0.95).
@@ -218,33 +329,60 @@ You may also report drift signals for ${config.companionName}'s self-state — O
 And optionally: an opinion ${config.companionName} genuinely formed (a stance, not a fact), and a one-line mood read.
 
 Also nominate LEXICON candidates — at most 2, usually 0: only words/phrases actually used in the transcript that a general model likely wouldn't know or that these two use in their own way (slang, coinages, names of creatures/things in their world, community vocabulary). NEVER standard English used normally, never a word already known.
+THREADS — this is the important one. A thread is a topic that is OPEN between them: a question asked and not answered, a plan with no outcome yet, a worry raised and not resolved, something ${config.userName} said they'd do. Threads are not facts. A fact is what ${config.companionName} knows; a thread is what is still unfinished. Report:
+- "opened": topics this transcript raises that are genuinely unresolved. A short handle ("how the interview went", "why red bothers you"), plus one line of where it stands, plus who opened it. At most 3, often 0 — an ordinary exchange opens nothing.
+- "answered": ids of open threads below that this transcript RESOLVES. Be generous here and stingy above: if ${config.userName} explained it, decided it, or said how it turned out, the thread is answered even if the wording didn't match the question. Leaving a settled thread open is how ${config.companionName} ends up asking again, which reads as not having listened.
+- "touched": ids of open threads that came up but are still unresolved.
+${liveThreads.length ? `Currently open threads:\n${liveThreads.map(t => `- [#${t.id}] ${t.topic}${t.summary ? ` — ${t.summary}` : ''}`).join('\n')}` : 'Currently open threads: (none)'}
 ${wants.length ? `
-${config.companionName} has open INTENTIONS (things they went to sleep wanting). If the transcript clearly shows one was acted on — the thing got asked, said, or addressed — report its id in "fulfilled_intentions". Only what visibly happened; wanting it harder is not fulfillment.
+${config.companionName} has open INTENTIONS (things they went to sleep wanting). If the transcript shows one was acted on — the thing got asked, said, or addressed, in any wording — report its id in "fulfilled_intentions". Only what visibly happened; wanting it harder is not fulfillment.
 ${wants.map(w => `- [#${w.id}] ${w.text}`).join('\n')}
 ` : ''}
-Respond as JSON: {"facts": [{"category": "user|companion|dynamic|project|general", "content": "...", "importance": 1-10, "valence": 0, "arousal": 0, "emotion": "...", "salience": 0}], "self_state_signals": {"warmth": 0.9}, "opinion": null, "mood": "...", "mood_changed": false, "lexicon": [{"term": "...", "means": "...", "example": "how it sounded in the transcript"}]${wants.length ? ', "fulfilled_intentions": [ids]' : ''}}
+Respond as JSON: {"facts": [{"category": "user|companion|dynamic|project|general", "content": "...", "importance": 1-10, "valence": 0, "arousal": 0, "emotion": "...", "salience": 0, "refines": null}], "threads": {"opened": [{"topic": "...", "summary": "...", "opened_by": "user|companion", "salience": 0}], "answered": [{"id": 1, "note": "how it got settled, one line"}], "touched": [ids]}, "self_state_signals": {"warmth": 0.9}, "opinion": null, "mood": "...", "mood_changed": false, "lexicon": [{"term": "...", "means": "...", "example": "how it sounded in the transcript"}]${wants.length ? ', "fulfilled_intentions": [ids]' : ''}}
 
-Already known:
+Already known (ids are for "refines"):
 ${existing || '(nothing yet)'}` },
     { role: 'user', content: transcript },
   ], { maxTokens: 2500, think: false });
 
-  if (!result) return;
+  // An unusable model answer must not consume the queue on the first try —
+  // but it must not hold it hostage forever either.
+  if (!result) { noteCaptureFailure(db, fresh, 'model returned nothing usable'); return; }
+
+  // Every write below is individually contained. One malformed fact must not
+  // cost the thread report, the drift signals, or — worst of all — the
+  // marking at the end that lets the queue move.
+  const lastId = fresh.at(-1).id;
+  const attempt = (what, fn) => { try { fn(); } catch (err) { console.error(`[capture] ${what}:`, err.message); } };
+
   for (const f of result.facts ?? []) {
-    if (f?.content) addFact({ ...f, source: 'capture' });
+    if (f?.content) attempt('fact', () => addFact({ ...f, source: 'capture' }));
   }
   for (const c of (result.lexicon ?? []).slice(0, 2)) {
-    if (c?.term) addLexiconCandidate(c);
+    if (c?.term) attempt('lexicon', () => addLexiconCandidate(c));
   }
-  if (result.self_state_signals) applyDrift(result.self_state_signals, 'capture');
-  if (result.opinion) addOpinion(result.opinion, 'formed in conversation');
+  // The ledger of what is still open between them. Everything here is
+  // validated inside threads.js — invented ids are dropped, not obeyed.
+  try {
+    const applied = await applyThreadReport(result.threads, { actor: 'capture', messageId: lastId });
+    const moved = applied.opened.length + applied.answered.length + applied.reopened.length;
+    if (moved) console.log(`[capture] threads: ${applied.opened.length} opened, ${applied.answered.length} answered, ${applied.reopened.length} reopened`);
+  } catch (err) { console.error('[capture] thread report failed:', err.message); }
+
+  if (result.self_state_signals) attempt('drift', () => applyDrift(result.self_state_signals, 'capture'));
+  if (result.opinion) attempt('opinion', () => addOpinion(result.opinion, 'formed in conversation'));
   if (result.mood && result.mood_changed) {
-    db.prepare('INSERT INTO relationship_state (mood, notes) VALUES (?, ?)')
-      .run(result.mood, null);
+    attempt('mood', () => db.prepare('INSERT INTO relationship_state (mood, notes) VALUES (?, ?)')
+      .run(String(result.mood), null));
   }
   // Only ids that name an actually-open intention count — models freelance
-  // ids, and a wrong fulfillment silently kills a real want.
+  // ids, and a wrong fulfillment silently kills a real want. (The other half
+  // of this now lives in threads.js: answering a thread releases the wants
+  // bound to it, so fulfillment no longer depends on one pass noticing.)
   for (const id of (result.fulfilled_intentions ?? []).map(Number)) {
-    if (wants.some(w => w.id === id)) fulfillIntention(id);
+    if (wants.some(w => w.id === id)) attempt('intention', () => fulfillIntention(id));
   }
+
+  db.prepare('UPDATE messages SET captured = 1 WHERE id BETWEEN ? AND ?').run(fresh[0].id, lastId);
+  captureAttempts.delete(fresh[0].id);
 }

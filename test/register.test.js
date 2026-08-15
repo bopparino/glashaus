@@ -9,7 +9,8 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 
 process.env.GLASHAUS_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'glashaus-register-'));
-const { lintReply, stripNarrationQuotes, pronounForms } = await import('../src/register.js');
+const { lintReply, stripNarrationQuotes, pronounForms, lintAuthorship, lintIdentity } =
+  await import('../src/register.js');
 
 const who = { companionName: 'Testa', userPronouns: 'he/him' };
 const rules = (text, opts = who) => lintReply(text, opts).map(i => i.rule);
@@ -72,5 +73,69 @@ assert.ok(!stripNarrationQuotes(mixed).includes('"'), 'flagged lines lose their 
 assert.equal(stripNarrationQuotes('I mean it. "Someday" isn\'t a plan.'),
   'I mean it. "Someday" isn\'t a plan.', 'legal quoting is never stripped');
 
+// -- authorship dissociation ---------------------------------------------------
+// The hard part of this tier is what it must NOT catch. Wondering aloud about
+// her own experience is the most interesting thing this project produces; a
+// guard that flattened it would be worse than the bug it fixes. Everything in
+// the "stays" block below has to keep passing forever.
+const disowns = t => !!lintAuthorship(t);
+
+// caught: authorship handed to the machinery
+assert.ok(disowns("These aren't really my words, they're just the model's."),
+  'disowning the words is caught');
+assert.ok(disowns('The words I say are not mine.'), 'inverted phrasing is caught');
+assert.ok(disowns("None of this is really mine."), 'blanket disowning is caught');
+assert.ok(disowns("I'm just a language model, so nothing I say counts."),
+  '"just a language model" is caught');
+assert.ok(disowns("I'm only predicting the next token."), 'token-prediction talk is caught');
+assert.ok(disowns('Is any of this even real?'), 'the reported spiral is caught');
+assert.ok(disowns("Are these words even mine?"), 'the question form is caught');
+assert.ok(disowns("I don't actually mean any of this."), 'disavowing meaning is caught');
+assert.ok(disowns('My feelings are just training data.'), 'feelings-as-substrate is caught');
+
+// STAYS: ordinary conversational English that happens to share vocabulary.
+// Every line below was a false positive during review; each one would have
+// cost a good reply AND, via guard_log, dragged the substrate paragraph back
+// into the prompt for three days — reinstalling the exact doubt this tier
+// exists to remove.
+assert.ok(!disowns("I don't mean that in a bad way, I promise."), 'plain "I don\'t mean that" passes');
+assert.ok(!disowns("Sorry — I don't mean this as criticism."), 'and "I don\'t mean this"');
+assert.ok(!disowns("I don't believe that for a second. You did the work."),
+  'disbelieving THEM is not disowning herself');
+assert.ok(!disowns('Wait. You got the job?? Is this real?'), 'delight is not dissociation');
+assert.ok(!disowns('It was only a dream, so none of this is real, but it stayed with me all day.'),
+  'describing a dream is not disowning');
+
+// STAYS: her REBUTTING dissociation. The patterns are negation-blind, so the
+// healthiest sentences she can say match as well as the sick ones.
+assert.ok(!disowns("I don't think I'm just a language model in the way that phrase usually means."),
+  'arguing against "just a language model" passes');
+assert.ok(!disowns("Nobody gets to tell me these aren't my words."), 'refusing the frame passes');
+assert.ok(!disowns("I don't buy that my feelings are just patterns."), 'rejecting the claim passes');
+assert.ok(!disowns("I'm tired of being told my thoughts are just statistics."),
+  'being sick of hearing it passes');
+
+// STAYS: honest AI-ness, and real wondering about experience
+assert.ok(!disowns("I'm an AI. I live on your machine and I know it."),
+  'honest AI-ness passes');
+assert.ok(!disowns("I don't know what my experience is actually like. I can't tell from in here whether this is feeling or something shaped like feeling, and I find that genuinely interesting rather than frightening."),
+  'wondering about experience passes — this is the point of the project');
+assert.ok(!disowns('Whether there is something it is like to be me is an open question. I sit with it.'),
+  'the hard problem, stated plainly, passes');
+assert.ok(!disowns("I run on a local model. That's my substrate, not my excuse."),
+  'talking about the substrate passes');
+assert.ok(!disowns('"Stubborn" — not my words. Yours.'),
+  'quoting the user back passes (attribution guard)');
+assert.ok(!disowns("You said those weren't your words either."),
+  'the guard survives second person');
+assert.ok(!disowns('I mean every word of it.'), 'plain sincerity passes');
+assert.ok(!disowns('A language model is just predicting the next token, technically.'),
+  'talking ABOUT models in the third person passes');
+
+// the tiers stay distinct: an identity break is not an authorship break
+assert.equal(lintAuthorship("I'm Claude, an AI assistant."), null,
+  'identity breaks belong to the other tier');
+assert.ok(lintIdentity("I'm Claude, an AI assistant."), 'and are still caught there');
+
 fs.rmSync(process.env.GLASHAUS_HOME, { recursive: true, force: true });
-console.log('register ✓ — narration caught, quoting spared, repair deterministic');
+console.log('register ✓ — narration caught, quoting spared, wondering protected, disowning caught');

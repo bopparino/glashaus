@@ -1,12 +1,35 @@
 import { Bot } from 'grammy';
 import { config } from './config.js';
 import { handleUserMessage } from './chat.js';
+import { runCommand, isCommand, commandList } from './commands.js';
+
+// The passes that take a while on a local model get an ack first — a minute
+// of silence after /dream reads as a dead bot.
+const SLOW = new Set(['/dream', '/grow', '/wander', '/tidy', '/backup', '/heartbeat']);
+const commandName = text => String(text).trim().split(/\s+/)[0].replace(/@[\w_]+$/, '').toLowerCase();
 
 export function createBot() {
   if (!config.telegramToken) throw new Error('TELEGRAM_BOT_TOKEN not set in .env');
   const bot = new Bot(config.telegramToken);
 
   let lastChatId = null;
+
+  // Slash commands, from the registry the terminal and webview share.
+  // Telegram is owner-gated (ownerOnly, below), so the destructive half is
+  // available here too — it still wants the literal word "confirm", because a
+  // fat-fingered tap on a phone should never be able to revert a soul.
+  async function command(ctx, text) {
+    lastChatId = ctx.chat.id;
+    const name = commandName(text);
+    if (SLOW.has(name)) await ctx.reply(`(${name.slice(1)}…)`).catch(() => {});
+    const result = await runCommand(text, { surface: 'telegram', allowActions: true });
+    const body = (result.lines ?? [])
+      .map(l => (typeof l === 'string' ? l : l.t))
+      .join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    for (const part of splitMessage(body || '(nothing)')) {
+      await sendFormatted(t => ctx.reply(t.text, t.opts), part);
+    }
+  }
 
   async function respond(ctx, text, images = []) {
     lastChatId = ctx.chat.id;
@@ -29,7 +52,18 @@ export function createBot() {
 
   bot.on('message:text', async ctx => {
     if (!ownerOnly(ctx)) return; // the companion talks only to its person
-    await respond(ctx, ctx.message.text);
+    const text = ctx.message.text;
+    // A slash command is an instruction to the ENGINE, not something said to
+    // her — it must never reach the model or enter memory as a thing spoken.
+    if (isCommand(text)) {
+      try { await command(ctx, text); }
+      catch (err) {
+        console.error('[telegram:command]', err);
+        await ctx.reply(`(that command fell over: ${err.message})`).catch(() => {});
+      }
+      return;
+    }
+    await respond(ctx, text);
   });
 
   // Photos: the companion sees the image this turn (if the model accepts
@@ -49,6 +83,16 @@ export function createBot() {
       await ctx.reply("(couldn't load that photo, send it again?)").catch(() => {});
     }
   });
+
+  // Telegram's own command menu (the "/" button), so the commands are
+  // discoverable on a phone instead of remembered. Best-effort: a failure
+  // here must never stop the bot from starting.
+  bot.api.setMyCommands(
+    commandList().slice(0, 100).map(c => ({
+      command: c.command.replace(/[^a-z0-9_]/g, ''),
+      description: c.desc ?? c.description ?? '',
+    })).filter(c => c.command && c.description)
+  ).catch(err => console.error('[telegram] command menu:', err.message));
 
   // Anything else (voice, stickers, video): acknowledge instead of silence,
   // so the companion never confabulates around a message it couldn't perceive.

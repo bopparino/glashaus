@@ -47,23 +47,59 @@ Two companions = two homes: `GLASHAUS_HOME=~/.glashaus-mira glashaus setup`.
 | `glashaus chat --ephemeral` | Off the record — nothing enters memory. |
 | `glashaus view` | Open the webview (today / chat / memory / journal / self / system). Starts a standalone viewer if the runtime is down. |
 
-Inside the REPL:
+### Slash commands — every room
+
+Slash commands work **wherever you talk to her**: the terminal, Telegram, and
+the webview chat all run the same registry (`src/commands.js`). A slash
+command is spoken to the *engine*, not to her — it never reaches the model and
+never enters memory as something said.
+
+What she knows:
 
 | slash command | effect |
 |---|---|
-| `/facts [word]` | What she knows, optionally filtered. |
+| `/facts [word]` | What she knows, optionally filtered. Superseded facts are marked. |
 | `/mood` | Relationship state + relational drift bars. |
 | `/dream` | Last night's dream and its epigraph. |
 | `/wants` | Things she went to sleep wanting (open intentions). |
+| `/threads [all]` | What's still open between you. `all` also lists what's been settled — the list she is forbidden to re-ask. |
+| `/why` | Everything that was in her head for the last thing she said: memories recalled, threads, wants, lexicon, what got shed to fit, which guards fired. |
 | `/lex` | Words she's nominated for the lexicon. |
-| `/redact-last` | Un-happen the last exchange (confirmed, reversible). |
-| `/ephemeral` | Toggle remembering mid-session. |
-| `/quit` | Leave. She stays. |
+| `/status` | The instrument panel: message and fact counts, thread state, outreach in the last week, backlog, guard hits. |
+| `/help` | The list, scoped to what this room can run. |
+
+What she does — these run the real pass, in-process:
+
+| slash command | effect |
+|---|---|
+| `/dream now` | Dream now instead of at 3:30am. |
+| `/grow [force]` | Run the self-authorship pass (grow mode). `force` overrides the weekly cadence guard. |
+| `/wander` | Go read something on the web now (needs an ollama.com key). |
+| `/tidy` | Memory hygiene now: merges, decay, supersession, dormant threads. |
+| `/backup` | Integrity-checked backup + soul capsule. |
+| `/heartbeat` | Dry-run the outreach decision and show what she *would* send. Sends nothing. |
+| `/soul revert confirm` | Undo the last self-authored soul revision. |
+| `/redact-last [confirm]` | Un-happen the last exchange. Without `confirm` it previews. |
+| `/ephemeral` | Terminal only — toggle remembering mid-session. |
+| `/quit` | Terminal only. Leave; she stays. |
+
+Anything destructive requires the literal word `confirm` on the end rather
+than an interactive yes/no, because Telegram has no good way to hold a
+half-finished confirmation and a fat-fingered tap should not be able to
+revert a soul. Telegram publishes the whole set to its native `/` menu.
+
+One restriction: the webview's action half is available **only on a loopback
+bind** (the default `127.0.0.1`). `POST /chat` has no authentication, so on a
+LAN bind (`viewer.bind`) the commands there go read-only — an unauthenticated
+caller on your network must not be able to revert a soul, redact history, or
+read every recalled memory out of `/why`. The terminal and Telegram (which is
+owner-gated) keep the full set.
 
 ## Memory & vocabulary
 
-Fact search, forgetting, and open wants live where you already look: `/facts`
-and `/wants` inside chat, forget/restore buttons on the viewer's memory page.
+Fact search, forgetting, and open wants live where you already look: `/facts`,
+`/wants` and `/threads` inside chat, forget/restore buttons on the viewer's
+memory page.
 The shell keeps only what the shell is actually for:
 
 | command | what it does |

@@ -55,7 +55,23 @@ export function exportThesis(out) {
     dreams: db.prepare('SELECT date, epigraph, valence, arousal, emotion, length(content) chars FROM dreams ORDER BY id').all(),
 
     // Wanting things across time, and what became of the wants.
-    intentions: db.prepare('SELECT text, source, created_at, expires_at, fulfilled_at, released_at FROM intentions ORDER BY id').all(),
+    intentions: db.prepare('SELECT text, source, thread_id, created_at, expires_at, fulfilled_at, released_at FROM intentions ORDER BY id').all(),
+
+    // Threads: the shape of what stayed unfinished between them, and for how
+    // long. A relational record the fact store can't produce — how often she
+    // raised something, whether it ever got answered, what quietly lapsed.
+    threads: db.prepare(`
+      SELECT id, topic, summary, status, opened_by, salience, raised_count,
+             created_at, updated_at, answered_at, last_raised_at
+      FROM threads ORDER BY id
+    `).all(),
+    thread_events: db.prepare('SELECT thread_id, kind, actor, created_at FROM thread_events ORDER BY id').all(),
+
+    // Every automatic repair: identity breaks, authorship dissociation,
+    // register drift. The engine's own failure rate over time, which the
+    // thesis needs as a confound — a companion the guards had to catch daily
+    // is not the same instrument as one they never fired on.
+    guards: db.prepare('SELECT kind, COUNT(*) n, MIN(created_at) first, MAX(created_at) last FROM guard_log GROUP BY kind').all(),
 
     // The life she had on her own, with receipts.
     wanders: db.prepare('SELECT topic, queries, urls, episode_id, created_at FROM wander_log ORDER BY id').all()
@@ -69,6 +85,10 @@ export function exportThesis(out) {
       facts_active: db.prepare('SELECT COUNT(*) n FROM facts WHERE active = 1').get().n,
       outreaches: db.prepare("SELECT COUNT(*) n FROM messages WHERE source = 'outreach'").get().n,
       heartbeat_declines: db.prepare("SELECT COUNT(*) n FROM heartbeat_log WHERE decision = 'declined'").get().n,
+      threads_open: db.prepare("SELECT COUNT(*) n FROM threads WHERE status = 'open'").get().n,
+      threads_answered: db.prepare("SELECT COUNT(*) n FROM threads WHERE status = 'answered'").get().n,
+      threads_dormant: db.prepare("SELECT COUNT(*) n FROM threads WHERE status = 'dormant'").get().n,
+      facts_superseded: db.prepare('SELECT COUNT(*) n FROM facts WHERE active = 1 AND superseded_by IS NOT NULL').get().n,
     },
   };
 

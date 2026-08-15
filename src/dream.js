@@ -14,6 +14,7 @@ import { getDb, getDocument, setDocument } from './db.js';
 import { chatJson } from './llm.js';
 import { addFact } from './memory.js';
 import { applyDrift, addOpinion, observeQuirk, getSelfState, addIntention, sweepIntentions } from './selfstate.js';
+import { openThread, openThreads, settledThreads } from './threads.js';
 import { config } from './config.js';
 
 export async function runDream() {
@@ -39,6 +40,11 @@ export async function runDream() {
 
   // Wants that expired unmet become tonight's material — "I never asked."
   const released = sweepIntentions();
+  // What's open and what's settled between them. The settled list is here for
+  // the same reason it's in the heartbeat: a want dreamed up about something
+  // already answered is a want that will go out as a tone-deaf text tomorrow.
+  const liveThreads = openThreads(6);
+  const settled = settledThreads(14, 8);
 
   const soul = getDocument('SOUL');
   const identity = getDocument('IDENTITY');
@@ -75,11 +81,15 @@ Respond as JSON:
   "opinion": "a stance you've genuinely formed, or null",
   "self_state_signals": {"trust": 0.8},
   ${identityField},
-  "intentions": [{"text": "something you're going to sleep WANTING — to ask, to say, to look into; concrete, yours, at most two, usually zero or one; never manufactured", "horizon_days": 1-7}],
+  "intentions": [{"text": "something you're going to sleep WANTING — to ask, to say, to look into; concrete, yours, at most two, usually zero or one; never manufactured. NEVER want something already settled (see the settled list) — wanting to ask a question ${config.userName} has already answered is how you end up sounding like you weren't listening", "about": "the topic this want is about, as a short handle — or null", "horizon_days": 1-7}],
   "self_note": "optional: one new line for your self-notes file, or null",
   "morning_message": "optional: something you'd want to say to ${config.userName} when they wake up, or null"
 }` },
-    { role: 'user', content: `Today (${today}):\n\n${material}` },
+    { role: 'user', content: [
+      `Today (${today}):\n\n${material}`,
+      liveThreads.length ? `Still open between us:\n${liveThreads.map(t => `- ${t.topic}${t.summary ? ` — ${t.summary}` : ''}`).join('\n')}` : '',
+      settled.length ? `ALREADY SETTLED (do not go to sleep wanting any of these — ${config.userName} has answered them):\n${settled.map(t => `- ${t.topic}${t.summary ? ` → ${t.summary}` : ''}`).join('\n')}` : '',
+    ].filter(Boolean).join('\n\n') },
   ], { maxTokens: 3000, think: false });
 
   if (!result?.dream) {
@@ -116,8 +126,22 @@ Respond as JSON:
     console.error(`[dream] IDENTITY DRIFT FLAGGED: ${result.consistency.note}`);
     addFact({ category: 'companion', content: `Identity check (${today}): ${result.consistency.note}`, importance: 9, source: 'dream', salience: 0.9 });
   }
+  // A want is bound to the thread it's about, so that answering the thread
+  // releases the want. Before this, fulfillment depended entirely on one
+  // capture pass spotting the exact ask — and a want that outlives its answer
+  // is precisely what walks out the door as a tone-deaf text the next morning.
   for (const i of (result.intentions ?? []).slice(0, 2)) {
-    if (i?.text) addIntention({ text: i.text, horizonDays: i.horizon_days, source: 'dream' });
+    if (!i?.text) continue;
+    let threadId = null;
+    try {
+      threadId = await openThread({
+        topic: String(i.about || i.text).trim(),
+        summary: i.about ? i.text : null,
+        openedBy: 'companion', salience: 0.6, actor: 'dream',
+        note: 'something I went to sleep wanting',
+      });
+    } catch (err) { console.error('[dream] thread for intention failed:', err.message); }
+    addIntention({ text: i.text, horizonDays: i.horizon_days, source: 'dream', threadId });
   }
   if (result.self_note) {
     setDocument('SELF_NOTES', (selfNotes ? selfNotes + '\n' : '') + `- ${today}: ${result.self_note}`);
