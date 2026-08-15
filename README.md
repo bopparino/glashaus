@@ -55,6 +55,7 @@ glashaus setup            create (or repair) your companion
 glashaus                  chat in the terminal
 glashaus start            run in the background — Telegram, dreams, backups
 glashaus view             the webview: today / chat / memory / journal / self / system
+glashaus update           pull the latest version — safely
 glashaus doctor           full health check
 glashaus persona edit soul    open persona files in your editor
 glashaus lexicon              words the companion wants to learn

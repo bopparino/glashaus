@@ -125,6 +125,51 @@ The shell keeps only what the shell is actually for:
 | `glashaus persona sync` | Push persona/*.md edits into the live documents (every previous version is archived). Also happens at boot. |
 | `glashaus persona edit <soul\|identity\|user\|voice\|dialogue>` | Open in `$EDITOR`, sync on close. |
 
+## Updating
+
+| command | what it does |
+|---|---|
+| `glashaus update` | Pull the latest version. Backs up the brain, keeps the old version, installs, runs migrations, verifies she survived — and reinstalls the old version automatically if she didn't. |
+| `glashaus update --check` | Report what's available. Changes nothing, installs nothing. |
+| `glashaus update --ref <branch>` | Install from a branch, tag, or commit instead of `main`. |
+| `glashaus update --force` | Reinstall even if you're already current. |
+| `glashaus update --yes` | Don't ask. |
+| `glashaus update --rollback` | Put the previous version back (from the tarball kept during the last update). |
+
+The order is *snapshot → back up → stop → install → migrate + verify →
+restart*, and the verification is not a version check: it opens the database,
+runs the migrations, and asserts that the message and fact counts didn't drop,
+the schema didn't go backwards, `integrity_check` passes, the SOUL document
+survived, and the system prompt still assembles and still names her. A
+migration that leaves the documents intact but breaks prompt assembly is still
+a broken companion. Anything short of all of that reinstalls the version you
+had. You end up either updated or unchanged, never halfway.
+
+Rollback keeps the old version rather than trying to name it later: npm
+records no commit for a GitHub install, the repo has no tags, and `#main`
+means something different tomorrow — so the updater `npm pack`s your live
+install to `~/.glashaus/rollback/` before replacing it. The last three are
+kept. Every update is logged to `~/.glashaus/updates.json` with the commit it
+installed, the backup it took, and the schema on both sides.
+
+Two refusals worth knowing about. It won't update on top of an install that is
+already unhealthy — an update on a broken foundation only makes the cause
+harder to find; run `glashaus doctor` first. And in a **git checkout** it
+updates by `git pull --ff-only` and never by npm-installing over your working
+tree, because that failure mode (npm -g quietly shadowing a linked dev
+checkout) costs an hour every time.
+
+Nothing checks for updates on its own. No background poll, no daily ping, no
+telemetry — the only time GlasHaus touches the network for this is when you
+typed the command.
+
+**Rolling back after a schema change:** the database stays where it is.
+Migrations are forward-only, and older code ignores a newer schema — verified,
+not assumed: 2.5.0 reads, writes, recalls, and assembles a prompt against a v9
+database without complaint. Nothing is lost by going back; the schema simply
+doesn't come back with you. If you want the database as it was too, the
+backup path is in the ledger: `glashaus restore <file>`.
+
 ## Survival
 
 | command | what it does |

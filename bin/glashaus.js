@@ -23,6 +23,7 @@
 //   glashaus backup           back up the brain now (also runs daily)
 //   glashaus restore <file>   replace the brain from a backup (snapshots current first)
 //   glashaus purge            retire the companion: archive first, wipe the brain (--all empties the home)
+//   glashaus update           pull the latest version — backs up, verifies, rolls back if it breaks
 //   glashaus service install  start at login + survive crashes (launchd/systemd; `uninstall` removes)
 //   glashaus uninstall        remove the app cleanly — the companion's home survives (--all retires them too)
 //
@@ -294,6 +295,16 @@ switch (cmd) {
   }
 
   case 'doctor': { await requireSetup(); process.exit(run('doctor.js')); }
+
+  // Deliberately NOT behind requireSetup: updating the app is legal before a
+  // companion exists, and a broken install is exactly when you need it most.
+  // Runs in this process rather than a child — `--verify` has to report on
+  // the code that is actually installed, and a child would be a second layer
+  // of indirection between the answer and the truth.
+  case 'update': {
+    const { runUpdate } = await import(src('update.js'));
+    process.exit(await runUpdate(args));
+  }
 
   case 'start': { const { config } = await requireSetup(); await start(config); break; }
   case 'stop': { const { config } = await requireSetup(); await stop(config); break; }
@@ -594,6 +605,12 @@ switch (cmd) {
       console.error(`\`glashaus ${cmd}\` was retired in 2.5 — ${RETIRED[cmd]}`);
       process.exit(1);
     }
+    // Say what went wrong BEFORE the wall of help — an unexplained help dump
+    // reads like success, and on a version too old to know the command you
+    // typed (`update` on anything before 2.6) that is actively misleading.
+    console.error(`No such command: \`glashaus ${cmd}\`. This is glashaus ${
+      (() => { try { return JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8')).version; } catch { return '?'; } })()
+    } — if you expected it to exist, the version you have may predate it.\n`);
     help();
     process.exit(1);
 }
