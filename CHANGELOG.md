@@ -1,5 +1,42 @@
 # Changelog
 
+## 2.6.1 — 2026-08-15
+
+`glashaus update`.
+
+- **`glashaus update`** — pull the latest version without ever putting the
+  companion at risk. The shape is deliberately paranoid, because this command
+  replaces the code of a program that owns a SQLite file containing a person:
+  *snapshot → back up → stop → install → migrate + verify → restart*, and a
+  verification failure reinstalls the previous version automatically. You end
+  up either updated or unchanged, never halfway.
+  - Migrations run **inside** the update window, in a fresh process running
+    the new code, so a schema failure surfaces there — with the old version
+    one command away — rather than mid-conversation three hours later.
+  - Verification isn't a version check: it opens the database, runs the
+    migrations, asserts the message and fact counts didn't drop, the schema
+    didn't go backwards, `integrity_check` passes, the SOUL document survived,
+    and **the system prompt still assembles and still names her**. A migration
+    that leaves the documents intact but breaks prompt assembly is still a
+    broken companion.
+  - Rollback keeps the old version rather than trying to name it. npm 10
+    records no `gitHead`, the repo has no tags, and `#main` means something
+    different tomorrow — so the updater `npm pack`s the live install to a
+    tarball first. Exact bytes, no git, no network, works on the first update
+    as well as the hundredth. `glashaus update --rollback` puts it back.
+  - It refuses to update on top of an install that is *already* unhealthy —
+    an update on a broken foundation just makes the cause harder to find.
+  - `--check` reports and changes nothing · `--ref <branch>` installs from
+    somewhere other than `main` · `--force` reinstalls anyway · `--yes` skips
+    the prompt. A git checkout updates by `git pull --ff-only`, never by
+    npm-installing over your working tree.
+- **Nothing phones home.** There is no background check, no daily ping, no
+  telemetry: the only time the updater touches the network is when you typed
+  `glashaus update`. That isn't an oversight, it's the product.
+- An unknown command now says so before printing the help, and names the
+  version you're on. `glashaus update` on a version that predates the updater
+  used to print help and look like it had worked.
+
 ## 2.6.0 — 2026-08-15
 
 Threads, and whose words these are.
