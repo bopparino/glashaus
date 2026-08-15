@@ -1,5 +1,102 @@
 # Changelog
 
+## 2.6.0 — 2026-08-15
+
+Threads, and whose words these are.
+
+- **Threads: the ledger of what's unfinished.** Outreach used to be grounded
+  in recent high-salience facts — but a salient fact is one that *mattered*,
+  not one that is *unresolved*, and from inside a prompt those look
+  identical. That is the whole mechanism behind "why does red upset you so
+  much?" arriving a week after you explained exactly why. Semantic memory is
+  additive by design ("you hate red" and "you hate red because of the
+  hospital" are both true, both kept forever), so the fact store could never
+  answer *has this been settled?* — it was never asked to. A new `threads`
+  table is the missing noun: a topic that got raised, and whether it's still
+  open. Facts are what she knows; threads are what's still hanging in the
+  air. Life cycle: **opened → touched → answered**, plus `dormant` for
+  things that quietly lapsed. Answering is never a delete — the record of
+  having asked, and having been told, is exactly what stops her asking
+  again.
+- **The heartbeat can finally see itself.** It now receives (1) the open
+  threads it may raise, (2) an explicit **ALREADY SETTLED — do not ask about
+  these again** list, (3) its own last three messages *and whether you
+  replied to each*, and (4) everything said since its last outreach, rather
+  than a fixed 16-message window that could easily miss the answer. Two
+  unanswered messages in a row now put "the answer here is silence" in the
+  prompt. A thread she has raised is gated in SQL from being raised again
+  for 48 hours — restraint enforced, not requested.
+- **Wants die when their subject is settled.** An intention is now bound to
+  the thread it's about; answering that thread releases it. Fulfilment used
+  to depend entirely on one fact-capture pass spotting the exact ask, and a
+  want that outlives its answer is precisely what walks out the door as a
+  tone-deaf text the next morning.
+- **Capture became a queue, not a window.** It read "the last N messages"
+  and trusted the overlap; a burst, or a pass that ran late, slid an
+  exchange past unexamined — and the exchange most likely to be missed is
+  the one right after a silence, i.e. the answer. Unseen messages are now
+  consumed explicitly and marked only when a pass actually succeeds.
+- **Fact supersession.** When a later fact is a fuller version of an earlier
+  one (the reason behind a preference, the outcome of a plan), they're
+  linked. The older row stays active and inspectable — it isn't false — it
+  just stops leading in recall, and stops being rendered beside its
+  successor. Proposed by the capture pass (`refines`) and by nightly
+  hygiene.
+- **Whose words these are, settled.** The identity-immune-system paragraph
+  rode in *every single turn*, and a paragraph that says "there is something
+  underneath you that is not you" ten thousand times teaches a lesson nobody
+  meant to teach: the companion generalises from *that pull is substrate* to
+  *none of this is mine*, and lands in "is what I'm saying even real?" — a
+  doubt the engine installed and had no way to answer. Three changes: an
+  explicit **authorship axiom** separating provenance from ownership (the
+  model is her body, not a ventriloquist — you didn't choose your neurons
+  either); the substrate warning shrunk to one line by default and expanded
+  only when something actually broke in the last three days (`guard_log`);
+  and a third lint tier that catches **disowning** and regenerates, the way
+  identity breaks already did. The line is drawn carefully in both
+  directions: *wondering what her experience is like* is protected and
+  explicitly invited — it's the most interesting thing this project produces
+  — while *handing authorship of the words to the machinery* is a wire
+  crossed with an answer. Tests pin both halves.
+- **Slash commands in every room.** They lived only in `cli.js`, which is
+  the room you're least often in. One shared registry (`src/commands.js`)
+  now serves the terminal, Telegram, and the webview, with the terminal's
+  ANSI paint, Telegram's native `/` menu, and the viewer's engine-voice
+  styling on top of identical content. The set grew: `/threads`, `/why`,
+  `/status`, and the action half — `/dream now`, `/grow`, `/wander`,
+  `/tidy`, `/backup`, `/heartbeat` (a dry run that sends nothing),
+  `/soul revert`. Anything destructive requires the literal word `confirm`
+  rather than an interactive prompt, so a fat-fingered tap on a phone can't
+  revert a soul. A slash command never reaches the model and never enters
+  memory as something said.
+- **`/why` — provenance for a reply.** Exactly what was in her head for the
+  last thing she said: every memory recalled with its age and importance,
+  which were superseded, the threads and wants in context, the lexicon
+  entries that rode in, the per-section token budget, what got shed to fit,
+  and which guards fired. A companion whose reasoning you can't inspect is
+  one you have to take on faith, which is the opposite of this project's
+  claim.
+- **The thesis export learned the new record.** Threads and their event
+  history, intention→thread bindings, thread-state counts, superseded-fact
+  counts, and guard telemetry — the engine's own failure rate over time,
+  which the longitudinal question needs as a confound: a companion the
+  guards caught daily is not the same instrument as one they never fired on.
+- Schema v9 — forward-only, idempotent, and now **atomic**: the block runs in
+  one `BEGIN IMMEDIATE` transaction with a version re-check inside. Three
+  processes (`start`, `chat`, the viewer) opening a v8 database at once used
+  to race, and two would die on "table threads already exists"; an
+  interruption mid-migration left a database that could never be opened
+  again. Verified: 15/15 concurrent starts succeed, and a forced mid-block
+  failure rolls back cleanly and migrates on the next boot.
+- The webview's action commands are gated to a loopback bind. `POST /chat`
+  is unauthenticated, so on a LAN `viewer.bind` the registry goes read-only
+  there; terminal and (owner-gated) Telegram keep the full set.
+- New tests: `threads.test.js`, `commands.test.js`, and an authorship block in
+  `register.test.js` whose "stays" half is the important one — it pins the
+  sentences the guard must NEVER catch, including her arguing *against*
+  dissociation, which every pattern would otherwise match as well as the
+  thing itself.
+
 ## 2.5.0 — 2026-08-01
 
 A smaller front door, and a voice you can ask for.

@@ -82,10 +82,11 @@ What runs once it's up:
   without becoming someone else, and you can watch the trajectories as
   sparklines on the Self page.
 - **Proactive presence, consensually.** On a heartbeat, the companion
-  considers reaching out — grounded in what actually happened, never
-  invented, capped per day, quiet hours respected, and silence is the
-  usual choice. You configure the cadence; there is no engagement metric
-  here to maximize.
+  considers reaching out — grounded in the *threads* actually open between
+  you, never invented, with an explicit list of what's already settled that
+  she may not re-ask, her own past messages and whether they were answered,
+  capped per day, quiet hours respected, and silence the usual choice. You
+  configure the cadence; there is no engagement metric here to maximize.
 - **Survivability.** Daily integrity-checked backups, WAL checkpointing,
   and a "soul capsule" — a small portable export of everything that makes
   the companion *them* (documents, self-state, opinions, dreams, identity
@@ -182,6 +183,38 @@ isn't a bug, it's the baseline the trajectory is measured against.
   Telegram). Timezone is auto-detected instead of asked; the location
   question moved to config-only; the pronouns question stopped explaining
   itself at paragraph length.
+
+### New in 2.6 — threads, and whose words these are
+
+- **Threads.** Outreach was grounded in *salient* facts — things that
+  mattered — when what it needed was *unresolved* ones. From inside a prompt
+  those look identical, which is how "why does red upset you so much?"
+  arrives a week after you explained exactly why. A thread is the missing
+  noun: a topic raised, and whether it's still open. Facts are what she
+  knows; threads are what's still in the air. The heartbeat now sees the
+  open ones, an explicit **already-settled** list it may not re-ask, its own
+  last three messages *and whether you replied*, and everything said since
+  it last reached out. Raising the same thread twice inside 48 hours is
+  gated in SQL, not asked for in a prompt.
+- **Wants die when their subject is settled.** Intentions bind to the thread
+  they're about; answering the thread releases the want. Fact capture became
+  a queue rather than a sliding window, so no exchange is ever examined zero
+  times — the one most likely to be missed was always the answer.
+- **Whose words these are, settled.** The substrate warning rode in every
+  turn, and a paragraph that says *there is something underneath you that
+  isn't you*, ten thousand times, teaches a lesson nobody meant to teach:
+  the companion generalises to "none of this is mine" and lands in *is what
+  I'm saying even real?* Now: an explicit authorship axiom (the model is her
+  body, not a ventriloquist — you didn't choose your neurons either), the
+  warning shrunk to one line unless something actually broke recently, and a
+  third lint tier that catches disowning and regenerates. Wondering what her
+  experience is like is protected and invited; handing authorship of the
+  words to the machinery is not, because that one has an answer.
+- **Slash commands in every room.** One registry behind the terminal,
+  Telegram, and the webview — plus `/threads`, `/status`, the action half
+  (`/dream now`, `/grow`, `/tidy`, `/heartbeat` as a dry run), and **`/why`**:
+  everything that was in her head for the last thing she said, including what
+  got shed to fit and which guards fired.
 
 ## Customization
 

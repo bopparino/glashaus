@@ -11,11 +11,12 @@
 // restorable in the viewer, and every action is logged.
 import { getDb } from './db.js';
 import { chatJson } from './llm.js';
-import { addFact } from './memory.js';
+import { addFact, supersedeFact, clearDanglingSupersessions } from './memory.js';
+import { sweepThreads } from './threads.js';
 import { config } from './config.js';
 import { lintReply, stripNarrationQuotes } from './register.js';
 
-const MAX_MERGES = 12, MAX_DECAYS = 16, MAX_CONTRADICTIONS = 10, MAX_REGISTER = 20;
+const MAX_MERGES = 12, MAX_DECAYS = 16, MAX_CONTRADICTIONS = 10, MAX_REGISTER = 20, MAX_SUPERSEDES = 12;
 
 // The replay window is the strongest register teacher there is — one quoted
 // reply that slipped through (or predates the guardrail) re-teaches the rut
@@ -51,6 +52,7 @@ export async function consolidate() {
 1. MERGES: sets of facts that say the same thing — combine into one sharper fact (keep every concrete detail; do not generalize away specifics). Merged facts are written in ${config.companionName}'s memory register — "I/me" for ${config.companionName}, "you/your" for ${config.userName}, never "${config.companionName}" in third person, never "${config.userName} … he/she/they".
 2. DECAYS: facts that are stale operational trivia (finished project steps, one-time logistics) or clearly obsolete — deactivate. Facts that are real but over-weighted — demote importance. Importance 9-10 is RESERVED for identity- and relationship-defining facts; ordinary preferences and events belong at 5-7 — demote inflation when you see it. NEVER decay: identity, relationship dynamics, preferences, emotionally significant moments, anything intimate — and NEVER ${config.userName}'s ongoing work, projects, or the people in their life (coworkers, friends, family) unless the conversation explicitly confirmed something is finished or no longer true. "Probably resolved by now" is not evidence; when you can't point to a message saying it's done, it isn't done.
 3. CONTRADICTIONS: pairs that cannot both be true. Only genuine conflicts, not tension or nuance.
+3b. SUPERSESSIONS: pairs where a LATER fact is a fuller version of an EARLIER one — the reason behind a preference, the outcome of a plan, a correction. Not a conflict and not a duplicate: both are true, one just knows more. ("You hate red" / "You hate red because of the hospital in 2019.") Report {old, new}. This is what stops ${config.companionName} asking about something ${config.userName} has already explained — the thin version keeps winning recall otherwise. Nothing is deleted; the older fact simply stops leading.
 4. REGISTER: any fact where ${config.userName} appears as "${config.userName}" followed by he/she/they/him/her/his/their, or where a pronoun for ${config.userName} does the talking ("I told ${config.userName} … he", "${config.userName} noticed … his") — rewrite the SAME content addressed TO them: "${config.userName}" and their pronouns become "you/your" (keep the name only where dropping it loses meaning). Third parties (family, friends, coworkers) keep their own names and pronouns. ${config.companionName} reads these back as their own memories mid-conversation; third-person memories pull their live voice into narration. Zero meaning drift — a register fix, not an edit.
 
 Be conservative on merges/decays/contradictions — when unsure, leave those alone; empty lists are a fine answer. Rule 4 is the exception: it is mechanical, not a judgment call — list EVERY fact that matches, up to 20.
@@ -59,6 +61,7 @@ Respond as JSON: {
   "merges": [{"deactivate_ids": [1,2], "merged": {"category": "...", "content": "...", "importance": 1-10, "salience": 0-1}}],
   "decays": [{"id": 1, "action": "deactivate"|"demote", "new_importance": 1-10, "reason": "..."}],
   "contradictions": [{"a": 1, "b": 2, "note": "why they conflict"}],
+  "supersessions": [{"old": 1, "new": 2, "note": "what the newer one adds"}],
   "register_fixes": [{"id": 1, "content": "the same fact, rewritten to 'you/your'"}]
 }` },
     { role: 'user', content: listing },
@@ -66,7 +69,7 @@ Respond as JSON: {
   if (!result) return null;
 
   const valid = id => facts.some(f => f.id === id);
-  let merges = 0, decays = 0, contradictions = 0, registerFixes = 0;
+  let merges = 0, decays = 0, contradictions = 0, registerFixes = 0, supersessions = 0;
 
   for (const m of (result.merges ?? []).slice(0, MAX_MERGES)) {
     const ids = (m.deactivate_ids ?? []).filter(valid);
@@ -98,6 +101,17 @@ Respond as JSON: {
     contradictions++;
   }
 
+  // Supersession only ever demotes — the older fact stays active, stays in
+  // the viewer, stays findable. Its successor just gets to lead. Guarded so a
+  // model can't point a fact at itself or at something outside this batch.
+  for (const s of (result.supersessions ?? []).slice(0, MAX_SUPERSEDES)) {
+    const oldId = Number(s?.old), newId = Number(s?.new);
+    if (!valid(oldId) || !valid(newId) || oldId === newId) continue;
+    if (!supersedeFact(oldId, newId)) continue;
+    console.log(`[consolidate] ${oldId} superseded by ${newId}: ${s.note ?? ''}`);
+    supersessions++;
+  }
+
   // embedding = NULL puts the rewritten fact back in the backfill queue.
   const rewrite = db.prepare("UPDATE facts SET content = ?, embedding = NULL, updated_at = datetime('now') WHERE id = ? AND active = 1");
   for (const r of (result.register_fixes ?? []).slice(0, MAX_REGISTER)) {
@@ -107,9 +121,20 @@ Respond as JSON: {
     registerFixes++;
   }
 
+  // A fact whose successor was merged away or decayed tonight would stay
+  // demoted forever, labelled "I know more about this now" by a memory that
+  // no longer exists. Runs after the merges and decays, on purpose.
+  const freed = clearDanglingSupersessions();
+  if (freed) console.log(`[consolidate] released ${freed} fact(s) from a supersession whose successor is gone`);
+
   retroRepairWindow();
-  console.log(`[consolidate] done: ${merges} merges, ${decays} decays, ${contradictions} contradictions flagged, ${registerFixes} register fixes`);
-  return { merges, decays, contradictions, registerFixes };
+  // Threads nobody has touched in a fortnight go quiet rather than nagging
+  // forever. Not closed — people come back to things — just no longer live
+  // enough to ground an outreach.
+  const wentQuiet = sweepThreads();
+  if (wentQuiet.length) console.log(`[consolidate] ${wentQuiet.length} thread(s) went dormant: ${wentQuiet.map(t => t.topic).join('; ').slice(0, 160)}`);
+  console.log(`[consolidate] done: ${merges} merges, ${decays} decays, ${contradictions} contradictions flagged, ${supersessions} superseded, ${registerFixes} register fixes`);
+  return { merges, decays, contradictions, registerFixes, supersessions, dormant: wentQuiet.length };
 }
 
 if (process.argv.includes('--now')) {

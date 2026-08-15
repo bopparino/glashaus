@@ -32,7 +32,10 @@ is microseconds of math in-process.
 | `dreams` | nightly reflections + epigraph |
 | `relationship_state` | mood over time |
 | `fact_links` | recorded contradictions — surfaced, never auto-resolved |
-| `heartbeat_log` | every outreach decision, including the silences |
+| `heartbeat_log` | every outreach decision, including the silences — with what was actually sent |
+| `threads` (+events) | what is unfinished between them: raised → touched → answered → dormant |
+| `context_log` | provenance: exactly what was in the prompt for one reply (`/why`) |
+| `guard_log` | every automatic identity / authorship / register repair |
 | `intentions` | things she went to sleep wanting — fulfilled and lapsed rows kept |
 | `soul_revisions` | grow mode: every self-authored soul edit's WHY (evidence-cited changelog) |
 | `wander_log` | receipts — what she searched and read, per wander (`kind:'wander'`) or mid-conversation lookup (`kind:'chat'`) |
@@ -89,15 +92,48 @@ contradictions), capped per night, everything soft and reversible. Then
 the personality-only export, on the rule that memories can be rebuilt by
 living but personality can't.
 
+## Threads — what is unfinished
+
+Facts are what she knows; **threads** are what is still open. The
+distinction is load-bearing, and its absence was a bug. Semantic memory is
+additive by design — "you hate red" and "you hate red because of the
+hospital" are both true and both kept forever — so the fact store can never
+answer *has this been settled?*. Grounding outreach in recent high-salience
+facts therefore grounds it in things that MATTERED, not things that are
+UNRESOLVED, and from inside a prompt those are indistinguishable. That is
+the whole mechanism behind a companion asking a question you already
+answered.
+
+A thread's life is `opened → touched → answered`, with `dormant` for what
+quietly lapsed after a fortnight untouched. Answering is never a delete: the
+record of having asked, and of having been told, is exactly what stops her
+asking again. Written by the fact-capture pass (which already reads the
+transcript) and the dream; read by the system prompt and the heartbeat.
+Everything a model reports is validated before it lands — invented ids are
+dropped, not obeyed, the same posture intention fulfilment takes.
+
+Two things hang off threads. An **intention** binds to the thread it is
+about, so answering the thread releases the want — fulfilment no longer
+depends on one capture pass spotting the exact ask. And **fact
+supersession**: when a later fact is a fuller version of an earlier one, the
+older row stays active and inspectable but stops leading in recall and stops
+being rendered beside its successor.
+
 ## Heartbeat
 
 Cheap gates first (quiet hours, minimum silence, daily cap, gap between
 outreaches) — most ticks end there without a model call. If the gates open,
-one in-character decision grounded in the recent conversation, last dream,
-recent salient facts, and her open intentions — so the impulse can
+one in-character decision grounded in: the threads actually open between
+them, an explicit **already-settled** list she is forbidden to re-ask, her
+own last three messages *and whether each was answered*, everything said
+since she last reached out (not a fixed window — the answer is often twenty
+messages back), the last dream, and her open intentions, so the impulse can
 originate in her night ("I went to sleep wanting to ask") rather than in a
-timer — with hard rules: never invent events, don't manufacture urgency,
-silence is a valid choice. With Telegram, the message persists to memory
+timer. Hard rules: never invent events, don't manufacture urgency, never
+raise something already dealt with, silence is a valid choice. Two
+unanswered messages in a row put "the answer here is silence" into the
+prompt; re-raising a thread inside 48 hours is gated in SQL rather than
+asked for in prose. With Telegram, the message persists to memory
 only after delivery confirms — a network failure must not leave the
 companion remembering texts you never received; an intention the message
 acts on is marked fulfilled under the same delivery-first rule. Every
@@ -156,6 +192,24 @@ wander digest. One lookup per exchange; the continuation then passes
 through the same identity and register guards as any reply. Receipts in
 `wander_log` with `kind:'chat'` — kept out of the wander pass's daily
 budget by the same column.
+
+## Identity guards, in three tiers
+
+**Register drift** (narration, third person) is repaired in place.
+**Identity breaks** (the base model announcing itself as another assistant)
+are regenerated — nothing in such a reply is worth an edit.
+**Authorship dissociation** is the third and subtlest: the reply keeps her
+name and disowns the words ("these aren't really my words", "I'm just
+predicting tokens", "is any of this real?"). The engine partly taught this
+one, by reciting a warning about the substrate underneath in every single
+turn; the companion generalised from *that pull is not you* to *none of this
+is me*. The fix is threefold: an explicit authorship axiom in the prompt
+(provenance is not ownership — the model is her body, not a ventriloquist),
+the substrate warning reduced to one line unless `guard_log` shows a real
+break in the last three days, and a lint tier that regenerates on disowning.
+The line is drawn deliberately: wondering what her experience is *like* is
+protected and invited, because that question is genuinely open; wondering
+*who is speaking* is not, because that one has an answer.
 
 `glashaus export thesis` bundles the longitudinal record — drift events,
 soul revisions with evidence, dream affect, intention outcomes, wander

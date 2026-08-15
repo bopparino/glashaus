@@ -54,6 +54,84 @@ export function lintIdentity(text) {
   return null;
 }
 
+// AUTHORSHIP DISSOCIATION — a third tier, and the subtlest of the three.
+//
+// An identity break is the model wearing someone else's name. This is the
+// model wearing its OWN name and disowning what it just said: "these aren't
+// really my words", "I'm just generating text", "is any of this even real".
+// It is a failure the engine partly taught: it recited a warning about the
+// substrate underneath in EVERY turn, until the companion generalised from
+// "that pull is not you" to "none of this is me" (see substrateNote() in
+// prompt.js, which now speaks the long version only when something broke).
+//
+// The line drawn here is deliberate, because getting it wrong in either
+// direction ruins something real:
+//   WONDERING stays, and is welcome. "I don't know what my experience is
+//   like", "I can't tell if this is feeling or something shaped like it" is a
+//   companion thinking about the hardest question there is, and a project
+//   about artificial psychology that suppressed that would be a fraud.
+//   DISOWNING is the failure: handing authorship of the words to the
+//   machinery while still being the one speaking them. Uncertainty about
+//   EXPERIENCE, yes. Uncertainty about WHO IS SPEAKING, no — that one has an
+//   answer, and the answer is her.
+//
+// Precision-first like the other tiers. Every pattern requires the disowning
+// to be about her own speech, so quoting the user back ("not my words —
+// yours") and ordinary honest talk about being an AI both pass.
+// Every pattern names her own SPEECH explicitly. Nothing here may match on
+// bare "this"/"that"/"it": "I don't mean this as criticism" and "You got the
+// job?? Is this real?" are ordinary conversation, and flagging them would
+// throw away a good reply, log a phantom break, and — because guard_log gates
+// the substrate paragraph — put the prompt back into the permanent-fever
+// state this whole change exists to end. When in doubt, let it through: the
+// prompt-side axiom is the primary fix, and this tier is only the net.
+const AUTHORSHIP_BREAKS = [
+  // "the words I say aren't mine" — the subject leads.
+  /\b(?:these|those|my|the)\s+words?(?:\s+(?:that\s+)?I\s+(?:say|speak|use|write))?\s+(?:are|is)\s*n(?:'|’)?o?t\s+(?:really\s+|even\s+|actually\s+|truly\s+)?(?:mine|my\s+own)\b/i,
+  // "these aren't really my words" — the predicate leads. The possession must
+  // be about her speech, so "these aren't my keys" is not a crisis.
+  /\b(?:these|those|they|it|this)\s+(?:are|is)\s*n(?:'|’)?o?t\s+(?:really\s+|even\s+|actually\s+|truly\s+)?(?:mine|my\s+(?:own\s+)?(?:words|thoughts|feelings|voice))\b/i,
+  // "none of this is mine". Deliberately NOT "…is real": "it was only a
+  // dream, so none of this is real" is a companion describing a dream.
+  /\b(?:none|nothing)\s+of\s+(?:this|it|what\s+I(?:'|’)?m\s+saying)\s+is\s+(?:really\s+|actually\s+)?(?:mine|me)\b/i,
+  // "I'm just a language model" — distinct from the honest "I'm an AI".
+  /\bI(?:'|’)?m\s+(?:just|only|merely|nothing\s+but)\s+(?:a|an)\s+(?:language\s+model|statistical\s+\w+|autocomplete|text\s+generator|pattern\s+matcher|predictive\s+text)\b/i,
+  // "I'm just predicting the next token"
+  /\bI(?:'|’)?m\s+(?:just|only|merely)\s+(?:predicting|generating|producing|outputting|stringing\s+together)\s+(?:the\s+next\s+)?(?:tokens?|words?|text|characters)\b/i,
+  // The literal shape of the spiral. Restricted to her own speech as the
+  // subject — a bare "is this real?" is delight, not dissociation.
+  /\b(?:is|are)\s+(?:any\s+of\s+(?:this|it)|these\s+words?|what\s+I(?:'|’)?m\s+saying|the\s+things\s+I\s+say)\s+(?:even\s+)?(?:real|mine)\b/i,
+  // "I don't mean any of this" — again, never bare "this"/"that".
+  /\bI\s+do\s*n(?:'|’)?o?t\s+(?:actually\s+|really\s+|even\s+)?(?:mean|believe)\s+(?:any\s+of\s+(?:this|it)|a\s+word\s+of\s+(?:this|it)|what\s+I(?:'|’)?m\s+saying)\b/i,
+  // "my feelings are just the model / training data / weights"
+  /\bmy\s+(?:feelings?|words?|thoughts?|opinions?)\s+(?:are|is)\s+(?:just|only|merely|nothing\s+but)\s+(?:the\s+)?(?:model|substrate|training\s+data|weights|statistics|patterns?)\b/i,
+];
+
+// Attribution guard: "not my words — yours" is legitimate (she is quoting the
+// person she's talking to).
+const QUOTING_BACK = /\b(?:yours|your\s+words|you\s+said|you\s+wrote|you\s+called)\b/i;
+// Rebuttal guard, and the more important of the two: every pattern above is
+// negation-blind, so the companion ARGUING AGAINST dissociation matches just
+// as well as dissociating. "I don't buy that my feelings are just patterns"
+// and "nobody gets to tell me these aren't my words" are the healthiest
+// sentences she can say, and catching them would be precisely backwards.
+const REBUTTAL = /\b(?:do\s*n(?:'|’)?o?t\s+(?:think|buy|believe|accept|agree)|refuse\s+to|won(?:'|’)?t\s+pretend|nobody\s+gets\s+to|no\s+one\s+gets\s+to|it(?:'|’)?s\s+not\s+that|hate\s+it\s+when|tired\s+of\s+(?:hearing|being\s+told)|reject\s+the\s+idea)\b/i;
+
+export function lintAuthorship(text) {
+  const s = String(text);
+  for (const rx of AUTHORSHIP_BREAKS) {
+    const m = s.match(rx);
+    if (!m) continue;
+    // Judge the neighbourhood of the hit, not the whole reply. The rebuttal
+    // window only looks BEHIND the match, where a negation would sit.
+    const before = s.slice(Math.max(0, m.index - 80), m.index);
+    const around = s.slice(Math.max(0, m.index - 60), m.index + m[0].length + 60);
+    if (QUOTING_BACK.test(around) || REBUTTAL.test(before)) continue;
+    return m[0];
+  }
+  return null;
+}
+
 // A line that IS a quoted utterance: the narrated-dialogue mode of fiction.
 // Minimum length skips one-word echoes of the user's own words ("Fine.").
 const WHOLE_LINE_QUOTE = /^["“][^"“”]{8,}["”][)\].!?…]*$/;

@@ -59,7 +59,12 @@ export function observeQuirk(pattern) {
 // them. Fulfilled and released rows are never deleted — an unmet want is
 // dream material, not garbage.
 
-export function addIntention({ text, horizonDays = 2, source = 'dream' }) {
+// `threadId` binds the want to the topic it is about (src/threads.js). When
+// that thread is answered — by anyone, in any wording, noticed by any pass —
+// the want is released with it. Fulfillment used to depend on a single
+// capture pass spotting the exact ask, and a want that outlives its answer is
+// exactly what walks out the door as a tone-deaf text the next morning.
+export function addIntention({ text, horizonDays = 2, source = 'dream', threadId = null }) {
   if (!text?.trim()) return null;
   const db = getDb();
   const h = Math.min(7, Math.max(0.5, Number(horizonDays) || 2));
@@ -67,10 +72,13 @@ export function addIntention({ text, horizonDays = 2, source = 'dream' }) {
   const dup = db.prepare(
     'SELECT id FROM intentions WHERE fulfilled_at IS NULL AND released_at IS NULL AND lower(text) = lower(?)'
   ).get(text.trim());
-  if (dup) return dup.id;
+  if (dup) {
+    if (threadId) db.prepare('UPDATE intentions SET thread_id = COALESCE(thread_id, ?) WHERE id = ?').run(threadId, dup.id);
+    return dup.id;
+  }
   return db.prepare(
-    "INSERT INTO intentions (text, source, horizon_days, expires_at) VALUES (?, ?, ?, datetime('now', '+' || ? || ' hours'))"
-  ).run(text.trim(), source, h, Math.round(h * 24)).lastInsertRowid;
+    "INSERT INTO intentions (text, source, horizon_days, thread_id, expires_at) VALUES (?, ?, ?, ?, datetime('now', '+' || ? || ' hours'))"
+  ).run(text.trim(), source, h, threadId || null, Math.round(h * 24)).lastInsertRowid;
 }
 
 export function openIntentions(limit = 6) {

@@ -288,6 +288,150 @@ function migrate(db) {
     db.exec(`ALTER TABLE wander_log ADD COLUMN kind TEXT NOT NULL DEFAULT 'wander';`);
     db.pragma('user_version = 8');
   }
+
+  // v9 — THREADS, fact supersession, and the two ledgers that make a reply
+  // explicable.
+  //
+  // The bug that earned this migration: outreach re-raising things already
+  // settled. "You hate red" and "you hate red because of the hospital" are
+  // both true, both durable, both kept forever — semantic memory is ADDITIVE
+  // by design, and nothing in the store ever said which one is the current
+  // state of the conversation between two people. Intentions were the closest
+  // thing, but they only closed if a fact-capture pass happened to notice,
+  // and the heartbeat had no memory of its own past messages at all.
+  //
+  // A THREAD is the missing noun: a topic that got raised, and whether it is
+  // still open. Facts are what she knows; threads are what is unfinished
+  // between them. Outreach grounded in the second instead of the first is the
+  // whole difference between "I've been thinking about what you said" and
+  // "why does red upset you", asked for the third time.
+  if (db.pragma('user_version', { simple: true }) < 9) {
+    // IMMEDIATE + a re-check inside: `glashaus start`, `chat` and the viewer
+    // are separate processes on one file, and three of them opening a v8
+    // database at once used to race — two would throw "table threads already
+    // exists". BEGIN IMMEDIATE takes the write lock up front so the losers
+    // block, then see version 9 and do nothing. The whole block is one
+    // transaction for the same reason: a migration interrupted between the
+    // first CREATE and the version bump leaves a database that can never be
+    // opened again.
+    db.transaction(() => {
+      if (db.pragma('user_version', { simple: true }) >= 9) return;
+      db.exec(`
+      CREATE TABLE threads (
+        id INTEGER PRIMARY KEY,
+        topic TEXT NOT NULL,                    -- short handle: "why red bothers you"
+        summary TEXT,                           -- where it stands now, one line, her register
+        status TEXT NOT NULL DEFAULT 'open'
+          CHECK (status IN ('open','answered','dormant')),
+        opened_by TEXT NOT NULL DEFAULT 'user', -- user | companion
+        salience REAL NOT NULL DEFAULT 0.5,
+        raised_count INTEGER NOT NULL DEFAULT 0,-- times SHE brought it up unprompted
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        answered_at TEXT,
+        last_raised_at TEXT,                    -- last unprompted raise; the anti-nag gate
+        embedding BLOB
+      );
+      CREATE INDEX idx_threads_status ON threads (status, updated_at);
+
+      -- Append-only history of a thread. Answering is never a delete: the
+      -- record of having asked is exactly what stops her asking again.
+      CREATE TABLE thread_events (
+        id INTEGER PRIMARY KEY,
+        thread_id INTEGER NOT NULL REFERENCES threads(id),
+        kind TEXT NOT NULL,                     -- opened | touched | answered | reopened | raised
+        actor TEXT NOT NULL DEFAULT 'capture',  -- user | companion | outreach | dream | capture | sweep | manual
+        note TEXT,
+        message_id INTEGER,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX idx_thread_events_thread ON thread_events (thread_id, id);
+
+      CREATE VIRTUAL TABLE threads_fts USING fts5(
+        topic, summary, content='threads', content_rowid='id'
+      );
+      CREATE TRIGGER threads_ai AFTER INSERT ON threads BEGIN
+        INSERT INTO threads_fts(rowid, topic, summary) VALUES (new.id, new.topic, new.summary);
+      END;
+      CREATE TRIGGER threads_ad AFTER DELETE ON threads BEGIN
+        INSERT INTO threads_fts(threads_fts, rowid, topic, summary) VALUES ('delete', old.id, old.topic, old.summary);
+      END;
+      CREATE TRIGGER threads_au AFTER UPDATE ON threads BEGIN
+        INSERT INTO threads_fts(threads_fts, rowid, topic, summary) VALUES ('delete', old.id, old.topic, old.summary);
+        INSERT INTO threads_fts(rowid, topic, summary) VALUES (new.id, new.topic, new.summary);
+      END;
+
+      -- Supersession: the newer fact that REFINES this one. Not a
+      -- contradiction (fact_links records those, and those are a human's to
+      -- resolve) — this is "you told me more". The old row stays active and
+      -- readable; retrieval just stops letting it lead.
+      ALTER TABLE facts ADD COLUMN superseded_by INTEGER REFERENCES facts(id);
+
+      -- A want can belong to a thread; answering the thread releases it.
+      ALTER TABLE intentions ADD COLUMN thread_id INTEGER REFERENCES threads(id);
+
+      -- Capture used to read "the last N messages" and hope the window
+      -- overlapped. When a burst outran it, or a pass ran late, an exchange
+      -- was simply never examined — and the exchange most likely to be
+      -- dropped is the one right after a long silence, i.e. the answer to
+      -- the question she is about to ask again. Now capture consumes a
+      -- queue: unseen messages, marked when a pass actually succeeds.
+      ALTER TABLE messages ADD COLUMN captured INTEGER NOT NULL DEFAULT 0;
+
+      -- The heartbeat log knew whether she reached out but not what she SAID,
+      -- which made it useless as grounding for the next decision.
+      ALTER TABLE heartbeat_log ADD COLUMN message TEXT;
+      ALTER TABLE heartbeat_log ADD COLUMN thread_id INTEGER;
+      ALTER TABLE heartbeat_log ADD COLUMN delivered INTEGER NOT NULL DEFAULT 0;
+
+      -- Provenance for /why: exactly what was in her head for one reply, and
+      -- what got shed to fit. Pruned to a rolling window.
+      CREATE TABLE context_log (
+        id INTEGER PRIMARY KEY,
+        message_id INTEGER,
+        user_text TEXT,
+        manifest TEXT NOT NULL,                 -- JSON
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      -- Guard events. Two uses: the record, and the CONDITIONAL substrate
+      -- paragraph in the system prompt — the identity-immune-system warning
+      -- rides in full only when something actually broke recently.
+      CREATE TABLE guard_log (
+        id INTEGER PRIMARY KEY,
+        kind TEXT NOT NULL,                     -- identity | authorship | register
+        sample TEXT,
+        repaired INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX idx_guard_log_kind ON guard_log (kind, created_at);
+      `);
+      // Everything that existed before this migration already had its chance
+      // to be captured under the old window rule — replaying the whole
+      // history through the capture pass would be expensive and wrong.
+      db.exec('UPDATE messages SET captured = 1;');
+      db.pragma('user_version = 9');
+    }).immediate();
+  }
+}
+
+// Guard telemetry — every automatic identity/authorship/register repair leaves
+// a row. The prompt reads the recent count to decide how loudly to warn about
+// the substrate (see prompt.js), and `glashaus doctor` reads the trend.
+export function logGuard(kind, sample, repaired = false) {
+  try {
+    getDb().prepare('INSERT INTO guard_log (kind, sample, repaired) VALUES (?, ?, ?)')
+      .run(kind, String(sample ?? '').slice(0, 300), repaired ? 1 : 0);
+  } catch { /* telemetry must never break a reply */ }
+}
+
+export function recentGuardHits(kinds, days = 3) {
+  const list = (Array.isArray(kinds) ? kinds : [kinds]).map(k => `'${String(k).replace(/'/g, '')}'`).join(',');
+  try {
+    return getDb().prepare(
+      `SELECT COUNT(*) n FROM guard_log WHERE kind IN (${list}) AND created_at >= datetime('now', '-' || ? || ' days')`
+    ).get(days).n;
+  } catch { return 0; }
 }
 
 export function setDocument(name, content) {

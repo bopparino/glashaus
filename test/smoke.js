@@ -28,7 +28,7 @@ assert.equal(config.userName, 'Sam');
 // -- db + migrations ----------------------------------------------------------
 const { getDb, setDocument, getDocument } = await import('../src/db.js');
 const db = getDb();
-assert.equal(db.pragma('user_version', { simple: true }), 8, 'migrations ran to v8');
+assert.equal(db.pragma('user_version', { simple: true }), 9, 'migrations ran to v9');
 assert.equal(db.prepare('SELECT COUNT(*) n FROM self_state').get().n, 10, 'self-state seeded');
 
 // -- persona sync -------------------------------------------------------------
