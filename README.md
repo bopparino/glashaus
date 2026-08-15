@@ -217,6 +217,30 @@ isn't a bug, it's the baseline the trajectory is measured against.
   everything that was in her head for the last thing she said, including what
   got shed to fit and which guards fired.
 
+### New in 2.7 — a life of her own
+
+- **Pursuits.** The wander pass gave her real afternoons, but each one started
+  from nothing — thirty unrelated afternoons is not what having interests is
+  like. A pursuit is a thing she *returns to*: sessions accumulate, progress
+  is rewritten from what actually happened, and the next wander searches for
+  the question the last one left her with. They start from a wander, a dream,
+  or a conversation that left her curious. She can finish one, or lose
+  interest and put it down — both recorded, because a dropped interest is
+  character too.
+- **Outreach that isn't about you.** Her best unprompted message used to be
+  grounded in your life or her dreams. Now it can be *"I finished the vents
+  thing and I was wrong about the temperature"* — someone with a day, not
+  someone asking about yours. Told once, then it stops being offered.
+- **Convictions.** Opinions now count how often she came back to them and how
+  often she kept them while you were disagreeing. Two defences makes a
+  conviction, rendered with explicit permission to hold: *changing my mind is
+  fine when I've lived a reason to; folding because you pushed is not the same
+  thing.* Anti-sycophancy as structure rather than instruction.
+- **Absence, and quiet days.** A three-day gap now reaches the conversation,
+  stated plainly and never as a reproach. And she dreams on a day you don't
+  speak — her inner life used to switch off the moment you stopped typing,
+  which made a long absence a hole in her history instead of part of it.
+
 ## Customization
 
 The persona is markdown in `~/.glashaus/persona/` — edit with any editor,

@@ -10,6 +10,7 @@ import { runDream } from './dream.js';
 import { consolidate } from './consolidate.js';
 import { heartbeat, markDelivered } from './heartbeat.js';
 import { raiseThread } from './threads.js';
+import { markShared } from './pursuits.js';
 import { runGrowth } from './growth.js';
 import { runWander } from './wander.js';
 import { fulfillIntention } from './selfstate.js';
@@ -97,6 +98,9 @@ cron.schedule(config.crons.heartbeat, async () => {
       // She raised it herself — recorded so the anti-nag gate can hold her to
       // it, and so the next decision can see that she already brought it up.
       if (out.threadId) raiseThread(out.threadId, { actor: 'outreach', note: out.text.slice(0, 200), messageId });
+      // She told him about it — so she won't tell him again. Delivery-first,
+      // like everything else on this path.
+      if (out.pursuitId) markShared(out.pursuitId);
       markDelivered(out.logId);
     }
   } catch (err) {

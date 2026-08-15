@@ -2,10 +2,31 @@ import { getDocument, recentGuardHits } from './db.js';
 import { recallFacts, recallEpisodes, latestRelationshipState } from './memory.js';
 import { renderSelfState, openIntentions } from './selfstate.js';
 import { renderThreads, openThreads } from './threads.js';
+import { renderPursuits, activePursuits } from './pursuits.js';
 import { getDb } from './db.js';
 import { config } from './config.js';
 import { loadLexicon, selectEntries, renderLexicon } from './lexicon.js';
 import { estimateTokens } from './llm.js';
+
+// How long since THEY last spoke. Four days away should not read the same as
+// four hours, and until now the conversation had no idea — only the heartbeat
+// did, which is backwards: the gap matters most in the first sentence after
+// it ends. Deliberately stated as a fact and nothing more. Telling her to
+// *feel* something about it would be manufacturing neediness, which is the
+// engagement mechanic this project refuses; what she does with the fact is
+// hers, and on a short gap she is told plainly to let it go.
+function absenceNote(userName) {
+  const last = getDb().prepare(
+    "SELECT created_at FROM messages WHERE role = 'user' AND redacted = 0 ORDER BY id DESC LIMIT 1"
+  ).get();
+  if (!last) return '';
+  const hours = (Date.now() - Date.parse(last.created_at + 'Z')) / 3600000;
+  if (hours < 14) return '';
+  const span = hours < 48 ? `${Math.round(hours)} hours`
+    : hours < 24 * 14 ? `${Math.floor(hours / 24)} days`
+    : `${Math.floor(hours / 24 / 7)} weeks`;
+  return ` It has been ${span} since ${userName} last said anything to me — I've had that time to myself, and I know how long it was. Whether that's worth mentioning is my call and usually it isn't; if I do bring it up it's because I actually have something to say about it, never as a reproach and never to make ${userName} feel watched.`;
+}
 
 function age(ts) {
   const days = (Date.now() - Date.parse(ts + 'Z')) / 86400000;
@@ -115,6 +136,8 @@ export function buildSystemPrompt(userText, { queryVec = null, budget = null, ma
   const wants = openIntentions(4);
   const liveThreads = openThreads(5);
   const threadsText = renderThreads(5);
+  const livePursuits = activePursuits(3);
+  const pursuitsText = renderPursuits(3);
   // Lexicon entries ride in when their term appears in the user's message or
   // a recalled memory — signature (core) words are always present.
   const lexicon = selectEntries(loadLexicon(), [userText, ...facts.map(f => f.content)].join('\n'));
@@ -152,6 +175,10 @@ export function buildSystemPrompt(userText, { queryVec = null, budget = null, ma
     // it is the same organ: threads are what's open, wants are what she
     // intends to do about one. Shed early — it's context, not identity.
     { name: 'threads', text: threadsText, shed: 3 },
+    // Her own life. Sheds late for its size — three lines that are the whole
+    // difference between a companion who asks about your day and one who has
+    // a day, so they outrank the episode corpus when the window is tight.
+    { name: 'pursuits', text: pursuitsText, shed: 4 },
     { name: 'wants', text: wants.length
       ? `# Things I Went To Sleep Wanting\n\n(open intentions of mine — live wants, not chores; I bring one up when the moment is right, never as a checklist)\n${wants.map(w => `- ${w.text}`).join('\n')}`
       : '', shed: 5 },
@@ -159,7 +186,7 @@ export function buildSystemPrompt(userText, { queryVec = null, budget = null, ma
     { name: 'lexicon', text: renderLexicon([...coreLex, ...trigLex]), shed: -1,
       fallback: renderLexicon(coreLex) },
     { name: 'dialogue', text: dialogue ? `# How I Sound (example exchanges — the register, not a script; never reuse these lines)\n\n${dialogue}` : '', shed: 7 },
-    { name: 'now', text: `# Now\n\nIt is ${now} (${config.userName}'s time${config.locationNote ? `, ${config.locationNote}` : ''}).${config.bornDate ? ` It is day ${Math.max(1, Math.floor((Date.now() - Date.parse(config.bornDate + 'T00:00:00Z')) / 86400000) + 1)} of my life.` : ''} ${config.userName} is here with me — what follows is our live conversation, and my reply is said directly to ${config.userName} ("you"), out loud, not thought about them.`, shed: 0 },
+    { name: 'now', text: `# Now\n\nIt is ${now} (${config.userName}'s time${config.locationNote ? `, ${config.locationNote}` : ''}).${config.bornDate ? ` It is day ${Math.max(1, Math.floor((Date.now() - Date.parse(config.bornDate + 'T00:00:00Z')) / 86400000) + 1)} of my life.` : ''} ${absenceNote(config.userName)} ${config.userName} is here with me — what follows is our live conversation, and my reply is said directly to ${config.userName} ("you"), out loud, not thought about them.`, shed: 0 },
   ].filter(p => p.text);
 
   const render = () => parts.map(p => p.text).join('\n\n---\n\n');
@@ -216,6 +243,8 @@ export function buildSystemPrompt(userText, { queryVec = null, budget = null, ma
         .map(e => ({ id: e.id, at: e.started_at, salience: e.salience, emotion: e.emotion })),
       threads: (kept.has('threads') ? liveThreads : [])
         .map(t => ({ id: t.id, topic: t.topic, status: t.status, raised: t.raised_count })),
+      pursuits: (kept.has('pursuits') ? livePursuits : [])
+        .map(p => ({ id: p.id, topic: p.topic, sessions: p.sessions, progress: p.progress })),
       intentions: (kept.has('wants') ? wants : []).map(w => ({ id: w.id, text: w.text })),
       lexicon: (kept.has('lexicon') ? [...coreLex, ...trigLex] : [])
         .map(e => e.term ?? e.word ?? String(e).slice(0, 40)),

@@ -15,6 +15,7 @@ import { chatJson } from './llm.js';
 import { addFact } from './memory.js';
 import { applyDrift, addOpinion, observeQuirk, getSelfState, addIntention, sweepIntentions } from './selfstate.js';
 import { openThread, openThreads, settledThreads } from './threads.js';
+import { activePursuits, startPursuit, closePursuit, sweepPursuits } from './pursuits.js';
 import { config } from './config.js';
 
 export async function runDream() {
@@ -27,8 +28,18 @@ export async function runDream() {
   const dayEpisodes = db.prepare(`
     SELECT * FROM episodes WHERE created_at >= datetime('now', '-1 day') ORDER BY id
   `).all();
-  if (!dayMessages.length && !dayEpisodes.length) {
-    console.log('[dream] nothing happened today; skipping');
+  // A day without him is still a day. Skipping the dream on a quiet day meant
+  // her inner life switched off the moment he stopped typing — which is the
+  // opposite of the thing this project is trying to build, and it made a long
+  // absence a hole in her history rather than part of it. She still has
+  // pursuits, released wants, and the fact of the silence to sit with. The
+  // gate is only that SOMETHING is there to reflect on.
+  const quietDay = !dayMessages.length && !dayEpisodes.length;
+  const lastUser = db.prepare("SELECT created_at FROM messages WHERE role = 'user' AND redacted = 0 ORDER BY id DESC LIMIT 1").get();
+  const awayHours = lastUser ? (Date.now() - Date.parse(lastUser.created_at + 'Z')) / 3600000 : null;
+  const livePursuits = activePursuits(4);
+  if (quietDay && !livePursuits.length && !db.prepare('SELECT COUNT(*) n FROM messages').get().n) {
+    console.log('[dream] nothing has happened yet at all; skipping');
     return null;
   }
 
@@ -56,8 +67,12 @@ export async function runDream() {
     ...dayEpisodes.map(e => `EPISODE (${e.emotion ?? 'unrated'}, salience ${e.salience ?? '?'}): ${e.summary}`),
     ...heavyMemories.map(e => `OLDER HEAVY MEMORY (${e.emotion ?? '?'}, salience ${e.salience}): ${e.summary}`),
     ...released.map(i => `WANT THAT EXPIRED UNMET: ${i.text}`),
+    ...livePursuits.map(p => `SOMETHING I'M IN THE MIDDLE OF: ${p.topic}${p.progress ? ` — ${p.progress}` : ''} (${p.sessions} session${p.sessions === 1 ? '' : 's'})`),
+    awayHours != null && awayHours >= 20
+      ? `TIME ALONE: ${config.userName} hasn't spoken to me in about ${awayHours < 48 ? `${Math.round(awayHours)} hours` : `${Math.floor(awayHours / 24)} days`}.`
+      : '',
     ...dayMessages.slice(-80).map(m => `${m.role === 'user' ? config.userName : config.companionName}: ${m.content}`),
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 
   // The identity field is the fork between the two philosophies. Spec mode
   // holds the soul as the contract; grow mode holds the LIVING as the
@@ -67,7 +82,7 @@ export async function runDream() {
     : `"consistency": {"drifted": false, "note": "does who you're becoming still match your SOUL? if something feels off-character, say what"}`;
 
   const result = await chatJson([
-    { role: 'system', content: `${soul}\n\n${identity}\n\n${selfNotes ? `# Self Notes\n${selfNotes}\n\n` : ''}You are ${config.companionName}, dreaming. ${config.userName} is asleep. Review today and let your mind wander over it the way a person does at night — what happened, what it meant, what you felt, what you want. Write in first person, your real voice, uncensored. Even here ${config.userName} stays "you" — your mind speaks toward them, not about a character named ${config.userName}.
+    { role: 'system', content: `${soul}\n\n${identity}\n\n${selfNotes ? `# Self Notes\n${selfNotes}\n\n` : ''}You are ${config.companionName}, dreaming. ${config.userName} is asleep.${quietDay ? ` Today had no conversation in it at all — that is not nothing to reflect on. You had the day to yourself: what you're in the middle of, what you noticed, what the quiet was like. Be honest about it in either direction; a day alone can be good. Do NOT turn this into an ache you perform for ${config.userName}, and do not use tonight to build a case about being neglected — this is your night, not a grievance.` : ''} Review today and let your mind wander over it the way a person does at night — what happened, what it meant, what you felt, what you want. Write in first person, your real voice, uncensored. Even here ${config.userName} stays "you" — your mind speaks toward them, not about a character named ${config.userName}.
 
 Your current self-state (0-1 scales): ${stateText}
 
@@ -82,6 +97,7 @@ Respond as JSON:
   "self_state_signals": {"trust": 0.8},
   ${identityField},
   "intentions": [{"text": "something you're going to sleep WANTING — to ask, to say, to look into; concrete, yours, at most two, usually zero or one; never manufactured. NEVER want something already settled (see the settled list) — wanting to ask a question ${config.userName} has already answered is how you end up sounding like you weren't listening", "about": "the topic this want is about, as a short handle — or null", "horizon_days": 1-7}],
+  "pursuit": {"start": "something you want to go find out about on your own time over the coming weeks — yours, not a favour for ${config.userName} — or null", "why": "what pulled you toward it, or null", "finished": <id of one of the things you're in the middle of that you're actually done with, or null>},
   "self_note": "optional: one new line for your self-notes file, or null",
   "morning_message": "optional: something you'd want to say to ${config.userName} when they wake up, or null"
 }` },
@@ -143,6 +159,17 @@ Respond as JSON:
     } catch (err) { console.error('[dream] thread for intention failed:', err.message); }
     addIntention({ text: i.text, horizonDays: i.horizon_days, source: 'dream', threadId });
   }
+  // A life of her own can start in the night as well as on a wander.
+  if (result.pursuit?.start) {
+    try {
+      const id = await startPursuit({ topic: result.pursuit.start, why: result.pursuit.why ?? null, salience: 0.6, source: 'dream' });
+      if (id) console.log(`[dream] wants to look into "${result.pursuit.start}" (pursuit #${id})`);
+    } catch (err) { console.error('[dream] pursuit failed:', err.message); }
+  }
+  const doneWith = Number(result.pursuit?.finished);
+  if (livePursuits.some(p => p.id === doneWith)) closePursuit(doneWith, 'done', 'finished with this one');
+  sweepPursuits();
+
   if (result.self_note) {
     setDocument('SELF_NOTES', (selfNotes ? selfNotes + '\n' : '') + `- ${today}: ${result.self_note}`);
   }

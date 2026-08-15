@@ -63,6 +63,7 @@ What she knows:
 | `/dream` | Last night's dream and its epigraph. |
 | `/wants` | Things she went to sleep wanting (open intentions). |
 | `/threads [all]` | What's still open between you. `all` also lists what's been settled — the list she is forbidden to re-ask. |
+| `/pursuits [all]` | What she's been into on her own time: progress, how many sessions, whether she's mentioned it to you yet. `all` includes the finished and the abandoned. |
 | `/why` | Everything that was in her head for the last thing she said: memories recalled, threads, wants, lexicon, what got shed to fit, which guards fired. |
 | `/lex` | Words she's nominated for the lexicon. |
 | `/status` | The instrument panel: message and fact counts, thread state, outreach in the last week, backlog, guard hits. |

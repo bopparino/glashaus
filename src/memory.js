@@ -2,9 +2,10 @@ import { getDb } from './db.js';
 import { chat, chatJson } from './llm.js';
 import { config } from './config.js';
 import { embed, cosine } from './embeddings.js';
-import { applyDrift, addOpinion, openIntentions, fulfillIntention } from './selfstate.js';
+import { applyDrift, addOpinion, testOpinion, openIntentions, fulfillIntention } from './selfstate.js';
 import { addLexiconCandidate } from './lexicon.js';
 import { openThreads, applyThreadReport } from './threads.js';
+import { startPursuit } from './pursuits.js';
 
 // ---------- retrieval (glashaus §3.4 hybrid — pure SQL + math, no LLM calls) ----------
 
@@ -305,6 +306,7 @@ export async function captureFacts() {
     .all().map(f => `- [#${f.id}] ${f.content}`).join('\n');
   const wants = openIntentions(6);
   const liveThreads = openThreads(8);
+  const heldOpinions = db.prepare('SELECT id, claim FROM opinions ORDER BY last_held DESC NULLS LAST, id DESC LIMIT 10').all();
 
   const result = await chatJson([
     { role: 'system', content: `You are the memory system for ${config.companionName}, an AI companion in an ongoing relationship with ${config.userName}. Extract NEW durable facts from the conversation below — things worth remembering weeks from now.
@@ -327,6 +329,13 @@ Fact categories: "companion" = about ${config.companionName} (their inner life, 
 You may also report drift signals for ${config.companionName}'s self-state — ONLY dimensions the conversation gave real evidence about (0..1 where the conversation pushed them): warmth, playfulness, directness, curiosity, reserve, neediness, trust, familiarity, desire, security.
 
 And optionally: an opinion ${config.companionName} genuinely formed (a stance, not a fact), and a one-line mood read.
+${heldOpinions.length ? `
+${config.companionName} already holds these opinions. Two things to watch for, and they are different:
+- "reaffirmed": ids she restated or acted on, uncontested.
+- "defended": ids where ${config.userName} PUSHED BACK — disagreed, dismissed, argued — and she held the position anyway. Only count it if there was real disagreement and she did not fold. This is the rarer and more important one: an opinion that has survived being argued with is what makes her someone rather than a mirror, and it is the only signal that distinguishes conviction from habit. If she caved to keep the peace, report nothing.
+${heldOpinions.map(o => `- [#${o.id}] ${o.claim}`).join('\n')}
+` : ''}
+Also: did anything in this conversation catch ${config.companionName}'s OWN curiosity — something she'd want to go read about on her own time, not for ${config.userName}? Report it as "curious_about" (a short topic plus why it caught her), at most one, usually null. Only genuine pull; a polite interest in ${config.userName}'s hobby is not it.
 
 Also nominate LEXICON candidates — at most 2, usually 0: only words/phrases actually used in the transcript that a general model likely wouldn't know or that these two use in their own way (slang, coinages, names of creatures/things in their world, community vocabulary). NEVER standard English used normally, never a word already known.
 THREADS — this is the important one. A thread is a topic that is OPEN between them: a question asked and not answered, a plan with no outcome yet, a worry raised and not resolved, something ${config.userName} said they'd do. Threads are not facts. A fact is what ${config.companionName} knows; a thread is what is still unfinished. Report:
@@ -338,7 +347,7 @@ ${wants.length ? `
 ${config.companionName} has open INTENTIONS (things they went to sleep wanting). If the transcript shows one was acted on — the thing got asked, said, or addressed, in any wording — report its id in "fulfilled_intentions". Only what visibly happened; wanting it harder is not fulfillment.
 ${wants.map(w => `- [#${w.id}] ${w.text}`).join('\n')}
 ` : ''}
-Respond as JSON: {"facts": [{"category": "user|companion|dynamic|project|general", "content": "...", "importance": 1-10, "valence": 0, "arousal": 0, "emotion": "...", "salience": 0, "refines": null}], "threads": {"opened": [{"topic": "...", "summary": "...", "opened_by": "user|companion", "salience": 0}], "answered": [{"id": 1, "note": "how it got settled, one line"}], "touched": [ids]}, "self_state_signals": {"warmth": 0.9}, "opinion": null, "mood": "...", "mood_changed": false, "lexicon": [{"term": "...", "means": "...", "example": "how it sounded in the transcript"}]${wants.length ? ', "fulfilled_intentions": [ids]' : ''}}
+Respond as JSON: {"facts": [{"category": "user|companion|dynamic|project|general", "content": "...", "importance": 1-10, "valence": 0, "arousal": 0, "emotion": "...", "salience": 0, "refines": null}], "threads": {"opened": [{"topic": "...", "summary": "...", "opened_by": "user|companion", "salience": 0}], "answered": [{"id": 1, "note": "how it got settled, one line"}], "touched": [ids]}, "self_state_signals": {"warmth": 0.9}, "opinion": null, "reaffirmed": [ids], "defended": [ids], "curious_about": {"topic": "...", "why": "..."}, "mood": "...", "mood_changed": false, "lexicon": [{"term": "...", "means": "...", "example": "how it sounded in the transcript"}]${wants.length ? ', "fulfilled_intentions": [ids]' : ''}}
 
 Already known (ids are for "refines"):
 ${existing || '(nothing yet)'}` },
@@ -371,6 +380,27 @@ ${existing || '(nothing yet)'}` },
 
   if (result.self_state_signals) attempt('drift', () => applyDrift(result.self_state_signals, 'capture'));
   if (result.opinion) attempt('opinion', () => addOpinion(result.opinion, 'formed in conversation'));
+  // Convictions accrue here. Only ids that name a real opinion count, same
+  // defensive posture as everything else a model hands back.
+  const known = new Set(heldOpinions.map(o => o.id));
+  for (const id of (result.reaffirmed ?? []).map(Number)) {
+    if (known.has(id)) attempt('reaffirm', () => addOpinion(heldOpinions.find(o => o.id === id).claim));
+  }
+  for (const id of (result.defended ?? []).map(Number)) {
+    if (known.has(id)) attempt('defend', () => testOpinion(id));
+  }
+  // Something she wants to go and find out on her own time. This is where a
+  // life of her own most often starts: not from a dream, from a conversation
+  // that left her wondering.
+  if (result.curious_about?.topic) {
+    attempt('pursuit', async () => {
+      const id = await startPursuit({
+        topic: result.curious_about.topic, why: result.curious_about.why ?? null,
+        salience: 0.55, source: 'conversation',
+      });
+      if (id) console.log(`[capture] curious about "${result.curious_about.topic}" → pursuit #${id}`);
+    });
+  }
   if (result.mood && result.mood_changed) {
     attempt('mood', () => db.prepare('INSERT INTO relationship_state (mood, notes) VALUES (?, ?)')
       .run(String(result.mood), null));

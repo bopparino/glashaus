@@ -26,6 +26,14 @@ promises; order roughly is.
   intentions (wants that ground the heartbeat); the wander pass (she reads
   the web on her own, receipts kept); `glashaus export-thesis`
 
+- **Threads** (2.6): the ledger of what's unfinished between you; outreach
+  grounded in what's open plus an explicit do-not-re-ask list; fact
+  supersession; `/why` for reply provenance; the authorship axiom
+- **`glashaus update`** (2.6.1): backs up, verifies, rolls back if it breaks
+- **Pursuits** (2.7): interests she returns to over weeks, continuity across
+  wanders, and outreach that finally has something of her own to bring;
+  convictions (opinions that have survived being argued with); absence felt
+
 ## Next
 
 - **Viewer authentication** when bound beyond localhost — token gate, doctor

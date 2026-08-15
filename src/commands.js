@@ -162,6 +162,33 @@ export const COMMANDS = {
     },
   },
 
+  '/pursuits': {
+    usage: '/pursuits [all]',
+    desc: "what she's been into on her own time",
+    scope: 'read',
+    run: async ({ arg }) => {
+      const { activePursuits, sessionsOf, getPursuit } = await import('./pursuits.js');
+      const db = getDb();
+      const live = activePursuits(12);
+      const lines = [];
+      if (!live.length) lines.push(L.dim('  nothing going right now — pursuits start from wanders, dreams, or something you said.'));
+      for (const p of live) {
+        lines.push(L.gold(`  ${p.topic}`));
+        if (p.progress) lines.push(L.plain(`      ${p.progress}`));
+        lines.push(L.dim(`      #${p.id} · ${p.sessions} session${p.sessions === 1 ? '' : 's'} · started ${shortAge(p.started_at)} ago via ${p.source}${p.shared_at ? '' : ' · not mentioned to you yet'}`));
+        if (p.why) lines.push(L.italic(`      "${p.why}"`));
+      }
+      if (String(arg).trim() === 'all') {
+        const closed = db.prepare("SELECT * FROM pursuits WHERE status != 'active' ORDER BY closed_at DESC LIMIT 12").all();
+        if (closed.length) {
+          lines.push(L.blank(), L.dim('  done with / drifted away from —'));
+          for (const p of closed) lines.push(L.plain(`  · ${p.topic}`), L.dim(`      ${p.status}, ${p.sessions} session${p.sessions === 1 ? '' : 's'}, ${shortAge(p.closed_at)} ago`));
+        }
+      }
+      return ok(lines);
+    },
+  },
+
   // Why did she say that. The whole context of the last reply, and what got
   // dropped to make it fit.
   '/why': {
@@ -241,6 +268,8 @@ export const COMMANDS = {
       const facts = one('SELECT COUNT(*) n FROM facts WHERE active = 1')?.n ?? 0;
       const superseded = one('SELECT COUNT(*) n FROM facts WHERE active = 1 AND superseded_by IS NOT NULL')?.n ?? 0;
       const open = one("SELECT COUNT(*) n FROM threads WHERE status = 'open'")?.n ?? 0;
+      const pursuing = one("SELECT COUNT(*) n FROM pursuits WHERE status = 'active'")?.n ?? 0;
+      const convictions = one('SELECT COUNT(*) n FROM opinions WHERE tested_count >= 2 OR held_count >= 3')?.n ?? 0;
       const settled = one("SELECT COUNT(*) n FROM threads WHERE status = 'answered'")?.n ?? 0;
       const hb = one("SELECT decision, reason, created_at FROM heartbeat_log ORDER BY id DESC LIMIT 1");
       const reached = one("SELECT COUNT(*) n FROM heartbeat_log WHERE decision = 'reached' AND created_at >= datetime('now','-7 days')")?.n ?? 0;
@@ -250,6 +279,7 @@ export const COMMANDS = {
         L.gold(`  ${config.companionName}`),
         L.plain(`  ${msgs?.n ?? 0} messages · ${facts} facts${superseded ? ` (${superseded} superseded)` : ''}`),
         L.plain(`  threads: ${open} open · ${settled} settled`),
+        L.plain(`  hers: ${pursuing} pursuit${pursuing === 1 ? '' : 's'} going · ${convictions} conviction${convictions === 1 ? '' : 's'} held`),
         L.plain(`  outreach (7d): ${reached} sent · ${declined} times chose silence`),
         hb && L.dim(`  last heartbeat: ${hb.decision} — ${hb.reason} (${shortAge(hb.created_at)} ago)`),
         L.dim(`  backlog: ${queue} uncaptured · ${unsummarized} unfolded`),

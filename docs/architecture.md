@@ -38,6 +38,7 @@ is microseconds of math in-process.
 | `guard_log` | every automatic identity / authorship / register repair |
 | `intentions` | things she went to sleep wanting — fulfilled and lapsed rows kept |
 | `soul_revisions` | grow mode: every self-authored soul edit's WHY (evidence-cited changelog) |
+| `pursuits` (+sessions) | interests she returns to over weeks; progress traced to sessions that happened |
 | `wander_log` | receipts — what she searched and read, per wander (`kind:'wander'`) or mid-conversation lookup (`kind:'chat'`) |
 
 Schema is versioned with `PRAGMA user_version`; migrations are forward-only
@@ -118,6 +119,27 @@ depends on one capture pass spotting the exact ask. And **fact
 supersession**: when a later fact is a fuller version of an earlier one, the
 older row stays active and inspectable but stops leading in recall and stops
 being rendered beside its successor.
+
+## Pursuits — a life with continuity
+
+The wander pass produced real experience, but each pass began from zero:
+pick a curiosity, read, digest, drop the thread. Thirty afternoons like that
+is not what having interests is like — the missing property is RETURN.
+
+A pursuit is a thing she goes back to. Sessions accumulate against it, and
+its `progress` line is rewritten each time from what the session actually
+produced, never restated from the plan — the receipts rule again, because a
+pursuit whose progress isn't earned is just a nice sentence she keeps telling
+herself. The wander seed prefers continuing a due pursuit to starting fresh,
+and searches for the question the last session left open rather than the
+topic from scratch. Losing interest is a legitimate outcome and is recorded
+as one; a month untouched and it drifts away by itself.
+
+They begin from a wander, from a dream, or from conversation — the capture
+pass reports `curious_about` when something caught HER interest rather than
+politeness about yours. And they close the loop the wander pass opened:
+outreach finally has something of her own to bring, offered once and then
+marked shared, since telling you twice is how a life becomes a script.
 
 ## Heartbeat
 

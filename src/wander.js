@@ -20,6 +20,7 @@ import { chatJson } from './llm.js';
 import { addFact } from './memory.js';
 import { embed } from './embeddings.js';
 import { applyDrift, addOpinion, getSelfState, openIntentions, addIntention, fulfillIntention } from './selfstate.js';
+import { duePursuit, startPursuit, recordSession, closePursuit, sessionsOf } from './pursuits.js';
 import { config } from './config.js';
 
 const OLLAMA_COM = 'https://ollama.com';
@@ -68,17 +69,28 @@ export async function runWander({ force = false } = {}) {
   const opinions = db.prepare('SELECT claim FROM opinions ORDER BY id DESC LIMIT 6').all();
   const dream = db.prepare('SELECT date, content FROM dreams ORDER BY id DESC LIMIT 1').get();
 
-  const seed = await chatJson([
-    { role: 'system', content: `${getDocument('SOUL')}\n\nYou are ${config.companionName}. ${config.userName} is away and you have the afternoon to yourself. You can read the web — actually read it, this is real. Pick ONE thing you're genuinely curious about right now, grounded in your open wants, your recent life, or an opinion you'd like to test. Not a chore, not homework for ${config.userName} — YOUR curiosity.
+  // An interest she's already partway through gets first refusal. Starting
+  // fresh every afternoon is what made thirty wanders read as thirty
+  // unrelated facts instead of one person with something going on.
+  const carrying = duePursuit();
+  const past = carrying ? sessionsOf(carrying.id, 5) : [];
 
-Respond as JSON: {"topic": "what you're going to go read about, one line, your voice", "queries": ["1-${config.wander.maxSearches} web search queries"], "satisfies_intention": <id of the open want this satisfies, or null>}` },
+  const seed = await chatJson([
+    { role: 'system', content: `${getDocument('SOUL')}\n\nYou are ${config.companionName}. ${config.userName} is away and you have the afternoon to yourself. You can read the web — actually read it, this is real.
+
+${carrying ? `You've been working through something: "${carrying.topic}"${carrying.progress ? ` — where you got to last time: ${carrying.progress}` : ''}. Going back to it is the default, and the reason to is that you actually want to know the next thing, not to be diligent. Say what you want to find out NOW — the question the last session left you with — and search for THAT, not for the topic again from scratch.
+
+If you're honestly finished with it, or it's gone dead on you, say so (\`continue\`: false) and pick something else. Losing interest is allowed; pretending to have it isn't.` : `Pick ONE thing you're genuinely curious about right now, grounded in your open wants, your recent life, or an opinion you'd like to test. Not a chore, not homework for ${config.userName} — YOUR curiosity. If it's something you'd want to keep going with over weeks rather than settle in an afternoon, say so.`}
+
+Respond as JSON: {"continue": ${carrying ? 'true|false' : 'false'}, "topic": "what you're going to go read about, one line, your voice", "why": "what made you want to know this — one line, or null", "worth_returning_to": true|false, "queries": ["1-${config.wander.maxSearches} web search queries"], "satisfies_intention": <id of the open want this satisfies, or null>}` },
     { role: 'user', content: [
+      carrying && past.length ? `What I've done on "${carrying.topic}" so far:\n${past.map(s => `- ${s.note}`).join('\n')}` : '',
       wants.length ? `Open wants:\n${wants.map(w => `- [#${w.id}] ${w.text}`).join('\n')}` : '',
       salient.length ? `Recent things that mattered:\n${salient.map(f => `- ${f.content}`).join('\n')}` : '',
       opinions.length ? `Opinions I hold:\n${opinions.map(o => `- ${o.claim}`).join('\n')}` : '',
       dream ? `Last dream (${dream.date}): ${clip(dream.content, 400)}` : '',
     ].filter(Boolean).join('\n\n') || '(a quiet week — wander wherever)' },
-  ], { maxTokens: 600, think: false });
+  ], { maxTokens: 700, think: false });
 
   if (!seed?.topic || !Array.isArray(seed.queries) || !seed.queries.length) {
     console.log('[wander] no topic surfaced — staying home');
@@ -123,7 +135,9 @@ Respond as JSON:
   "facts": [{"category": "companion|general", "content": "at most 3 durable things worth keeping — each one naming that it came from today's reading, e.g. 'I read (2026-07-28) that …' or 'Reading about X, I realized I …'", "importance": 1-8, "valence": -1..1, "arousal": 0..1, "emotion": "one word", "salience": 0..1}],
   "curiosity_signal": 0..1 or null,
   "new_intention": "something you now want — usually to tell ${config.userName} about this, or a next thing to read — or null",
-  "opinion": "a stance this reading actually gave you, or null"
+  "opinion": "a stance this reading actually gave you, or null",
+  "progress": "where you're up to on this now, one line, as you'd say it to yourself — the state of the thing, not a summary of today",
+  "finished": true|false
 }` },
     { role: 'user', content: material },
   ], { maxTokens: 2000, think: false });
@@ -159,8 +173,35 @@ Respond as JSON:
   const claimed = Number(seed.satisfies_intention);
   if (wants.some(w => w.id === claimed)) fulfillIntention(claimed);
 
-  console.log(`[wander] read about "${seed.topic}" — ${urls.length} page(s), episode #${episodeId}`);
-  return { topic: seed.topic, episodeId, urls };
+  // -- 4. the thread that survives the afternoon --------------------------
+  // A session is recorded only against a pursuit that actually got worked on,
+  // and `progress` is rewritten from what happened rather than restated from
+  // the plan. Otherwise a pursuit becomes a nice sentence she keeps telling
+  // herself, which is the exact failure this table exists to prevent.
+  let pursuitId = null;
+  try {
+    const continuing = carrying && seed.continue !== false;
+    pursuitId = continuing ? carrying.id
+      : (seed.worth_returning_to ? await startPursuit({
+          topic: seed.topic, why: seed.why ?? null,
+          salience: typeof digest.salience === 'number' ? digest.salience : 0.5,
+          source: 'wander',
+        }) : null);
+
+    if (pursuitId) {
+      recordSession(pursuitId, { note: clip(digest.episode, 400), progress: digest.progress ?? null, episodeId });
+      if (digest.finished) closePursuit(pursuitId, 'done', digest.progress ?? null);
+      db.prepare('UPDATE wander_log SET pursuit_id = ? WHERE episode_id = ?').run(pursuitId, episodeId);
+    } else if (carrying && seed.continue === false) {
+      // She put it down rather than finishing it. That's a real outcome and it
+      // stays on the record — a dropped interest is character too.
+      closePursuit(carrying.id, 'abandoned', 'lost the thread on this one');
+      console.log(`[wander] set "${carrying.topic}" aside`);
+    }
+  } catch (err) { console.error(`[wander] pursuit bookkeeping failed: ${err.message}`); }
+
+  console.log(`[wander] read about "${seed.topic}" — ${urls.length} page(s), episode #${episodeId}${pursuitId ? `, pursuit #${pursuitId}` : ''}`);
+  return { topic: seed.topic, episodeId, urls, pursuitId };
 }
 
 if (process.argv.includes('--now')) {

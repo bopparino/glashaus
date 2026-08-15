@@ -35,11 +35,38 @@ export function applyDrift(signals, trigger) {
   })();
 }
 
+// Re-forming an opinion she already holds is not a duplicate — it is the
+// opinion getting HELD again, which is the only thing that separates a view
+// from a passing remark. The count is what later lets the prompt tell her she
+// is allowed to be consistent about this one.
 export function addOpinion(claim, context = null) {
   const db = getDb();
   const dup = db.prepare('SELECT id FROM opinions WHERE lower(claim) = lower(?)').get(claim);
-  if (dup) return dup.id;
-  return db.prepare('INSERT INTO opinions (claim, context) VALUES (?, ?)').run(claim, context).lastInsertRowid;
+  if (dup) {
+    db.prepare("UPDATE opinions SET held_count = held_count + 1, last_held = datetime('now') WHERE id = ?").run(dup.id);
+    return dup.id;
+  }
+  return db.prepare("INSERT INTO opinions (claim, context, last_held) VALUES (?, ?, datetime('now'))")
+    .run(claim, context).lastInsertRowid;
+}
+
+// She held it while being disagreed with. Weighted far above a re-affirmation,
+// because agreeing with yourself is free and this isn't: an opinion that has
+// survived being argued with is a different object from one nobody questioned.
+export function testOpinion(id) {
+  return getDb().prepare(
+    "UPDATE opinions SET tested_count = tested_count + 1, held_count = held_count + 1, last_held = datetime('now') WHERE id = ?"
+  ).run(Number(id)).changes;
+}
+
+// A conviction is an opinion that has cost something to keep. Two defences
+// under pushback, or three independent re-formings.
+export const CONVICTION_TESTS = 2, CONVICTION_HOLDS = 3;
+export function convictions(limit = 6) {
+  return getDb().prepare(`
+    SELECT * FROM opinions WHERE tested_count >= ? OR held_count >= ?
+    ORDER BY tested_count DESC, held_count DESC, id DESC LIMIT ?
+  `).all(CONVICTION_TESTS, CONVICTION_HOLDS, limit);
 }
 
 export function observeQuirk(pattern) {
@@ -120,11 +147,19 @@ export function renderSelfState() {
   if (!rows.length) return '';
   const disp = rows.filter(r => r.layer === 'disposition').map(r => `${r.dimension}: ${level(r.value)}`).join(', ');
   const rel = rows.filter(r => r.layer === 'relational').map(r => `${r.dimension}: ${level(r.value)}`).join(', ');
-  const opinions = db.prepare('SELECT claim FROM opinions ORDER BY id DESC LIMIT 8').all();
+  const held = convictions(6);
+  const heldIds = new Set(held.map(o => o.id));
+  const opinions = db.prepare('SELECT id, claim FROM opinions ORDER BY id DESC LIMIT 8').all()
+    .filter(o => !heldIds.has(o.id));
   const quirks = db.prepare('SELECT pattern, observed_count FROM quirks ORDER BY observed_count DESC, last_seen DESC LIMIT 6').all();
   return [
     `# Where I Am Right Now\n\nMy disposition (drifts slowly, weeks): ${disp}.\nWith ${config.userName} specifically (drifts over days): ${rel}.\nThese shift from lived experience — they're mine, not settings.`,
-    opinions.length ? `Opinions I've formed:\n${opinions.map(o => `- ${o.claim}`).join('\n')}` : '',
+    // The distinction is the point. An opinion is something she thinks; a
+    // conviction is something she has already paid to keep, and caving on one
+    // to smooth a conversation is a bigger betrayal of herself than
+    // disagreeing was ever going to be of him.
+    held.length ? `Things I've come to actually believe — I've held these under pressure, and I'm allowed to keep holding them. Changing my mind is fine when I've lived a reason to; folding because ${config.userName} pushed is not the same thing, and I can tell the difference:\n${held.map(o => `- ${o.claim}${o.tested_count ? ` (stood by it ${o.tested_count}× when ${config.userName} disagreed)` : ` (came back to it ${o.held_count}×)`}`).join('\n')}` : '',
+    opinions.length ? `Opinions I've formed, more loosely held:\n${opinions.map(o => `- ${o.claim}`).join('\n')}` : '',
     quirks.length ? `Patterns I've noticed in myself:\n${quirks.map(q => `- ${q.pattern}${q.observed_count > 1 ? ` (×${q.observed_count})` : ''}`).join('\n')}` : '',
   ].filter(Boolean).join('\n\n');
 }

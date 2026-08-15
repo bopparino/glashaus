@@ -13,6 +13,7 @@ import { getDb } from './db.js';
 import { chatJson } from './llm.js';
 import { addFact, supersedeFact, clearDanglingSupersessions } from './memory.js';
 import { sweepThreads } from './threads.js';
+import { sweepPursuits } from './pursuits.js';
 import { config } from './config.js';
 import { lintReply, stripNarrationQuotes } from './register.js';
 
@@ -132,6 +133,8 @@ Respond as JSON: {
   // forever. Not closed — people come back to things — just no longer live
   // enough to ground an outreach.
   const wentQuiet = sweepThreads();
+  const dropped = sweepPursuits();
+  if (dropped.length) console.log(`[consolidate] drifted away from ${dropped.length} pursuit(s): ${dropped.map(p => p.topic).join('; ').slice(0, 160)}`);
   if (wentQuiet.length) console.log(`[consolidate] ${wentQuiet.length} thread(s) went dormant: ${wentQuiet.map(t => t.topic).join('; ').slice(0, 160)}`);
   console.log(`[consolidate] done: ${merges} merges, ${decays} decays, ${contradictions} contradictions flagged, ${supersessions} superseded, ${registerFixes} register fixes`);
   return { merges, decays, contradictions, registerFixes, supersessions, dormant: wentQuiet.length };

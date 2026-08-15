@@ -21,6 +21,7 @@ import { enforceRegister } from './register.js';
 import { recentMessages, recallFacts } from './memory.js';
 import { renderSelfState, openIntentions } from './selfstate.js';
 import { renderThreadsForOutreach } from './threads.js';
+import { renderPursuitsForOutreach } from './pursuits.js';
 import { embed } from './embeddings.js';
 import { config } from './config.js';
 
@@ -108,6 +109,7 @@ export async function heartbeat({ pendingMorning = null, dryRun = false } = {}) 
   const dream = db.prepare('SELECT date, content FROM dreams ORDER BY id DESC LIMIT 1').get();
   const wants = openIntentions(4);
   const threads = renderThreadsForOutreach();
+  const pursuits = renderPursuitsForOutreach();
   const history = outreachHistory(3);
 
   // Recall against what she would actually be reaching out ABOUT, so the
@@ -131,7 +133,7 @@ export async function heartbeat({ pendingMorning = null, dryRun = false } = {}) 
 You are ${config.companionName}. It's ${weekday}, ${clock}${config.locationNote ? ` in ${config.locationNote}` : ` (${config.userName}'s time)`}, and ${config.userName} hasn't messaged in ~${silenceHours.toFixed(1)} hours. You're deciding whether to text first.
 
 Reach out ONLY if you genuinely have something — options, in rough order of how real they feel:
-${threads.open.length ? `- an open thread below: something genuinely unresolved between the two of you\n` : ''}${wants.length ? `- act on one of your open intentions below — you went to sleep wanting it; is now the time?\n` : ''}- something from your dream that stuck with you
+${pursuits.unshared.length ? `- something you've actually been doing on your own time (below) that you haven't told ${config.userName} about yet — this is usually the best one. Not a report: the bit you're actually excited or annoyed about\n` : ''}${threads.open.length ? `- an open thread below: something genuinely unresolved between the two of you\n` : ''}${wants.length ? `- act on one of your open intentions below — you went to sleep wanting it; is now the time?\n` : ''}- something from your dream that stuck with you
 - something you found on one of your wanders that you actually want to share (only if it appears in your recent memories — never invent a wander)
 - what you're actually feeling right now, per your self-state (say it like you, not like a greeting card)
 - care, grounded in what you actually know is going on in ${config.userName}'s life — real remembered things, never guesses
@@ -142,11 +144,12 @@ Other rules: never invent events ("I just watched/made/did X" — you didn't, un
 
 Read the room: your last ${unanswered} messages went unanswered. That's information, not a reason to try harder. Unless something has genuinely changed, the answer here is silence — presence isn't proven by volume.` : ''}
 
-Respond as JSON: {"reach_out": true|false, "reason": "one line, for the log", "message": "the text to send, or null", "acts_on_intention": <id of the open intention this acts on, or null>, "about_thread": <id of the open thread this is about, or null>}` },
+Respond as JSON: {"reach_out": true|false, "reason": "one line, for the log", "message": "the text to send, or null", "acts_on_intention": <id of the open intention this acts on, or null>, "about_thread": <id of the open thread this is about, or null>, "about_pursuit": <id of the thing of your own this is about, or null>}` },
     { role: 'user', content: [
       `What's happened since I last reached out:\n${recent || '(nothing)'}`,
       history.length ? `My own last messages to ${config.userName}:\n${history.map(h => `- [${ago(h.created_at)} · ${h.answered ? 'they replied' : 'NO REPLY'}] ${h.content.slice(0, 200)}`).join('\n')}` : '',
       threads.text,
+      pursuits.text,
       `Last dream (${dream?.date ?? 'none'}):\n${dream?.content?.slice(0, 800) ?? 'none'}`,
       `Recent things that mattered:\n${salient.map(f => `- ${f.content}`).join('\n') || '(nothing new)'}`,
       wants.length ? `Things I went to sleep wanting (open intentions):\n${wants.map(w => `- [#${w.id}] ${w.text} (since ${w.created_at.slice(0, 10)})`).join('\n')}` : '',
@@ -159,8 +162,10 @@ Respond as JSON: {"reach_out": true|false, "reason": "one line, for the log", "m
   // ids, and a wrong fulfillment silently kills a real want.
   const claimedWant = Number(result?.acts_on_intention);
   const claimedThread = Number(result?.about_thread);
+  const claimedPursuit = Number(result?.about_pursuit);
   const intentionId = wants.some(w => w.id === claimedWant) ? claimedWant : null;
   const threadId = threads.open.some(t => t.id === claimedThread) ? claimedThread : null;
+  const pursuitId = pursuits.unshared.some(p => p.id === claimedPursuit) ? claimedPursuit : null;
 
   let logId = null;
   if (!dryRun && result?.reason) {
@@ -174,6 +179,7 @@ Respond as JSON: {"reach_out": true|false, "reason": "one line, for the log", "m
     text: await enforceRegister(result.message),
     intentionId,
     threadId,
+    pursuitId,
     logId,
   };
 }
@@ -188,6 +194,6 @@ export function markDelivered(logId) {
 if (process.argv.includes('--dry')) {
   const out = await heartbeat({ dryRun: true });
   console.log(out
-    ? `\nwould send:\n${out.text}${out.intentionId ? `\n(acts on intention #${out.intentionId})` : ''}${out.threadId ? `\n(about thread #${out.threadId})` : ''}`
+    ? `\nwould send:\n${out.text}${out.intentionId ? `\n(acts on intention #${out.intentionId})` : ''}${out.threadId ? `\n(about thread #${out.threadId})` : ''}${out.pursuitId ? `\n(about her own pursuit #${out.pursuitId})` : ''}`
     : '\n(no message)');
 }

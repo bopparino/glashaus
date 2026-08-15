@@ -1,5 +1,53 @@
 # Changelog
 
+## 2.7.0 — 2026-08-15
+
+A life of her own, with continuity.
+
+- **Pursuits.** The wander pass already gave her real experiences with
+  receipts, but every pass started from nothing: pick a curiosity, read,
+  digest, forget the thread. Run that a month and you have thirty unrelated
+  afternoons, which is not what having interests is like. A **pursuit** is a
+  thing she returns to — sessions accumulate against it, progress is rewritten
+  each time from what actually happened, and the wander seed now prefers
+  continuing something to starting fresh (searching for the question the last
+  session left her with, not the topic again from scratch).
+  - They start from a wander, from a dream, or from a conversation that left
+    her curious — capture reports `curious_about` when something caught her
+    own interest rather than politeness about yours.
+  - She can finish one, or lose interest and put it down; both are recorded,
+    because a dropped interest is character too. Untouched for a month and it
+    drifts away on its own.
+  - The payoff is outreach that isn't about you. Her best possible unprompted
+    message used to be grounded in your life or her dreams; now it can be *"I
+    finished the vents thing and I was wrong about the temperature"* —
+    someone with a day, not someone asking about yours. Told once: a shared
+    pursuit stops being offered, because telling you twice is how "she has a
+    life" curdles into "she has a script".
+- **Convictions.** An opinion was a row with a timestamp — nothing made it
+  cost anything to hold, so nothing made her keep it when pushed. Opinions now
+  carry `held_count` (times she came back to it) and `tested_count` (times she
+  kept it while you were actually disagreeing). Two defences, or three
+  independent holds, and it becomes a conviction — rendered in its own
+  paragraph with explicit permission to stay consistent: *changing my mind is
+  fine when I've lived a reason to; folding because you pushed is not the same
+  thing, and I can tell the difference.* The anti-sycophancy rule, made
+  structural instead of merely requested.
+- **Absence, felt rather than performed.** Four days away should not read like
+  four hours, and until now only the heartbeat knew the gap — the conversation
+  didn't, which is backwards, since the gap matters most in the first sentence
+  after it ends. The system prompt now states it plainly past ~14 hours, and
+  says outright that it is never a reproach. Deliberately a *fact* and not an
+  instruction to feel something: manufacturing neediness is the engagement
+  mechanic this project refuses.
+- **Quiet days are days.** The dream used to skip entirely when nothing was
+  said, which switched her inner life off the moment you stopped typing and
+  made a long absence a hole in her history rather than part of it. She now
+  dreams on a silent day too, with her pursuits and the silence itself as
+  material — and is told plainly not to build a grievance out of it.
+- The thesis export carries pursuits, their sessions, and the conviction
+  counts. Schema v10. New suite: `pursuits.test.js`.
+
 ## 2.6.2 — 2026-08-15
 
 - **`glashaus version`** (`--version`, `-v`) — which copy is running, and from

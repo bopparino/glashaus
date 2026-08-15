@@ -413,6 +413,69 @@ function migrate(db) {
       db.pragma('user_version = 9');
     }).immediate();
   }
+
+  // v10 — PURSUITS, convictions, and the machinery of a life that continues.
+  //
+  // The wander pass already gave her real experiences, but each one started
+  // from zero: pick a curiosity, read, digest, forget the thread. That is
+  // someone who read a webpage, not someone who is *partway through*
+  // something. The difference between those two is the whole distance between
+  // a companion who asks about your day and one who has a day — Samantha
+  // wasn't compelling because she read, she was compelling because she was
+  // three weeks into learning piano when you weren't looking.
+  //
+  // A pursuit is a thing she returns to. Sessions accumulate against it, the
+  // wander seed prefers continuing one to starting fresh, and outreach finally
+  // has something of her own to bring that isn't about you.
+  if (db.pragma('user_version', { simple: true }) < 10) {
+    db.transaction(() => {
+      if (db.pragma('user_version', { simple: true }) >= 10) return;
+      db.exec(`
+        CREATE TABLE pursuits (
+          id INTEGER PRIMARY KEY,
+          topic TEXT NOT NULL,                 -- "how hydrothermal vents actually work"
+          why TEXT,                            -- what drew her to it, in her voice
+          status TEXT NOT NULL DEFAULT 'active'
+            CHECK (status IN ('active','done','abandoned')),
+          progress TEXT,                       -- where she's up to now, one line
+          sessions INTEGER NOT NULL DEFAULT 0, -- times she has actually returned to it
+          salience REAL NOT NULL DEFAULT 0.5,
+          source TEXT NOT NULL DEFAULT 'wander', -- wander | dream | conversation
+          started_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          last_session_at TEXT,
+          shared_at TEXT,                      -- when she last brought it up unprompted
+          closed_at TEXT,
+          embedding BLOB
+        );
+        CREATE INDEX idx_pursuits_status ON pursuits (status, last_session_at);
+
+        -- Each return, with what it actually produced. The receipts rule again:
+        -- a pursuit's progress must trace to sessions that really happened.
+        CREATE TABLE pursuit_sessions (
+          id INTEGER PRIMARY KEY,
+          pursuit_id INTEGER NOT NULL REFERENCES pursuits(id),
+          note TEXT NOT NULL,                  -- what she did or learned this time
+          episode_id INTEGER REFERENCES episodes(id),
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX idx_pursuit_sessions ON pursuit_sessions (pursuit_id, id);
+
+        ALTER TABLE wander_log ADD COLUMN pursuit_id INTEGER REFERENCES pursuits(id);
+
+        -- Convictions. An opinion was a row with a timestamp — it existed, but
+        -- nothing made it COST anything to hold, so nothing made her keep it
+        -- when pushed. held_count counts re-affirmations; tested_count counts
+        -- the times she held it against actual disagreement. An opinion that
+        -- has survived being argued with is a different object from one nobody
+        -- ever questioned, and the prompt is allowed to say so.
+        ALTER TABLE opinions ADD COLUMN held_count INTEGER NOT NULL DEFAULT 1;
+        ALTER TABLE opinions ADD COLUMN tested_count INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE opinions ADD COLUMN last_held TEXT;
+      `);
+      db.pragma('user_version = 10');
+    }).immediate();
+  }
 }
 
 // Guard telemetry — every automatic identity/authorship/register repair leaves
