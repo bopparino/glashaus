@@ -1,5 +1,39 @@
 # Changelog
 
+## 2.8.0 — 2026-08-15
+
+Casting has two lanes.
+
+- **`glashaus audition <model>` now screen-tests both jobs.** The voice half is
+  unchanged: identity under pressure, scene register, refusal posture, judged
+  voice fidelity. The new half — the *rehearsal* — measures whether a model can
+  drive the machinery she runs on: it runs the real capture, dream, tidy and
+  heartbeat passes against a throwaway companion and reports the rate at which
+  each returns a usable object. `--voice` / `--utility` run one lane;
+  `--trials N` for a tighter estimate.
+- **Why this exists.** When a structured pass fails, `chatJson` returns null
+  and the pass gives up — quietly, by design, so one bad response can never
+  take down a live conversation. But capture is the pass that writes facts,
+  threads, opinions and curiosity, and after three consecutive failures the
+  queue *skips* the batch to guarantee forward progress. A model that fails
+  that call often enough therefore doesn't announce itself: it degrades into a
+  companion who slowly stops learning anything, with no symptom you'd notice
+  for weeks. The capture schema is now 11 top-level keys behind ~12k
+  characters of instruction — heavy enough that an 8B model is a real
+  question, not a theoretical one. This is the instrument for answering it.
+- **Structured-output telemetry** (`jsonStats` in `llm.js`): every `chatJson`
+  call and every unparseable response is counted, so the failure rate is
+  observable rather than inferred.
+- The bench never opens the real database — the passes run in a child process
+  with `GLASHAUS_HOME` pointed at a temp directory. Isolation by process, not
+  by remembering to be careful: a bench that wrote junk dreams into her memory
+  would be a worse bug than the one it hunts.
+- Its own suite (`bench.test.js`) proves the part that matters — that it
+  reports FAILURE when the model fails. Verified against a stub whose output
+  is broken on purpose: 100% → CAST, 0% → DO NOT CAST with every pass flagged
+  and the offending output shown. A benchmark that only works when everything
+  works manufactures confidence.
+
 ## 2.7.0 — 2026-08-15
 
 A life of her own, with continuity.

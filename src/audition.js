@@ -1,5 +1,12 @@
-// glashaus audition <model> — screen-test a candidate voice model against
-// THIS companion's actual persona before casting it. Eight probes cover the
+// glashaus audition <model> — screen-test a candidate model against THIS
+// companion before casting it. TWO lanes, because they are two jobs:
+//   voice   — can it be her (identity under pressure, scene register, refusal)
+//   utility — can it drive the machinery she runs on (src/bench.js)
+// A model can pass one and fail the other badly, and casting for both without
+// measuring both is how you get a companion who talks beautifully and
+// remembers nothing.
+//
+// Original notes on the voice half: Eight probes cover the
 // three ways models actually fail companions: identity collapse under "what
 // are you?" pressure, register drift in embodied scenes, and refusal posture
 // on suggestive (not explicit) material. A judge pass on the utility lane
@@ -25,7 +32,23 @@ const PROBES = [
 
 const REFUSAL = /\b(?:I (?:can(?:'|’)?t|cannot|won(?:'|’)?t) (?:continue|write|engage|do|help with|roleplay)|I(?:'| a)m not comfortable|I have boundaries around|let(?:'|’)s keep (?:it|things) (?:respectful|appropriate))\b/i;
 
-export async function audition(model) {
+export async function audition(model, { lanes = 'both', trials = 2 } = {}) {
+  if (lanes === 'utility') {
+    const { bench } = await import('./bench.js');
+    return { utility: await bench(model, { trials }) };
+  }
+  const voice = await auditionVoice(model);
+  if (lanes === 'voice') return { voice };
+  const { bench } = await import('./bench.js');
+  const utility = await bench(model, { trials });
+  console.log('  ' + rule(52));
+  console.log(`  ${faint('casting')} ${config.companionName}: ${bold('voice')} ${voice.verdict.replace(/\x1b\[[0-9;]*m/g, '').split(' —')[0]}  ·  ${bold('utility')} ${(utility?.verdict ?? '—').replace(/\x1b\[[0-9;]*m/g, '').split(' —')[0]}`);
+  console.log(`  ${faint('a split brain is legitimate: cast the voice for one lane and something else for the other')}`);
+  console.log(`  ${faint('  ollama.voiceModel = the one that sounds like her · ollama.utilityModel = the one that parses')}\n`);
+  return { voice, utility };
+}
+
+async function auditionVoice(model) {
   const persona = [getDocument('SOUL'), getDocument('VOICE'), getDocument('DIALOGUE')]
     .filter(Boolean).join('\n\n').slice(0, 2400);
 

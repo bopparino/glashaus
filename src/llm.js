@@ -138,7 +138,16 @@ export async function chatStream(messages, { onToken, ...opts } = {}) {
 }
 
 // For extraction/summarization passes: ask for JSON, tolerate sloppy output.
+// Structured-output telemetry. Every pass that drives the memory machinery
+// goes through here, and when a model can't produce the object the pass just
+// returns null — quietly, by design, so one bad response never takes down a
+// conversation. That quiet is the problem: a model that fails this call 30%
+// of the time degrades into silent memory loss rather than a visible error.
+// Counting it is what makes that visible (see `glashaus audition`, doctor).
+export const jsonStats = { calls: 0, failures: 0, lastRaw: null };
+
 export async function chatJson(messages, opts = {}) {
+  jsonStats.calls++;
   const raw = await chat(messages, { role: 'utility', ...opts, json: true });
   // The model often wraps JSON in ```json fences despite format:json.
   const text = raw.replace(/^[\s\S]*?```(?:json)?\s*/i, m => (raw.includes('```') ? '' : m))
@@ -153,6 +162,8 @@ export async function chatJson(messages, opts = {}) {
     if (!c) continue;
     try { return JSON.parse(c); } catch { /* try next */ }
   }
+  jsonStats.failures++;
+  jsonStats.lastRaw = raw.slice(0, 400);
   console.error('[chatJson] unparseable output:', raw.slice(0, 400));
   return null;
 }

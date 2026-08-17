@@ -2,7 +2,7 @@
 // glashaus — one command for everything.
 //
 //   glashaus                  chat in the terminal
-//   glashaus audition <model> screen-test a model against this persona before casting it
+//   glashaus audition <model> screen-test a model for BOTH lanes: voice, and driving the memory machinery (--voice / --utility)
 //   glashaus backup           back up the brain now (also runs daily)
 //   glashaus doctor           full health check — run this when in doubt
 //   glashaus export <what>    soul (portable capsule) · thesis (the record) · corpus (fine-tune JSONL)
@@ -423,9 +423,12 @@ switch (cmd) {
 
   case 'audition': {
     await requireSetup();
-    if (!args[0]) { console.error('usage: glashaus audition <model>   (e.g. glashaus audition mag-mell:12b)'); process.exit(1); }
+    const model = args.find(a => !a.startsWith('--'));
+    if (!model) { console.error('which model? e.g. glashaus audition hermes3:8b   (--voice / --utility to run one lane)'); process.exit(1); }
     const { audition } = await import(src('audition.js'));
-    await audition(args[0]);
+    const lanes = args.includes('--utility') ? 'utility' : args.includes('--voice') ? 'voice' : 'both';
+    const t = args.indexOf('--trials');
+    await audition(model, { lanes, trials: t >= 0 ? Number(args[t + 1]) || 2 : 2 });
     break;
   }
 

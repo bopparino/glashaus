@@ -197,7 +197,21 @@ backup path is in the ledger: `glashaus restore <file>`.
 
 | command | what it does |
 |---|---|
-| `glashaus audition <model>` | Screen-test a model against your actual persona: identity pressure, scene register, refusal posture, judged voice fidelity → CAST / CALLBACK / DO NOT CAST. |
+| `glashaus audition <model>` | Screen-test a model for **both lanes**. *Voice*: identity pressure, scene register, refusal posture, judged fidelity. *Utility*: runs the real capture / dream / tidy / heartbeat passes against a throwaway companion and reports how often each returns a usable object. Two verdicts, because they're two jobs. |
+| `glashaus audition <model> --voice` | Voice lane only. |
+| `glashaus audition <model> --utility` | Utility lane only (`--trials N` for a tighter estimate; default 2). |
+
+**Why the utility lane is worth measuring.** When a structured pass fails,
+`chatJson` returns null and the pass gives up quietly — deliberately, so one
+bad response can never take down a live conversation. But capture writes facts,
+threads, opinions and curiosity, and after three consecutive failures the queue
+skips the batch to guarantee forward progress. A model that fails that call
+often enough never announces itself; it degrades into a companion who slowly
+stops learning, with no symptom for weeks. If the utility verdict comes back
+DO NOT CAST, the fix is usually a split brain: keep the model that sounds like
+her on `ollama.voiceModel`, and put a stronger instruction-follower on
+`ollama.utilityModel`. The bench runs against a scratch companion in a temp
+home — your real one is never opened.
 | `glashaus export corpus [out]` | Your history as clean fine-tuning JSONL (redactions excluded, register/identity impurities filtered). Recipe: [fine-tune.md](fine-tune.md). |
 
 ## Quiet commands
