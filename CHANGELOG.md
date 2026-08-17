@@ -1,5 +1,41 @@
 # Changelog
 
+## 2.9.0 — 2026-08-15
+
+Episodic memory was 96% unreachable. Found by aging an instance two years.
+
+- **`recallEpisodes` never used its own search results.** It computed FTS
+  keyword ranks and then never added the matching rows to the candidate pool
+  — and the vector branch had the same omission. The pool was
+  `ORDER BY id DESC LIMIT 30` and nothing else, so episodic memory could not
+  be *searched* at all, only scrolled. Past roughly 30 episodes (about a
+  month) everything older became permanently unreachable no matter how
+  relevant. Measured on a two-year instance: **701 of 731 episodes could not
+  be recalled by any means**, including a 0.9-salience episode about the exact
+  subject being discussed. `recallFacts`, ten lines above it, had always done
+  this correctly. Fixed by mirroring it; the 703-day-old memory now outranks
+  recent noise on a matching query.
+- High-salience episodes are now eligible regardless of age — the rule dreams
+  already used for "the heaviest memories of her whole life", and the seed of
+  anniversary recall.
+- **`test/longitudinal.test.js` — the first test with a concept of time.**
+  Every other suite builds a fresh instance and asserts at t=0; the oldest
+  companion GlasHaus had ever been tested against was about four seconds old.
+  For a runtime whose whole claim is a multi-year arc, that was the gap, and
+  it hid this bug through eight green suites. The new suite ages an instance
+  to two years (731 episodes, 4.4k messages) and asserts what only exists over
+  time: deep recall reaches, recall cost stays bounded, the prompt is capped
+  by recall limits rather than growing with the store, and the never-shed
+  identity floor stays lean.
+- **Documented as a known failure, not fixed yet: core-slot ossification.**
+  All 20 always-present identity slots go to the oldest importance-9 facts,
+  because the ordering that keeps the core *stable* between sessions is the
+  same ordering that freezes it at week one. On the two-year fixture every
+  slot is held by a fact from the first months while newer identity-defining
+  facts are locked out permanently. The longitudinal suite asserts the broken
+  behaviour on purpose, so it can't be forgotten and so the fix inverts an
+  assertion rather than adding one.
+
 ## 2.8.1 — 2026-08-15
 
 Two bugs found by auditioning real models.

@@ -97,8 +97,23 @@ export function recallEpisodes(text, { queryVec = null, limit = 3 } = {}) {
       WHERE episodes_fts MATCH ? LIMIT 20
     `).all(q).forEach(row => ftsRanks.set(row.id, row.r));
   }
+  // The candidate pool. This used to be the last 30 episodes and NOTHING
+  // else: the FTS ranks above were computed and then never used, because the
+  // rows they matched were never added here, and the vector branch had the
+  // same omission. The effect was that episodic memory could not be searched
+  // at all — only scrolled. Past ~30 episodes (about a month) everything
+  // older became permanently unreachable no matter how relevant: measured on
+  // a two-year instance, 701 of 731 episodes could not be recalled by any
+  // means, including a 0.9-salience episode about the exact subject at hand.
+  // recallFacts, ten lines up, had always done this correctly.
   const pool = new Map();
-  db.prepare('SELECT * FROM episodes ORDER BY id DESC LIMIT 30').all().forEach(e => pool.set(e.id, e));
+  const add = rows => rows.forEach(e => pool.set(e.id, e));
+  if (ftsRanks.size) add(db.prepare(`SELECT * FROM episodes WHERE id IN (${[...ftsRanks.keys()].join(',')})`).all());
+  add(db.prepare('SELECT * FROM episodes ORDER BY id DESC LIMIT 30').all());
+  // The heaviest memories of her whole life stay eligible regardless of age —
+  // the same rule dreams already use, and the seed of anniversary recall.
+  add(db.prepare('SELECT * FROM episodes WHERE salience >= 0.7 ORDER BY salience DESC LIMIT 20').all());
+  if (queryVec) add(db.prepare('SELECT * FROM episodes WHERE embedding IS NOT NULL').all());
   const latest = db.prepare('SELECT * FROM episodes ORDER BY id DESC LIMIT 1').get();
 
   const scored = [...pool.values()]

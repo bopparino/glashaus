@@ -1,6 +1,6 @@
 {
   "name": "glashaus",
-  "version": "2.8.1",
+  "version": "2.9.0",
   "description": "A local-first AI companion runtime — persistent identity, consolidating memory, dreams, and proactive presence on your own machine",
   "type": "module",
   "license": "MIT",
@@ -43,7 +43,7 @@
     "bot": "node src/index.js",
     "dream": "node src/dream.js --now",
     "smoke": "node test/smoke.js",
-    "test": "node test/smoke.js && node test/register.test.js && node test/threads.test.js && node test/commands.test.js && node test/pursuits.test.js && node test/update.test.js && node test/bench.test.js && node test/purge.test.js"
+    "test": "node test/smoke.js && node test/register.test.js && node test/threads.test.js && node test/commands.test.js && node test/pursuits.test.js && node test/update.test.js && node test/bench.test.js && node test/longitudinal.test.js && node test/purge.test.js"
   },
   "dependencies": {
     "@clack/prompts": "^0.11.0",
