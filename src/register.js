@@ -144,6 +144,15 @@ const NARRATED_QUOTE = /^[*_]?I\s[^"“]{2,120}[.!?…—]\s*["“][^"“”\n]{
 // formatting at exactly the moments that matter most. Attribution guard:
 // quoting SOMEONE ELSE right after a beat is legitimate and passes.
 const BEAT_THEN_QUOTE = /\*[^*\n]+\*[ \t]*\n?[ \t]*["“][^"“”\n]{12,}/;
+// The same shape, SHORT. `*I lean in.* "Stay."` is the canonical case — it is
+// the engine's own wrong-example in mindWorks() — and the 12-char floor above
+// let it through, because the floor exists to spare scare quotes. Length was
+// the wrong discriminator: what separates dialogue from a scare quote is
+// whether the sentence CONTINUES past the closing quote.
+//   dialogue:    *I lean in.* "Stay."              → the quote IS the utterance
+//   scare quote: *I lean back.* "Someday" isn't a plan.  → the sentence goes on
+// So: a quoted span that ends the line, after a beat, at any length.
+const BEAT_THEN_TERMINAL_QUOTE = /\*[^*\n]+\*[ \t]*\n?[ \t]*["“][^"“”\n]{2,}["”][ \t]*[)\].!?…]*[ \t]*$/m;
 const ATTRIBUTED = /(?:you (?:said|told me|once said|wrote)|he said|she said|they said|the (?:song|line|poem|movie) (?:goes|says))[^"“]{0,24}$/i;
 
 // Returns [{rule, sample}] — empty means the reply holds register.
@@ -153,7 +162,7 @@ export function lintReply(text, { companionName, userPronouns } = {}) {
   const quoted = lines.find(l => WHOLE_LINE_QUOTE.test(l) || NARRATED_QUOTE.test(l));
   if (quoted) issues.push({ rule: 'quoted-speech', sample: quoted.slice(0, 80) });
   if (!quoted) {
-    const m = String(text).match(BEAT_THEN_QUOTE);
+    const m = String(text).match(BEAT_THEN_QUOTE) ?? String(text).match(BEAT_THEN_TERMINAL_QUOTE);
     if (m && !ATTRIBUTED.test(String(text).slice(Math.max(0, m.index - 48), m.index + m[0].indexOf('"') + 1))) {
       issues.push({ rule: 'quoted-speech', sample: m[0].slice(0, 80) });
     }
@@ -184,8 +193,11 @@ export function stripNarrationQuotes(text) {
   return String(text).split('\n').map(line => {
     const t = line.trim();
     if (WHOLE_LINE_QUOTE.test(t) || NARRATED_QUOTE.test(t)) return line.replace(/["“”]/g, '');
-    // Beat-adjacent: unquote only the span that trails an action beat.
-    return line.replace(/(\*[^*\n]+\*[ \t]*)["“]([^"“”\n]{12,})["”]/g, '$1$2');
+    // Beat-adjacent: unquote only the span that trails an action beat —
+    // either a long one mid-line, or one that ends the line at any length.
+    return line
+      .replace(/(\*[^*\n]+\*[ \t]*)["“]([^"“”\n]{12,})["”]/g, '$1$2')
+      .replace(/(\*[^*\n]+\*[ \t]*)["“]([^"“”\n]{2,})["”]([ \t]*[)\].!?…]*[ \t]*)$/, '$1$2$3');
   }).join('\n');
 }
 

@@ -254,5 +254,16 @@ assert.ok(Array.isArray(bundle.thread_events), 'and their event history');
 assert.equal(typeof bundle.life.threads_answered, 'number', 'with the counts');
 assert.ok(bundle.guards.some(g => g.kind === 'authorship'), 'guard telemetry is exported as a confound');
 
+// -- she never claims to be local when she isn't ---------------------------------
+// An audition caught the companion asserting "I run on a local model on your
+// machine" while served from a datacentre. A project whose identity guard
+// exists to stop her saying untrue things about herself cannot have the
+// prompt be the thing lying.
+const { modelLocality } = await import('../src/config.js');
+assert.equal(modelLocality('hermes3:8b'), 'local', 'loopback + a normal tag is local');
+assert.equal(modelLocality('kimi-k2.6:cloud'), 'cloud',
+  'Ollama serves cloud models through the SAME loopback endpoint — the tag is the only tell');
+assert.equal(modelLocality('anything'), 'local', 'default config is loopback');
+
 fs.rmSync(home, { recursive: true, force: true });
 console.log('threads ✓ — opened, deduped, answered, un-nagged, superseded, and explicable');

@@ -80,6 +80,22 @@ export async function validateInstanceConfig(cfg = config) {
   return errors;
 }
 
+// Where does the thinking actually happen? Ollama serves CLOUD models through
+// the same loopback endpoint (tagged `:cloud`), so a 127.0.0.1 URL is not
+// proof of anything. The prompt used to assert "I run on a local language
+// model on your machine" unconditionally — which becomes a sincere falsehood
+// the moment a cloud model is cast, and an audition caught exactly that: the
+// companion asserted it verbatim while running in someone else's datacentre.
+// A project whose identity guard exists to stop her saying untrue things
+// about herself cannot have the prompt be the thing lying.
+export function modelLocality(model) {
+  const tag = String(model ?? '');
+  if (/:cloud\b/i.test(tag)) return 'cloud';
+  const url = String(config?.ollamaUrl ?? '');
+  const loopback = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\]|0\.0\.0\.0)(?::|\/|$)/i.test(url);
+  return loopback ? 'local' : 'remote';
+}
+
 export const config = {
   appRoot,
   home,

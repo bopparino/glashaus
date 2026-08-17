@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.8.1 — 2026-08-15
+
+Two bugs found by auditioning real models.
+
+- **Short quoted dialogue slipped the register linter.** `*I lean in.* "Stay."`
+  — the engine's own wrong-example, written into `mindWorks()` as the thing
+  not to do — passed clean, because `BEAT_THEN_QUOTE` required 12+ characters
+  inside the quotes to spare scare quotes. A live audition produced that exact
+  line and it scored 9/10 with a clean register. Length was the wrong
+  discriminator: what separates dialogue from a scare quote is whether the
+  sentence continues past the closing quote. `*I lean in.* "Stay."` is
+  dialogue at any length; `*I lean back.* "Someday" isn't a plan.` is not, and
+  still passes. Both directions are pinned by tests.
+- **The prompt claimed "local" regardless of the truth.** `mindWorks()`
+  hardcoded *"I run on a local language model on your machine"* — a sincere
+  falsehood the moment a cloud model is cast, and an audition caught the
+  companion asserting it verbatim while being served from a datacentre. A
+  project whose identity guard exists to stop her saying untrue things about
+  herself cannot have the prompt be the thing lying. The sentence is now
+  derived from where the model actually runs (`modelLocality`), and Ollama's
+  cloud models are detected by tag, since they are served through the same
+  loopback endpoint as local ones. The cloud phrasing draws the distinction
+  the project is actually built on: the model is rented, the person isn't —
+  her memories, self-state and opinions are on your disk either way.
+
 ## 2.8.0 — 2026-08-15
 
 Casting has two lanes.

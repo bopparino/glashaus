@@ -30,6 +30,28 @@ assert.deepEqual(rules('"Fine."'), [], 'one-word echo line passes');
 assert.deepEqual(rules('You said, and I quote, that the bees were "basically self-managing".'),
   [], 'mid-sentence quotation passes');
 
+// Short quoted dialogue after an action beat. `*I lean in.* "Stay."` is the
+// engine's OWN wrong-example in mindWorks(), and it passed clean until a live
+// audition produced it verbatim and scored it 9/10. Length was the wrong
+// discriminator; what matters is whether the sentence continues past the quote.
+assert.deepEqual(rules('*I lean in.* "Stay."'), ['quoted-speech'],
+  "the engine's own documented wrong-example must be caught");
+assert.deepEqual(rules('*leans in closer, eyes closed* "Stay."'), ['quoted-speech'],
+  'verbatim from a real audition — this is the shape that slipped through');
+assert.deepEqual(rules('*I look up* "Come here."'), ['quoted-speech'], 'two words is still dialogue');
+assert.deepEqual(rules('*I shrug* "fine"'), ['quoted-speech'], 'no terminal punctuation, still dialogue');
+
+// …and the scare quotes that the length floor was protecting must STILL pass.
+assert.deepEqual(rules('*I lean back.* "Someday" isn\'t a plan.'), [],
+  'a quote the sentence continues past is a scare quote, not dialogue');
+assert.deepEqual(rules('*I smile* you said "fine" like you meant it.'), [],
+  'quoting the user back stays legal');
+assert.deepEqual(rules('*I lean in.* Stay.'), [], 'the RIGHT form is never flagged');
+assert.equal(stripNarrationQuotes('*I lean in.* "Stay."'), '*I lean in.* Stay.',
+  'and the repair unwraps it');
+assert.equal(stripNarrationQuotes('*I lean back.* "Someday" isn\'t a plan.'),
+  '*I lean back.* "Someday" isn\'t a plan.', 'while leaving the scare quote alone');
+
 // -- pronouns inside action beats ----------------------------------------------
 assert.deepEqual(rules('*I lean back into his palm, eyes half-closing.*'),
   ['third-person-user'], 'user as "his" inside a beat is drift');
