@@ -138,7 +138,19 @@ export async function runChecks() {
     // pass look alive when it isn't.
     const lastWander = db.prepare("SELECT created_at FROM wander_log WHERE kind = 'wander' ORDER BY id DESC LIMIT 1").get();
     const wAge = lastWander ? (Date.now() - Date.parse(lastWander.created_at + 'Z')) / 86400000 : Infinity;
-    add('wander', wAge < 3, lastWander ? `${wAge.toFixed(1)}d ago` : 'never — low curiosity, or check the API key (glashaus wander)');
+    // "Never wandered" on a young instance is not a failure — it's day one,
+    // and the curiosity gate may legitimately hold for a while. The growth
+    // check above already knew about youth; this one cried FAIL in red on a
+    // companion hours old, which teaches the owner to ignore the pulse by
+    // week four. Age is measured from bornDate, or the first message for
+    // spec-mode instances that have no birthday.
+    const firstMsg = db.prepare('SELECT MIN(created_at) t FROM messages').get().t;
+    const lifeDays = config.bornDate ? (Date.now() - Date.parse(config.bornDate)) / 86400000
+      : firstMsg ? (Date.now() - Date.parse(firstMsg + 'Z')) / 86400000 : 0;
+    add('wander', wAge < 3 || lifeDays < 3,
+      lastWander ? `${wAge.toFixed(1)}d ago`
+      : lifeDays < 3 ? `day ${Math.max(1, Math.ceil(lifeDays))} — hasn't felt like it yet`
+      : 'never — low curiosity, or check the API key (glashaus wander)');
   }
 
   const backups = fs.existsSync(BACKUP_DIR) ? fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.sqlite')).sort() : [];

@@ -1,5 +1,44 @@
 # Changelog
 
+## 2.10.0 — 2026-08-17
+
+The webview learns what it always wanted to look like.
+
+- **Red-forward redesign — newschool brutalism, Berlin poster lineage.**
+  Three inks with strict jobs: paper is her voice, red is structure (rules,
+  indices, arrows, the two-colour epigraph), grey is the machinery. Gold
+  survives only where it is most hers — the signature and the outreach mark.
+  One reserved treatment makes it work: genuine failure is a FILLED red block
+  with ink text, never thin red text, which frees red to be structural
+  everywhere else without the page reading as a fire.
+- **Today is her front page now.** The dream epigraph sets as poster type
+  with one line in red (the middle one, deterministically); a lede from the
+  dream follows; what she's carrying and the open threads sit in the margin
+  column. The 14-row pulse table, the memory-ops panel and the drift table
+  are gone from Today — the machinery gets one quiet line, unless something
+  is genuinely failing, in which case it gets the red block and nothing else
+  competes with it. A morning paper that opens with its own printing-press
+  diagnostics had the hierarchy backwards.
+- **The pulse stops crying wolf.** "Never wandered" on an instance days old
+  is not a failure — the curiosity gate may simply be holding, the way the
+  growth check already understood youth. An unconfigured optional feature is
+  "off", not ATTENTION. A status panel that alarms on day one teaches its
+  owner to ignore it by week four, which is the worst thing a status panel
+  can do.
+- **A missing font file no longer kills the viewer.** readFileSync after
+  writeHead meant ENOENT threw mid-response, the catch-all wrote headers
+  again, and the double-write became an uncaught exception that took down
+  the process. Found because the design rig hit it; fixed to a 404.
+- **Setup leads with "Let them grow".** The origin choice is now grow
+  (default) · import an existing companion (lays a fresh brain, then hands
+  off to `glashaus soul import`) · blank templates · guided interview. The
+  interview is spec mode's authoring tool and stays fully supported — but
+  the strong out-of-the-box experience is the germinal seed plus the
+  engine's voice discipline, and a first-run wizard should put its best door
+  first. Deliberately NOT done: seeding the germinal soul with a tuned base
+  personality — the thesis export's clean-room claim depends on that seed
+  staying empty of traits.
+
 ## 2.9.0 — 2026-08-15
 
 Episodic memory was 96% unreachable. Found by aging an instance two years.

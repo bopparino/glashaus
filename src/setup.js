@@ -213,6 +213,7 @@ let bornDate = existing.companion?.bornDate ?? '';
 // Optional requested register for the grow path — the "how do they talk?"
 // answer, in the user's own words, seeded verbatim into voice.md.
 let voiceSeed = (flag('voice') ?? '').trim();
+let importAfter = false; // chose to pour a capsule after setup
 
 const personaDirExists = fs.existsSync(path.join(home, 'persona', 'soul.md'));
 if (GROW && !personaDirExists) {
@@ -222,16 +223,41 @@ if (GROW && !personaDirExists) {
   bornDate = bornDate || new Date().toISOString().slice(0, 10);
   personaFiles = germinalTemplates({ companionName, companionPronouns, userName, userPronouns, bornDate, voiceSeed });
 } else if (!YES && (!personaDirExists || !(await ask(p.confirm({ message: 'Keep the existing persona files?', initialValue: true }))))) {
+  // "Let them grow" leads, and is the default. The interview is spec mode's
+  // authoring tool and stays fully supported — but the strong out-of-the-box
+  // experience is the germinal seed plus the engine's own voice discipline,
+  // and a first-run wizard should put its best door first. Deliberately NOT
+  // done: seeding the germinal soul with a "dialed-in base personality" —
+  // the clean-room claim in the thesis export depends on that seed staying
+  // empty of traits, and the posture prompt (mindWorks) is the disclosed,
+  // universal lever if day one ever feels flat.
   const path_ = await ask(p.select({
-    message: `Who is ${companionName}? Three ways to answer:`,
+    message: `Who is ${companionName}? Four ways to answer:`,
+    initialValue: 'grow',
     options: [
-      { value: 'interview', label: 'Guided interview', hint: `answer 7 questions, ${model} drafts the persona, you approve` },
-      { value: 'templates', label: 'Blank templates', hint: 'write the persona files yourself, any editor' },
       { value: 'grow', label: 'Let them grow', hint: 'name + pronouns only — they become who they become, from living' },
+      { value: 'import', label: 'Import an existing companion', hint: 'pour a soul capsule from another machine (glashaus export soul)' },
+      { value: 'templates', label: 'Blank templates', hint: 'write the persona files yourself, any editor' },
+      { value: 'interview', label: 'Guided interview', hint: `answer 7 questions, ${model} drafts the persona, you approve` },
     ],
   }));
 
-  if (path_ === 'grow') {
+  if (path_ === 'import') {
+    // The capsule machinery already exists (glashaus soul import) and wants a
+    // FRESH brain — which is exactly what setup is about to create. So setup
+    // lays neutral templates now and hands off; the import replaces them.
+    personaFiles = starterTemplates({ companionName, userName });
+    importAfter = true;
+    p.note([
+      'Finish setup, then pour the capsule into the fresh brain:',
+      '',
+      '  glashaus soul import <capsule.json>',
+      '',
+      'The capsule carries who they ARE (documents, self-state, opinions,',
+      'dreams, identity facts). Memories rebuild by living — see docs/moving.md',
+      'to bring the full database instead.',
+    ].join('\n'), 'importing a companion');
+  } else if (path_ === 'grow') {
     companionPronouns = (await ask(p.text({
       message: `${companionName}'s pronouns (part of the only identity you hand them):`,
       placeholder: 'she/her · he/him · they/them',
@@ -470,6 +496,8 @@ p.note([
   ...(growMode ? [`mode        grow — born ${bornDate}${voiceSeed ? ', requested register in voice.md' : ''}, soul self-authored weekly${ollamaApiKey ? ', wanders the web' : ''}`] : []),
 ].join('\n'), 'your instance');
 
-p.outro(growMode
+p.outro(importAfter
+  ? `The fresh brain is ready — now pour them in:  glashaus soul import <capsule.json>`
+  : growMode
   ? `${companionName} exists — day one of whoever they turn out to be. Say hello:  glashaus chat`
   : `${companionName} exists. Say hello:  glashaus chat     (later: glashaus start · glashaus view · glashaus doctor)`);
