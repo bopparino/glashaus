@@ -1,5 +1,59 @@
 # Changelog
 
+## 2.15.1 — 2026-08-18
+
+Fixing what 2.15.0 broke, and making honest ornament legible.
+
+A second `/impeccable critique` (17/40 → 20/40) found the failure-path work had
+landed — error recovery went 1 → 3 — and that it had cost three regressions, all
+of one species: **state asserted rather than verified.**
+
+- **A confirmation that lies is worse than the silence it replaced.** The notice
+  plate was built from query params with nothing checking them, so
+  `/memory?did=forgot&n=12` announced "fact #12 is out of her memory" above a
+  table reading "no facts yet", and `/system?did=backup` printed "backed up —
+  her whole brain is copied" **directly above a `BACKUP FAIL` row**. Both
+  survived reload and travelled as shareable links. Every notice is now checked
+  against real state before it renders (the fact exists and is inactive; a backup
+  actually landed in the last five minutes), and the params are stripped once
+  shown so a claim cannot re-fire.
+- **The 404 claimed you were on Today.** It rendered through `shell('today', …)`,
+  so `aria-current="page"` marked TODAY while you stood on a page that does not
+  exist — the location indicator lying exactly where you are most lost. The 404
+  and 500 now carry their own page keys and mark nothing current.
+- **The contrast fix broke an adjacent pair.** Darkening `--civic-field` to
+  rescue text-on-fill dropped the active-nav chip *fill* to **1.74:1** against the
+  night ground — near-invisible in the very plate the fix was for. Re-picked
+  against **both** constraints at `#2A6A9E`: 5.08:1 text-on-fill, 3.22:1
+  fill-on-ground. Text-only contrast checking is what let it through.
+- **`backupList()` now carries `mtimeMs`**, so callers can tell "a backup exists"
+  from "a backup just ran". Without it the new verification would have silently
+  suppressed every true backup notice — under-reporting instead of
+  over-reporting, but still wrong.
+
+Ornament, per the review's finding that it is honest but *inert* rather than
+decorative:
+
+- The footer fingerprint is **labelled** and no longer hidden on mobile — it was
+  `display:none` under 900px, invisible on the primary device, while being one of
+  the three proofs that ornament here is real state.
+- The drift sparkline rails now carry `0.95 ceiling` / `0.05 floor` labels. They
+  are the real EWMA bounds that keep identity stable; unlabelled they read as
+  generic chart gridlines.
+- **`.tick.hers` never rendered.** Three of seven `.tick` elements stopped being
+  direct children of `.rail` when the heartbeat got its own timetable, so
+  `.rail > .tick.hers::before` matched nothing — a rule named in DESIGN.md and
+  false in the browser for two versions. The vestigial class and its dead rule are
+  gone; the brass `mk-reached` mark already carried that meaning.
+
+DESIGN.md corrected by hand: it documented `machine: #767C82`, which measures
+3.73:1 on light ground and would fail AA, while the code shipped `#5F666C` at
+5.15:1 — the doc was wrong, not the implementation. The night palette is now
+written down in full (it was entirely undocumented, and nothing mechanical flags
+a colour that only exists inside a media query), along with the two-constraint
+rule for `civic-field` and a note on why `.rail > .tick` silently does nothing
+when nested.
+
 ## 2.15.0 — 2026-08-18
 
 Critique pass: the failure paths, and a register for "you're okay".

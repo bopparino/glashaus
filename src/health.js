@@ -174,5 +174,10 @@ export async function runChecks() {
 export function backupList() {
   if (!fs.existsSync(BACKUP_DIR)) return [];
   return fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.sqlite')).sort().reverse()
-    .map(f => ({ name: f, mb: (fs.statSync(path.join(BACKUP_DIR, f)).size / 1048576).toFixed(1) }));
+    .map(f => {
+      const st = fs.statSync(path.join(BACKUP_DIR, f));
+      // mtime so callers can tell "a backup exists" from "a backup just ran" —
+      // the viewer will not claim a backup succeeded without checking.
+      return { name: f, mb: (st.size / 1048576).toFixed(1), mtimeMs: st.mtimeMs };
+    });
 }

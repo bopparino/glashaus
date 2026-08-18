@@ -91,7 +91,7 @@ const CSS = `
   --ground:#0F1418; --plate:#171E24; --sunk:#0A0E11;
   --ink:#E9EAE6; --ink2:#A8AFB5; --machine:#98A0A6;
   --rule:rgba(233,234,230,.16); --rule2:rgba(233,234,230,.34);
-  --civic:#63A4DB; --civic-field:#12406B; --on-civic:#EAF2F9;
+  --civic:#63A4DB; --civic-field:#2A6A9E; --on-civic:#EAF2F9;
   --signal:#E2503F; --on-signal:#180705;
   --brass:#D2A64A; --brass-field:#6E5316; --on-brass:#F7EEDA;
 } }
@@ -99,7 +99,7 @@ const CSS = `
   --ground:#0F1418; --plate:#171E24; --sunk:#0A0E11;
   --ink:#E9EAE6; --ink2:#A8AFB5; --machine:#98A0A6;
   --rule:rgba(233,234,230,.16); --rule2:rgba(233,234,230,.34);
-  --civic:#63A4DB; --civic-field:#12406B; --on-civic:#EAF2F9;
+  --civic:#63A4DB; --civic-field:#2A6A9E; --on-civic:#EAF2F9;
   --signal:#E2503F; --on-signal:#180705;
   --brass:#D2A64A; --brass-field:#6E5316; --on-brass:#F7EEDA;
 }
@@ -183,7 +183,6 @@ nav a .badge{font-family:var(--num);background:var(--signal);color:var(--on-sign
 .rail > .tick{position:relative}
 .rail > .tick::before{content:'';position:absolute;left:-22px;top:calc(var(--slot)/2 - 3px);
   width:8px;height:8px;border-radius:50%;background:var(--ground);border:2px solid var(--civic)}
-.rail > .tick.hers::before{border-color:var(--brass);background:var(--brass)}
 
 /* ---- controls ---- */
 button,.btn{background:var(--plate);border:1px solid var(--rule2);color:var(--ink);font-family:var(--font);
@@ -233,7 +232,7 @@ nav{scrollbar-width:none}
 @media(max-width:900px){
   header{flex-wrap:wrap;gap:10px}
   .alarm{flex-wrap:wrap;gap:6px 14px}
-  .ornament{display:none}
+  .fp-label{display:none}
   .plate .body{padding:30px 16px 18px}
   .timetable .slot{flex-wrap:wrap}
   .beat-why{flex-basis:100%;flex-grow:1;padding-top:2px}
@@ -257,11 +256,35 @@ const NOTICES = {
   backup: () => ['backed up', 'her whole brain is copied and integrity-checked. nothing about her changed.'],
   'backup-failed': () => ['the backup did not complete', 'her memory is untouched — the copy failed, not the original. the log on this page has the reason.'],
 };
+// A notice is a claim about what the software just did, so it gets checked
+// against what the software actually did. Built from query params alone it
+// survived reload and bookmarking, and could announce "backed up" directly
+// above a FAIL row — on a product whose whole claim is that the interface tells
+// the truth, a confirmation that lies is worse than the silent redirect it
+// replaced.
+function noticeIsTrue(did, n) {
+  try {
+    const db = getDb();
+    if (did === 'forgot' || did === 'restored') {
+      const f = db.prepare('SELECT active FROM facts WHERE id = ?').get(n);
+      if (!f) return false;
+      return did === 'forgot' ? f.active === 0 : f.active === 1;
+    }
+    if (did === 'resolved') return true;
+    // Only claim a backup happened if one actually landed in the last few minutes.
+    if (did === 'backup') return backupList().some(b => Date.now() - b.mtimeMs < 5 * 60000);
+    if (did === 'backup-failed') return true;   // a failure claim over-reports nothing
+  } catch { return false; }
+  return false;
+}
 function noticePlate(did, n) {
   const make = NOTICES[did];
-  if (!make) return '';
+  if (!make || !noticeIsTrue(did, n)) return '';
   const [head, sub] = make(n);
-  return `<div class="notice" role="status"><span class="lbl">${esc(head)}</span><span class="soft">${esc(sub)}</span></div>`;
+  // Strip the params once rendered so the claim cannot re-fire on reload or
+  // travel as a shareable link asserting something about somebody else's data.
+  return `<div class="notice" role="status"><span class="lbl">${esc(head)}</span><span class="soft">${esc(sub)}</span></div>
+<script>try{history.replaceState({}, '', location.pathname + (location.search.replace(/[?&](did|n)=[^&]*/g,'').replace(/^&/,'?') || ''))}catch(e){}</script>`;
 }
 
 function shell(page, title, body, { badge = 0, notice = '' } = {}) {
@@ -317,7 +340,8 @@ provenance
 <footer>
   <span class="lbl soft">Ledger</span>
   ${footerStats()}
-  <span class="ornament" aria-hidden="true">${fingerprint()}</span>
+  <span class="lbl soft fp-label">her fingerprint</span>
+  <span class="ornament" title="brain bytes · messages · facts · episodes · dreams · drift events · opinions · quirks — all live counts">${fingerprint()}</span>
   <a class="signature" href="/journal" aria-label="signed, ${esc(config.companionName)} — the journal">${stampSVG()}<span class="stamp-name">${esc(config.companionName)}</span></a>
 </footer>
 <script>
@@ -495,11 +519,11 @@ ${failing.length ? `
   </div>` : ''}
   <div class="timetable">
     ${beatRows.map(b => b
-      ? `<div class="tick slot${b.decision === 'reached' ? ' hers' : ''}">
+      ? `<div class="slot">
       <span class="num soft" style="width:112px;flex:none;white-space:nowrap">${esc(stamp(b.created_at).slice(5))}</span>
       <span class="lbl" style="width:84px;flex:none;color:${b.decision === 'reached' ? 'var(--brass)' : 'var(--machine)'}">${esc(b.decision)}</span>
       <span class="soft beat-why">${esc(b.reason ?? '')}</span></div>`
-      : `<div class="tick slot slot--empty">
+      : `<div class="slot slot--empty">
       <span class="num" style="width:112px;flex:none;white-space:nowrap">— · —</span>
       <span class="lbl" style="width:84px;flex:none">no decision</span>
       <span class="fill"></span></div>`).join('')}
@@ -819,6 +843,8 @@ function sparkSVG(dimension, events, current) {
   <svg width="100%" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(dimension)} drift, current ${current.toFixed(3)}">
     <line x1="0" y1="${y(0.95)}" x2="${plotW}" y2="${y(0.95)}" stroke="var(--civic)" stroke-opacity=".45" stroke-dasharray="2 4"/>
     <line x1="0" y1="${y(0.05)}" x2="${plotW}" y2="${y(0.05)}" stroke="var(--civic)" stroke-opacity=".45" stroke-dasharray="2 4"/>
+    <text x="2" y="${y(0.95) - 3}" font-family="ui-monospace,Menlo,monospace" font-size="8.5" fill="var(--machine)">0.95 ceiling</text>
+    <text x="2" y="${y(0.05) + 10}" font-family="ui-monospace,Menlo,monospace" font-size="8.5" fill="var(--machine)">0.05 floor</text>
     <path d="${d}" fill="none" stroke="var(--ink)" stroke-width="1.6" stroke-linejoin="miter"/>
     <circle cx="${plotW}" cy="${y(current)}" r="5" fill="var(--ground)"/>
     <circle cx="${plotW}" cy="${y(current)}" r="3" fill="var(--civic)"/>
@@ -1097,7 +1123,7 @@ export function startViewer() {
         // A mistyped URL used to return 200 with the Today page, so the visitor
         // was never told the page did not exist.
         res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' })
-          .end(shell('today', 'not found', notFoundPage(url.pathname), { badge }));
+          .end(shell('404', 'not found', notFoundPage(url.pathname), { badge }));
         return;
       }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(html);
@@ -1107,7 +1133,7 @@ export function startViewer() {
       // the companion vanishing. Keep the shell, keep the way back.
       try {
         res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' })
-          .end(shell('today', 'something broke', errorPage(err), { badge: 0 }));
+          .end(shell('500', 'something broke', errorPage(err), { badge: 0 }));
       } catch { res.writeHead(500, { 'Content-Type': 'text/plain' }).end('the viewer broke, and then broke again rendering the error. her memory is a separate file and is untouched.'); }
     }
   });

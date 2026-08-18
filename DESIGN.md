@@ -7,7 +7,7 @@ colors:
   sunk: "#E5E5E0"
   ink: "#14181B"
   ink2: "#4C5359"
-  machine: "#767C82"
+  machine: "#5F666C"
   rule: "rgba(20,24,27,0.16)"
   rule2: "rgba(20,24,27,0.34)"
   civic: "#174E7C"
@@ -185,12 +185,12 @@ Four inks on an enamel ground, with strictly assigned jobs and a full second
 palette for the night plate.
 
 ### Primary
-- **Civic** (`#174E7C` day / `#63A4DB` night): Structure. The rail, section
+- **Civic** (`#174E7C` day / `#63A4DB` night, field `#174E7C` / `#2A6A9E`): Structure. The rail, section
   index plates, active navigation, focus rings, button hover fill, drift rails,
   and the current-value dot on every sparkline. It marks where the eye goes.
 
 ### Secondary
-- **Brass** (`#7A5A12` day / `#D2A64A` night, field `#D8B45A` / `#8A6A1E`):
+- **Brass** (`#7A5A12` day / `#D2A64A` night, field `#D8B45A` / `#6E5316`):
   Hers, and nothing else. Her night's plate tag, the marks on what she is
   carrying, the reached-first mark, the two links that act on her things, and
   her stamp. Scarcity is the whole mechanism.
@@ -206,9 +206,39 @@ palette for the night plate.
 - **Ink** (`#14181B` / `#E9EAE6`): Primary text and the 2px rules capping the
   board head and ledger.
 - **Ink 2** (`#4C5359` / `#A8AFB5`): Secondary text, inactive nav, row keys.
-- **Machine** (`#767C82` / `#7C848A`): The system describing itself —
+- **Machine** (`#5F666C` / `#98A0A6`): The system describing itself —
   placeholders, timestamps, engine output, declined heartbeats.
 - **Rule / Rule 2** (`rgba` at .16 / .34): Every divider and plate edge.
+
+### The night palette, in full
+
+The day values are in the frontmatter; the night plate carries its own, not an
+inversion, and every one of them is load-bearing. Recorded here because nothing
+mechanical checks a colour that only exists inside a media query, and a stale
+palette in this file once documented a value that would have failed AA while the
+code shipped a passing one.
+
+| token | day | night |
+|---|---|---|
+| `ground` | `#F1F1EE` | `#0F1418` |
+| `plate` | `#FFFFFF` | `#171E24` |
+| `sunk` | `#E5E5E0` | `#0A0E11` |
+| `ink` | `#14181B` | `#E9EAE6` |
+| `ink2` | `#4C5359` | `#A8AFB5` |
+| `machine` | `#5F666C` | `#98A0A6` |
+| `civic` | `#174E7C` | `#63A4DB` |
+| `civic-field` | `#174E7C` | `#2A6A9E` |
+| `on-civic` | `#FFFFFF` | `#EAF2F9` |
+| `signal` | `#AE2A1F` | `#E2503F` |
+| `on-signal` | `#FFFFFF` | `#180705` |
+| `brass` | `#7A5A12` | `#D2A64A` |
+| `brass-field` | `#D8B45A` | `#6E5316` |
+| `on-brass` | `#1B1403` | `#F7EEDA` |
+
+**Both constraints, not one.** `civic-field` must clear 4.5:1 against
+`on-civic` (text on the fill) *and* 3:1 against `ground` (the fill itself, as a
+non-text indicator — the active nav chip). Fixing only the first is how the night
+value reached 1.74:1 against ground while its text read perfectly.
 
 ### Named Rules
 
@@ -335,8 +365,12 @@ a slot align to the first line, not the vertical centre.
 
 ### The Rail
 `.rail` insets content 26px and draws a 2px `rule2` line down its full height.
-Direct children carrying `.tick` get an 8px ring in the ground colour with a 2px
-civic border, placed at the row's optical centre.
+**Direct children only** carrying `.tick` get an 8px ring in the ground colour
+with a 2px civic border, at the row's optical centre. The selector is
+`.rail > .tick`, so a `.tick` nested inside a section silently does nothing —
+that is exactly how a documented brass variant of this ring shipped for two
+versions without ever rendering. Where a row needs to read as hers, use the
+brass `mk-` mark, not a rail tick.
 
 ### Buttons
 Square, `plate` fill, 1px `rule2` border, ink text, uppercase 11px/0.09em at 600,
