@@ -1,5 +1,52 @@
 # Changelog
 
+## 2.11.0 — 2026-08-18
+
+The webview stops being a poster and becomes a board.
+
+- **The Civic Signage Program.** 2.10's Berlin brutalism was half-right and
+  half-costume; the world it wanted was Nordic public-information design.
+  Information now lives on PLATES — flat enamel rectangles with fixed internal
+  margins, a classification colour, and type locked to a baseline slot — and
+  the plates hang off one RAIL, a single ruling axis down the page, so position
+  means time. Classification is strict: civic blue is structure (the rail,
+  indices, rules, active state), brass is hers and only hers, grey is the
+  machinery talking about itself, and red is genuine failure. The one reserved
+  treatment survives the world change intact: failure is a FILLED red plate
+  with ink text, never thin red text.
+- **Absence is drawn.** Every row is a SLOT of fixed height that is either
+  filled or explicitly empty, with the empties rendered rather than omitted.
+  What she is carrying holds four slots and the heartbeat three, so a quiet
+  night reads as a quiet night instead of a shorter list. On a runtime whose
+  most common output is deliberate silence, an omitted row was the wrong
+  drawing.
+- **Light and dark are both canonical.** Not a default and an afterthought:
+  the daylight enamel plate and the illuminated night plate are two real
+  signage forms, and either can lead. Unset follows the system; a sun / moon /
+  auto toggle in the board head overrides it and persists, set before first
+  paint so the wrong plate never flashes.
+- **Archivo, self-hosted, variable.** Weight and width axes from one file plus
+  a real italic, replacing the system stack that was standing in for a display
+  face. Abril and OldLondon retire with the world they belonged to.
+- **A drawn pictogram set.** Nine marks in one stroke weight — hers, reached,
+  you, engine, capture, dream, sun, moon, auto — in an inline SVG sprite. Every
+  Unicode glyph doing icon duty is gone; a signage program without drawn marks
+  is just text on plates.
+- **Her stamp is hers now.** The footer signature was the one mark on the page
+  that wasn't real state. Its stipple density and scatter are seeded from the
+  same eight live counts the ledger prints, so two companions never stamp the
+  same and the mark thickens as she accumulates a life.
+- **Day-of-life gets the platform slot.** An inverse plate in the board head,
+  tabular, at the scale a platform number has in life.
+- **The drift sparklines are legible again.** Their colours were hardcoded to
+  the old palette and had gone nearly invisible; they read from tokens now, and
+  dream- and wander-triggered drift finally renders in brass, which the source
+  comment always claimed it did.
+- Every inherited page moves with the world: the legacy CSS variable aliases
+  are remapped rather than removed, because inline styles across memory,
+  journal, self, chat and system name them directly. Note for future work:
+  `--red` now resolves to civic blue, so it no longer means danger.
+
 ## 2.10.0 — 2026-08-17
 
 The webview learns what it always wanted to look like.

@@ -12,3 +12,6 @@ logs/
 persona/
 config.json
 glashaus.pid
+
+# Impeccable build evidence (screenshots), not source
+.impeccable/review/

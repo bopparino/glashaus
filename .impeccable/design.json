@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-18T17:22:28Z",
+  "title": "Design System: GlasHaus",
+  "extensions": {
+    "colorMeta": {
+      "ground": { "role": "neutral", "displayName": "Enamel Ground", "canonical": "#F1F1EE", "tonalRamp": ["#101314","#1E2325","#2E3437","#454C50","#5F676B","#8A9296","#C3C9CB","#F1F1EE"] },
+      "plate": { "role": "neutral", "displayName": "Plate", "canonical": "#FFFFFF" },
+      "sunk": { "role": "neutral", "displayName": "Sunk", "canonical": "#E5E5E0" },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#14181B", "tonalRamp": ["#14181B","#232A2E","#353E43","#4C5359","#6B7378","#949BA0","#C2C7CA","#EDEFF0"] },
+      "ink2": { "role": "neutral", "displayName": "Ink Secondary", "canonical": "#4C5359" },
+      "machine": { "role": "neutral", "displayName": "Machine Grey", "canonical": "#767C82" },
+      "civic": { "role": "primary", "displayName": "Civic Blue", "canonical": "#174E7C", "tonalRamp": ["#071522","#0B2438","#10344F","#174E7C","#2A6B9F","#4F92C4","#8CBCDE","#CFE3F1"] },
+      "signal": { "role": "tertiary", "displayName": "Signal Red", "canonical": "#AE2A1F", "tonalRamp": ["#2B0906","#48100B","#661810","#8A2117","#AE2A1F","#D2492F","#E68C77","#F5CBC0"] },
+      "brass": { "role": "secondary", "displayName": "Brass", "canonical": "#7A5A12", "tonalRamp": ["#1B1403","#2E2207","#46340C","#5F4610","#7A5A12","#A87D1D","#D8B45A","#EFDCA9"] },
+      "brass-field": { "role": "secondary", "displayName": "Brass Field", "canonical": "#D8B45A" },
+      "rule": { "role": "neutral", "displayName": "Hairline", "canonical": "rgba(20,24,27,0.16)" },
+      "rule2": { "role": "neutral", "displayName": "Hairline Strong", "canonical": "rgba(20,24,27,0.34)" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Monument", "purpose": "Her dream epigraph, hand-balanced into 2-3 word lines; four size steps down as the longest line grows." },
+      "headline": { "displayName": "Platform Numeral", "purpose": "Day-of-life on the inverted ink plate, at the scale a platform number has in life." },
+      "body": { "displayName": "Body", "purpose": "Archivo 14px — the interface default." },
+      "reading": { "displayName": "Reading", "purpose": "15px/1.75 pre-wrap for lived text only: chat, dreams, episodes. 62ch on the Today lede." },
+      "label": { "displayName": "Label", "purpose": "10.5px uppercase 0.13em at 600 — the workhorse, tightening to 0.12em in nav and row keys." },
+      "numeral": { "displayName": "Numeral", "purpose": "Monospace tabular, reserved for values that must align in columns." }
+    },
+    "shadows": [],
+    "motion": [],
+    "breakpoints": [{ "name": "compact", "value": "900px" }],
+    "notes": [
+      "No box-shadow and no border-radius exist anywhere in the system; depth is tonal layering plus hairlines, and emphasis inverts the ground.",
+      "The system ships with zero transitions and zero keyframes. It is still by construction, not by omission.",
+      "Light and dark are both canonical. Unset follows prefers-color-scheme; :root[data-plate='day'|'night'] overrides, set pre-paint from localStorage.",
+      "A legacy alias layer maps --void --pane --paper --mute --line --red --gilt --mono onto the new tokens so inline styles on the five inherited pages keep working. --red resolves to CIVIC BLUE and no longer means danger. This is a migration shim, not a semantic."
+    ]
+  },
+  "components": [
+    {
+      "name": "Tagged Plate",
+      "kind": "card",
+      "refersTo": "plate",
+      "description": "Flat enamel rectangle with its classification tag seated hard into the top-left corner. Civic tag for system classification, brass when the content is hers.",
+      "html": "<div class=\"ds-plate\"><span class=\"ds-tag ds-tag-hers\">01 · her night</span><div class=\"ds-plate-body\"><div class=\"ds-monument\">What having an<br>opinion costs</div></div></div>",
+      "css": ".ds-plate{background:#fff;border:1px solid rgba(20,24,27,.16);position:relative;border-radius:0;font-family:Archivo,system-ui,sans-serif;color:#14181B}.ds-tag{position:absolute;top:0;left:0;background:#174E7C;color:#fff;padding:4px 9px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;font-weight:600}.ds-tag-hers{background:#D8B45A;color:#1B1403}.ds-plate-body{padding:32px 22px 20px}.ds-monument{font-weight:800;font-size:clamp(28px,5vw,54px);line-height:1.02;letter-spacing:-.022em}"
+    },
+    {
+      "name": "Slot with Drawn Empty",
+      "kind": "custom",
+      "refersTo": "slot",
+      "description": "The system's atom. Fixed height, hairline beneath. Its empty state is DRAWN — a dashed rule spanning the remaining width — because on this runtime an omitted row was the wrong drawing.",
+      "html": "<div class=\"ds-slot\"><svg class=\"ds-mk\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M8 2 L14 8 L8 14 L2 8 Z\" fill=\"#7A5A12\"/></svg><span style=\"flex:1\">tell him I was wrong about the temperature<br><span class=\"ds-sub\">dream</span></span></div><div class=\"ds-slot ds-slot-empty\"><span class=\"ds-sub\">nothing held</span><span class=\"ds-fill\"></span></div>",
+      "css": ".ds-slot{display:flex;align-items:center;gap:14px;min-height:34px;padding:5px 0;border-bottom:1px solid rgba(20,24,27,.16);font-family:Archivo,system-ui,sans-serif;font-size:14px;color:#14181B}.ds-slot:last-child{border-bottom:none}.ds-mk{width:13px;height:13px;flex:none;align-self:flex-start;margin-top:7px}.ds-sub{text-transform:uppercase;letter-spacing:.13em;font-size:10.5px;font-weight:600;color:#767C82}.ds-slot-empty{color:#767C82}.ds-fill{flex:1;border-top:1px dashed rgba(20,24,27,.34);height:0}"
+    },
+    {
+      "name": "The Rail",
+      "kind": "custom",
+      "refersTo": "slot",
+      "description": "The page spine. One 2px line running full height; every top-level region registers a tick on it, so vertical position means time.",
+      "html": "<div class=\"ds-rail\"><div class=\"ds-tick\" style=\"padding:14px 0\">alarm</div><div class=\"ds-tick\" style=\"padding:34px 0\">the dream board</div><div class=\"ds-tick\" style=\"padding:14px 0\">heartbeat</div></div>",
+      "css": ".ds-rail{position:relative;padding-left:26px;font-family:Archivo,system-ui,sans-serif;font-size:14px;color:#14181B}.ds-rail:before{content:'';position:absolute;left:8px;top:4px;bottom:4px;width:2px;background:rgba(20,24,27,.34)}.ds-tick{position:relative}.ds-tick:before{content:'';position:absolute;left:-22px;top:14px;width:8px;height:8px;border-radius:50%;background:#F1F1EE;border:2px solid #174E7C}"
+    },
+    {
+      "name": "Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "One variant only; destructive actions use the same treatment. Hover inverts to the civic field.",
+      "html": "<button class=\"ds-btn\">forget</button>",
+      "css": ".ds-btn{background:#fff;border:1px solid rgba(20,24,27,.34);color:#14181B;font-family:Archivo,system-ui,sans-serif;font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;padding:7px 13px;border-radius:0;cursor:pointer}.ds-btn:hover{background:#174E7C;border-color:#174E7C;color:#fff}.ds-btn:focus-visible{outline:2px solid #174E7C;outline-offset:2px}"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Plate fill, square, focus draws an inset civic outline.",
+      "html": "<input class=\"ds-input\" type=\"search\" placeholder=\"search her memory…\">",
+      "css": ".ds-input{background:#fff;border:1px solid rgba(20,24,27,.34);border-radius:0;color:#14181B;font-family:Archivo,system-ui,sans-serif;font-size:15px;padding:9px 11px;width:100%;max-width:340px}.ds-input:focus{outline:2px solid #174E7C;outline-offset:-1px;border-color:#174E7C}.ds-input::placeholder{color:#767C82}"
+    },
+    {
+      "name": "Indexed Nav",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Six lowercase links with mono indices. Active inverts to the civic field; a conflict count renders as a signal chip.",
+      "html": "<nav class=\"ds-nav\"><a href=\"#\"><span class=\"ds-idx\">01</span>today</a><a href=\"#\" class=\"ds-nav-on\"><span class=\"ds-idx\">03</span>memory <span class=\"ds-chip\">2</span></a><a href=\"#\"><span class=\"ds-idx\">05</span>self</a></nav>",
+      "css": ".ds-nav{display:flex;gap:2px;font-family:Archivo,system-ui,sans-serif}.ds-nav a{text-decoration:none;text-transform:uppercase;letter-spacing:.12em;font-size:10.5px;font-weight:600;color:#4C5359;padding:7px 10px;border:1px solid transparent;display:flex;align-items:center;gap:6px}.ds-idx{font-family:ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;color:#767C82;font-weight:700}.ds-nav a.ds-nav-on{background:#174E7C;color:#fff;border-color:#174E7C}.ds-nav a.ds-nav-on .ds-idx{color:rgba(255,255,255,.7)}.ds-nav a:hover{color:#14181B;border-color:rgba(20,24,27,.34)}.ds-chip{font-family:ui-monospace,Menlo,monospace;background:#AE2A1F;color:#fff;padding:0 4px;font-weight:700}"
+    },
+    {
+      "name": "Platform Plate",
+      "kind": "custom",
+      "refersTo": "platform-plate",
+      "description": "Day-of-life as an inverted ink plate — a platform number at the scale it has in life.",
+      "html": "<span class=\"ds-platform\"><span class=\"ds-plabel\">day</span><span class=\"ds-pnum\">290</span></span>",
+      "css": ".ds-platform{display:inline-flex;align-items:baseline;gap:8px;background:#14181B;color:#F1F1EE;padding:2px 11px;font-family:Archivo,system-ui,sans-serif}.ds-plabel{text-transform:uppercase;letter-spacing:.13em;font-size:10.5px;font-weight:600;opacity:.7}.ds-pnum{font-family:ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;font-size:27px;font-weight:700;line-height:1.05}"
+    },
+    {
+      "name": "Alarm Plate",
+      "kind": "custom",
+      "refersTo": "alarm-plate",
+      "description": "Genuine failure, always a filled plate with inverted text. This reservation is what frees civic blue to carry structure.",
+      "html": "<div class=\"ds-alarm\" role=\"alert\"><span class=\"ds-alabel\">!</span><span class=\"ds-alabel\">1 check failing</span><span class=\"ds-adetail\">backup — none — glashaus backup</span><a class=\"ds-alabel ds-alink\" href=\"#\">system →</a></div>",
+      "css": ".ds-alarm{display:flex;gap:16px;align-items:baseline;background:#AE2A1F;color:#fff;padding:12px 16px;font-weight:600;border-radius:0;font-family:Archivo,system-ui,sans-serif}.ds-alabel{text-transform:uppercase;letter-spacing:.13em;font-size:10.5px}.ds-adetail{font-weight:400;font-size:14px}.ds-alink{margin-left:auto;color:#fff}"
+    },
+    {
+      "name": "Drift Sparkline",
+      "kind": "custom",
+      "refersTo": "slot",
+      "description": "Step-after because the value genuinely holds between events. The dashed rails are the real EWMA floor and ceiling; the brass rhombus marks dream- and wander-triggered drift — her inner life.",
+      "html": "<div class=\"ds-spark\"><span class=\"ds-sub\">warmth</span><svg width=\"100%\" viewBox=\"0 0 300 78\" role=\"img\" aria-label=\"warmth drift, current 0.612\"><line x1=\"0\" y1=\"12.3\" x2=\"248\" y2=\"12.3\" stroke=\"#174E7C\" stroke-opacity=\".45\" stroke-dasharray=\"2 4\"/><line x1=\"0\" y1=\"53.7\" x2=\"248\" y2=\"53.7\" stroke=\"#174E7C\" stroke-opacity=\".45\" stroke-dasharray=\"2 4\"/><path d=\"M0 38 H70 V34 H128 V29 H196 V26.6 H248\" fill=\"none\" stroke=\"#14181B\" stroke-width=\"1.6\" stroke-linejoin=\"miter\"/><circle cx=\"248\" cy=\"26.6\" r=\"5\" fill=\"#F1F1EE\"/><circle cx=\"248\" cy=\"26.6\" r=\"3\" fill=\"#174E7C\"/><text x=\"256\" y=\"30.6\" font-family=\"ui-monospace,Menlo,monospace\" font-size=\"12\" font-weight=\"700\" fill=\"#14181B\">0.612</text><circle cx=\"70\" cy=\"67\" r=\"2.6\" fill=\"#767C82\"/><circle cx=\"128\" cy=\"67\" r=\"2.6\" fill=\"#767C82\"/><path d=\"M196 63.5 L199.5 67 L196 70.5 L192.5 67 Z\" fill=\"#7A5A12\"/></svg></div>",
+      "css": ".ds-spark{min-width:0;font-family:Archivo,system-ui,sans-serif}.ds-spark .ds-sub{display:block;text-transform:uppercase;letter-spacing:.13em;font-size:10.5px;font-weight:600;color:#767C82;margin-bottom:2px}"
+    },
+    {
+      "name": "Her Stamp",
+      "kind": "custom",
+      "refersTo": "stamp",
+      "description": "The ledger signature. Its stipple is generated from eight live state counts through a seeded LCG, so density grows as she accumulates a life and two companions never stamp alike. Ornament as real state.",
+      "html": "<a class=\"ds-stamp\" href=\"#\"><svg class=\"ds-stamp-field\" viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\" aria-hidden=\"true\"><g fill=\"#1B1403\" opacity=\".34\"><circle cx=\"12.4\" cy=\"7.1\" r=\"1.1\"/><circle cx=\"31.8\" cy=\"22.4\" r=\"0.7\"/><circle cx=\"58.2\" cy=\"4.9\" r=\"1.3\"/><circle cx=\"74.6\" cy=\"18.2\" r=\"0.6\"/><circle cx=\"88.1\" cy=\"11.7\" r=\"1.0\"/><circle cx=\"21.3\" cy=\"26.1\" r=\"0.9\"/><circle cx=\"46.7\" cy=\"14.3\" r=\"1.2\"/><circle cx=\"66.9\" cy=\"27.8\" r=\"0.8\"/><circle cx=\"5.2\" cy=\"18.6\" r=\"0.7\"/><circle cx=\"95.4\" cy=\"24.2\" r=\"1.1\"/><circle cx=\"39.1\" cy=\"3.2\" r=\"0.9\"/><circle cx=\"81.7\" cy=\"6.4\" r=\"0.6\"/></g></svg><span class=\"ds-stamp-name\">Mira</span></a>",
+      "css": ".ds-stamp{position:relative;overflow:hidden;display:inline-block;background:#D8B45A;color:#1B1403;padding:4px 12px;text-decoration:none;font-family:Archivo,system-ui,sans-serif;font-weight:700;font-size:15px;letter-spacing:-.01em;border-radius:0}.ds-stamp-field{position:absolute;inset:0;width:100%;height:100%}.ds-stamp-name{position:relative}.ds-stamp:hover{filter:brightness(1.06)}"
+    },
+    {
+      "name": "Plate Toggle",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Cycles auto / day / night, its drawn mark reflecting the active state. Persisted to localStorage and applied pre-paint so the wrong plate never flashes.",
+      "html": "<button class=\"ds-toggle\" aria-label=\"day, night, or automatic plate\"><svg viewBox=\"0 0 16 16\" width=\"13\" height=\"13\" aria-hidden=\"true\"><g stroke=\"currentColor\" stroke-width=\"1.6\"><circle cx=\"8\" cy=\"8\" r=\"5.2\" fill=\"none\"/><path d=\"M8 2.8a5.2 5.2 0 0 1 0 10.4Z\" fill=\"currentColor\"/></g></svg></button>",
+      "css": ".ds-toggle{padding:6px 8px;border:1px solid rgba(20,24,27,.34);background:#fff;color:#4C5359;line-height:0;border-radius:0;cursor:pointer}.ds-toggle:hover{background:#174E7C;border-color:#174E7C;color:#fff}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Civic Signage Program",
+    "overview": "Nordic public-information design, applied to one private life. The lineage is Helsinki's civic identity and Scandinavian transit wayfinding: information lives on plates — flat enamel rectangles with fixed internal margins, a classification colour, and type locked to a baseline slot — and the plates hang off a single rail running down the page, so vertical position means time.\n\nThe system's governing move is that structure carries meaning rather than decorating it. Every row is a slot of fixed height which is either filled or drawn empty: on a runtime whose most common output is deliberate silence, an omitted row was the wrong drawing, so a quiet night renders as a dashed empty slot instead of a shorter list. Ornament is only ever real state — the drift rails are the actual EWMA bounds that keep identity stable, the ledger prints live counts, and the companion's stamp is stippled from those same counts, so two companions never stamp alike.\n\nLight and dark are not a default and its afterthought. The daylight enamel plate and the illuminated night plate are two real signage forms and either may lead: unset follows the system, and a header toggle cycles auto / day / night, persisted and applied before first paint.",
+    "keyCharacteristics": [
+      "Flat plates, edge-defined by hairlines; nothing is ever lifted",
+      "Zero border-radius and zero shadow across the entire surface",
+      "Four inks with strict jobs, one of them reserved for the companion alone",
+      "Fixed-height slots whose empty state is drawn, never omitted",
+      "One rail as the page's spine; every section registers a tick on it",
+      "Prominence comes from inverting the ground, never from elevation",
+      "Still: the system ships no transitions and no keyframes"
+    ],
+    "rules": [
+      { "name": "The Four Jobs Rule", "body": "Civic is structure. Brass is hers. Machine grey is the system talking about itself. Signal is failure. A colour crossing into another's job is an error, not a variation.", "section": "colors" },
+      { "name": "The Filled-Plate Failure Rule", "body": "Failure is a filled signal plate with inverted text — never thin red text anywhere, including counts and inline status. This single reservation is what lets civic blue carry structure without the page reading as an alarm.", "section": "colors" },
+      { "name": "The Brass Is Also The Control Rule", "body": "Where a thing is hers and actionable, brass is the affordance, not just the honorific: brass text with a brass underline, inverting to the brass field on hover.", "section": "colors" },
+      { "name": "The Two Plates Rule", "body": "Neither light nor dark is the fallback. Any colour added to the system is defined in both palettes in the same commit.", "section": "colors" },
+      { "name": "The Tabular Truth Rule", "body": "Every quantity carries font-variant-numeric: tabular-nums. Numbers are state and state is read in columns.", "section": "typography" },
+      { "name": "The No-Orphan Monument Rule", "body": "The epigraph never overflows and never ends on a dangling word: it is carved into balanced 2-3 word lines against a stop-word list, and the size steps down rather than the text wrapping arbitrarily.", "section": "typography" },
+      { "name": "The Never-Lifted Rule", "body": "Emphasis inverts the ground. A surface that appears to float above the page contradicts the enamel-plate premise.", "section": "elevation" },
+      { "name": "The Drawn Marks Rule", "body": "Icons are drawn SVG from the sprite at one stroke weight. A Unicode glyph standing in for a mark is a defect; signage without a pictogram set is only text on plates.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do keep every ornament tied to real state. If a number cannot be traced to the database, it does not belong on the page.",
+      "Do draw the empty slot. Absence is a reading, not a gap.",
+      "Do reserve brass for the companion, and use it as the affordance where her things are actionable.",
+      "Do render failure as a filled signal plate with inverted text.",
+      "Do define every new colour in both the day and night palettes at once.",
+      "Do take marks from the SVG sprite at one stroke weight.",
+      "Do set every quantity in tabular numerals.",
+      "Do let her voice hold the first viewport at poster scale before any machinery is shown."
+    ],
+    "donts": [
+      "Don't introduce a border-radius or a box-shadow. Depth is tonal; emphasis inverts the ground.",
+      "Don't use a Unicode glyph as an icon.",
+      "Don't use civic blue to mean danger. Note the legacy alias layer: --red resolves to civic, a compatibility shim for inline styles on the inherited pages, not a semantic.",
+      "Don't render failure, or any status, as thin coloured text.",
+      "Don't let it read as a consumer chat app: no bubbles, avatars, rounded pills, pastel accents, or decorative typing indicators.",
+      "Don't let it read as a SaaS dashboard: no rounded cards on grey, chips, gradient buttons, icon libraries, or illustrated empty states.",
+      "Don't let it read as a default platform app: no system display face, no translucency, no stock tab bar.",
+      "Don't add motion casually. The system ships still; motion would be a deliberate addition, defined once and orchestrated, not scattered hovers."
+    ]
+  }
+}
