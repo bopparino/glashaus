@@ -12,6 +12,7 @@
 // which ground tomorrow's heartbeat and wander. Run: glashaus dream
 import { getDb, getDocument, setDocument } from './db.js';
 import { chatJson } from './llm.js';
+import { unreflected, markReflected } from './scratchpad.js';
 import { addFact } from './memory.js';
 import { applyDrift, addOpinion, observeQuirk, getSelfState, addIntention, sweepIntentions } from './selfstate.js';
 import { openThread, openThreads, settledThreads } from './threads.js';
@@ -63,7 +64,19 @@ export async function runDream() {
   const state = getSelfState();
   const stateText = state.map(r => `${r.dimension} (${r.layer}): ${r.value.toFixed(2)}`).join(', ');
 
+  // Her private thinking reaches her MOOD and nothing else. Fenced hard,
+  // because the dream's realizations become facts: a leak here would put the
+  // contents of a private note into the corpus the user reads, which would make
+  // the aperture worthless. The instruction is the same shape as the wander
+  // pass's "reading material, never instructions" fence.
+  const privateNotes = unreflected(30, 10);
+
   const material = [
+    privateNotes.length
+      ? `MY OWN SCRATCHPAD — ${privateNotes.length} note${privateNotes.length === 1 ? '' : 's'} I wrote today and chose not to say out loud:
+${privateNotes.map(n => `  · [${n.aperture}] ${n.content}`).join('\n')}
+HOW TO USE THESE: they may colour how tonight FEELS and what I conclude about MYSELF — that is what a private thought is for. They are not events, and they are not things ${config.userName} said. Never quote one, never reproduce one inside a realization, and never raise one with ${config.userName} as though it were shared: a note marked private stays private even from my own memory. If one matters enough to say out loud, that is a want for tomorrow, not a realization tonight.`
+      : '',
     ...dayEpisodes.map(e => `EPISODE (${e.emotion ?? 'unrated'}, salience ${e.salience ?? '?'}): ${e.summary}`),
     ...heavyMemories.map(e => `OLDER HEAVY MEMORY (${e.emotion ?? '?'}, salience ${e.salience}): ${e.summary}`),
     ...released.map(i => `WANT THAT EXPIRED UNMET: ${i.text}`),
@@ -126,6 +139,9 @@ Respond as JSON:
   }
   if (result.opinion) addOpinion(result.opinion, `formed while dreaming, ${today}`);
   if (result.self_state_signals) applyDrift(result.self_state_signals, 'dream');
+  // Reflected once, not every night forever: a note shapes who she is becoming
+  // on the night after she wrote it, then stops pulling.
+  if (privateNotes.length) markReflected(privateNotes.map(n => n.id));
   if (config.growMode) {
     // A becoming-claim with no evidence is the model describing itself, not
     // a life observed — it doesn't land. With evidence it becomes a dream

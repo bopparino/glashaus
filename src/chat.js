@@ -6,6 +6,7 @@ import { embed, backfillEmbeddings } from './embeddings.js';
 import { webSearch } from './wander.js';
 import { getDb, logGuard } from './db.js';
 import { config } from './config.js';
+import { extractNotes, write as writeNote } from './scratchpad.js';
 
 // Mid-conversation lookup: the companion ends a draft with
 // ((looking up: …)) and the engine runs the search FOR REAL before she
@@ -106,6 +107,20 @@ async function exchange(text, { persist = true, images = [], onToken = null } = 
       console.error(`[lookup] continuation failed: ${err.message}`);
       draft = lookup.lead || draft.replace(LOOKUP_RX, '').trim();
     }
+  }
+
+  // Her scratchpad, taken out of the draft BEFORE the register lints run. The
+  // lints exist to protect her outward voice; her private thinking is not
+  // theirs to police, and a note is allowed to be uncertain in a way a reply is
+  // not. The markers never reach ${config.userName} either way.
+  const { notes, clean } = extractNotes(draft);
+  if (notes.length) {
+    draft = clean;
+    for (const n of notes) {
+      try { writeNote({ content: n.content, aperture: n.aperture, source: 'chat' }); }
+      catch (err) { console.error('[scratchpad]', err.message); }
+    }
+    console.log(`[scratchpad] ${notes.length} note(s) written — ${notes.map(n => n.aperture).join(', ')}`);
   }
 
   // Identity breaks (the base model announcing itself as some other AI) get

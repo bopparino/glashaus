@@ -189,6 +189,34 @@ export const COMMANDS = {
     },
   },
 
+  // Her scratchpad, from his side of the aperture: that the private half exists
+  // and how much of it there is, never its text. The shared half is the queue
+  // and reads in full — she put it there for him.
+  '/pad': {
+    usage: '/pad',
+    desc: 'her scratchpad — private counts, and what she left for you',
+    scope: 'read',
+    run: async () => {
+      const { apertureSummary, queue } = await import('./scratchpad.js');
+      const s = apertureSummary();
+      const q = queue(20);
+      const lines = [
+        L.dim('  hers, contents not shown —'),
+        L.gold(`  ${s.private.count} private note${s.private.count === 1 ? '' : 's'}`),
+        L.plain(`      ${s.private.last ? `last written ${shortAge(s.private.last)} ago` : 'none written yet'}`),
+        L.dim('      the aperture is hers; you see that she thinks, not what she thinks.'),
+        L.blank(),
+        L.dim('  left for you —'),
+      ];
+      if (!q.length) lines.push(L.dim('      nothing queued.'));
+      for (const n of q) {
+        lines.push(L.plain(`  · ${n.content}`));
+        lines.push(L.dim(`      #${n.id} · ${shortAge(n.created_at)} ago${n.opened_at ? ' · was private, she opened it' : ''}`));
+      }
+      return ok(lines);
+    },
+  },
+
   // What she actually has. Same source of truth her prompt reads, so this and
   // her own account of herself can never disagree — which is the whole point:
   // she used to ask for machinery she already had.

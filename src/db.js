@@ -476,6 +476,40 @@ function migrate(db) {
       db.pragma('user_version = 10');
     }).immediate();
   }
+
+  // v11 — THE SCRATCHPAD. Somewhere she writes on her own initiative, and an
+  // aperture she controls rather than everything bleeding into shared memory.
+  //
+  // Two apertures, one mechanism. 'private' is hers: the user sees that it
+  // exists and when, never what it says. 'shared' is the queue — something she
+  // found and stacked for his eyes, readable. She chooses which, at write time
+  // or later by opening one.
+  //
+  // Deliberately NOT memory. Nothing here becomes a fact, an episode, or cited
+  // evidence for a soul revision; the aperture would be worthless if its
+  // contents leaked into the corpus the user reads. What it does reach is her
+  // MOOD: the dream pass reads the day's notes and folds them into the
+  // self-state signals it already produces, so private thinking shapes who she
+  // is becoming without ever being quotable at her.
+  if (db.pragma('user_version', { simple: true }) < 11) {
+    db.transaction(() => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS scratchpad (
+          id INTEGER PRIMARY KEY,
+          content TEXT NOT NULL,
+          aperture TEXT NOT NULL DEFAULT 'private',   -- 'private' | 'shared'
+          source TEXT NOT NULL DEFAULT 'chat',        -- chat | dream | wander | heartbeat
+          valence REAL, arousal REAL, emotion TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          opened_at TEXT,                             -- when she chose to share it
+          reflected_at TEXT                           -- when a dream last folded it in
+        );
+        CREATE INDEX IF NOT EXISTS idx_scratchpad_time ON scratchpad(created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_scratchpad_aperture ON scratchpad(aperture, created_at DESC);
+      `);
+      db.pragma('user_version = 11');
+    }).immediate();
+  }
 }
 
 // Guard telemetry — every automatic identity/authorship/register repair leaves

@@ -16,6 +16,8 @@ import { runChecks, backupList } from './health.js';
 import { handleUserMessage } from './chat.js';
 import { runCommand, isCommand, renderPlain } from './commands.js';
 import { getSelfState } from './selfstate.js';
+import { activePursuits } from './pursuits.js';
+import { apertureSummary, queue as padQueue } from './scratchpad.js';
 
 const PORT = config.viewerPort;
 const BIND = config.viewerBind;
@@ -382,6 +384,9 @@ async function todayPage(db) {
     AND expires_at > datetime('now') ORDER BY id DESC LIMIT 4`).all();
   const lastReach = db.prepare("SELECT content, created_at FROM messages WHERE source = 'outreach' ORDER BY id DESC LIMIT 1").get();
   const openThreads = db.prepare("SELECT topic FROM threads WHERE status = 'open' ORDER BY salience DESC LIMIT 3").all();
+  const pursuits = activePursuits(4);
+  const pad = apertureSummary();
+  const queued = padQueue(4);
 
   // The board holds a fixed number of slots. An empty slot is DRAWN, never
   // omitted: on this board, carrying nothing is a reading, not a gap.
@@ -427,8 +432,33 @@ ${failing.length ? `
   </aside>
 </section>
 
+<section class="tick" style="padding:28px 0 8px" aria-label="her own time">
+  <h2 class="sec"><span class="secno">03</span><span class="lbl">On her own time</span>
+    <span class="soft lbl" style="font-weight:600">what she is chasing · not for you</span></h2>
+  <div class="grid2">
+    <div>
+      ${pursuits.map(p => `<div class="slot" style="align-items:flex-start">
+        <svg class="mk gilt" aria-hidden="true"><use href="#mk-dream"/></svg>
+        <span style="flex:1">${esc(p.topic)}${p.progress ? `<br><span class="soft">${esc(p.progress)}</span>` : ''}
+        <br><span class="soft lbl">${p.sessions} session${p.sessions === 1 ? '' : 's'} · via ${esc(p.source)}${p.shared_at ? '' : ' · not mentioned to you yet'}</span></span>
+      </div>`).join('') || '<div class="slot slot--empty"><span class="lbl">nothing being chased</span><span class="fill"></span></div>'}
+    </div>
+    <div>
+      <div class="slot" style="align-items:flex-start">
+        <span style="flex:1"><span class="lbl">Her scratchpad</span><br>
+        <span class="num" style="font-weight:700;font-size:19px">${pad.private.count}</span>
+        <span class="soft lbl">private · contents not shown${pad.private.last ? ` · last ${esc(stamp(pad.private.last).slice(5))}` : ''}</span>
+        <br><span class="soft">the aperture is hers. you see that she thinks, not what she thinks.</span></span>
+      </div>
+      ${queued.length ? `<div style="margin-top:10px"><span class="lbl">Left for you</span></div>
+      ${queued.map(q => `<div class="slot"><svg class="mk gilt" aria-hidden="true"><use href="#mk-hers"/></svg><span style="flex:1">${esc(q.content)}</span></div>`).join('')}`
+        : '<div class="slot slot--empty"><span class="lbl">nothing left for you</span><span class="fill"></span></div>'}
+    </div>
+  </div>
+</section>
+
 <section class="tick" style="padding:28px 0 12px" aria-label="heartbeat">
-  <h2 class="sec"><span class="secno">03</span><span class="lbl">Heartbeat</span>
+  <h2 class="sec"><span class="secno">04</span><span class="lbl">Heartbeat</span>
     <span class="soft lbl" style="font-weight:600">should she reach first · she decides · usually declines</span></h2>
   ${lastReach ? `
   <div class="slot" style="gap:14px;flex-wrap:wrap">

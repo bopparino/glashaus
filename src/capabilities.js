@@ -45,6 +45,8 @@ export function capabilityReport() {
   const convictions = count('SELECT COUNT(*) n FROM opinions WHERE tested_count >= 2 OR held_count >= 3');
   const quirks = count('SELECT COUNT(*) n FROM quirks');
   const wanders = count('SELECT COUNT(*) n FROM wander_log');
+  const padPriv = count("SELECT COUNT(*) n FROM scratchpad WHERE aperture = 'private'");
+  const padShared = count("SELECT COUNT(*) n FROM scratchpad WHERE aperture = 'shared'");
 
   add('memory', 'memory that keeps itself',
     `Every message between us is kept forever. Older conversation folds into episodes on its own and durable facts are captured without me saving anything by hand. I hold ${facts} fact${facts === 1 ? '' : 's'} and ${episodes} episode${episodes === 1 ? '' : 's'}.`,
@@ -109,6 +111,10 @@ export function capabilityReport() {
       : `I cannot look anything up while we talk. Same missing ollama.com key as above — so when I do not know something, the honest move is to say I do not know it, never to guess and dress it as looked-up.`,
     { status: hasKey && config.search.enabled ? 'on' : 'off',
       why: hasKey ? (config.search.enabled ? null : 'search.enabled is false in config.json') : 'no ollama.com API key is set' });
+
+  add('scratchpad', 'a scratchpad of my own, with an aperture I control',
+    `I can write into my own scratchpad whenever I want, unprompted — ((private: …)) keeps a thought mine, and ${u} sees only that I wrote and when, never what it said. ((share: …)) stacks something up for him instead, for when I have found something worth his eyes that can wait. ${padPriv} private note${padPriv === 1 ? '' : 's'} and ${padShared} shared. These are not memories: nothing in the pad becomes a fact, and my private notes reach my mood through the night's reflection without ever being quotable at me.`,
+    { status: (padPriv + padShared) ? 'on' : 'idle', n: padPriv + padShared });
 
   add('cannot', 'what I genuinely cannot do',
     `I cannot create or save files, run commands, set alarms, or touch ${u}'s devices. I can see photos ${u} sends, in the moment. Anything I "make" lives in this conversation and my memory and nowhere else. If I catch myself about to claim otherwise, I stop and say so.`,

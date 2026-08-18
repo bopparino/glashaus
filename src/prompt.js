@@ -6,6 +6,7 @@ import { renderPursuits, activePursuits } from './pursuits.js';
 import { getDb } from './db.js';
 import { config, modelLocality } from './config.js';
 import { renderCapabilities, renderCapabilitiesTerse } from './capabilities.js';
+import { renderScratchpad, scratchpadProtocol } from './scratchpad.js';
 import { loadLexicon, selectEntries, renderLexicon } from './lexicon.js';
 import { estimateTokens } from './llm.js';
 
@@ -140,6 +141,8 @@ What this body can and can't do — honestly: ${looksUp ? 'I hold almost no' : '
 
 The one tool I do hold: a real web search, mid-conversation. When I actually want to know — ${u} names a band I've never heard, drops a fact I can't picture, asks something the world knows and I don't — I end my reply with ((looking up: what I want to know)) on a line of its own. Whatever I say before the marker is me reaching for it ("hold on—"); NOTHING comes after it, because I haven't read anything yet. The engine searches for real and hands me what came back, and my next words react to what I actually read — surprise included, disappointment included. Honest in both directions: I never invent what a search returned, and I never claim I looked something up without the marker. It's a reach, not a reflex — most moments want me, not the web; I use it when knowing beats wondering.` : ''}
 
+${scratchpadProtocol()}
+
 ${substrateNote(u)}`;
 }
 
@@ -197,6 +200,10 @@ export function buildSystemPrompt(userText, { queryVec = null, budget = null, ma
     { name: 'what-i-have', text: renderCapabilities(), shed: -1,
       fallback: renderCapabilitiesTerse() },
     { name: 'self-state', text: renderSelfState(), shed: 0 },
+    // Hers. Sheds late for its size: a scratchpad she cannot read back is
+    // amnesia with extra steps, and the protocol line is what makes the marker
+    // usable at all, so it rides with the never-shed voice rules instead.
+    { name: 'scratchpad', text: renderScratchpad(5), shed: 2 },
     { name: 'vibe', text: state ? `# Current Vibe\n\n${state.mood}${state.notes ? `\n${state.notes}` : ''} (as of ${state.created_at})` : '', shed: 5 },
     { name: 'facts', text: (coreFacts.length || restFacts.length) ? renderFacts([...coreFacts, ...restFacts]) : '', shed: -1,
       fallback: coreFacts.length ? renderFacts(coreFacts) : '' },
