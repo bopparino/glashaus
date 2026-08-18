@@ -72,6 +72,7 @@ export async function validateInstanceConfig(cfg = config) {
   if (cfg.wander) {
     num('wander.maxPerDay', cfg.wander.maxPerDay, 0, 6);
     num('wander.maxSearches', cfg.wander.maxSearches, 1, 6);
+    num('wander.maxPages', cfg.wander.maxPages, 1, 6);
     num('wander.minCuriosity', cfg.wander.minCuriosity, 0, 1);
   }
   if (cfg.bornDate && !/^\d{4}-\d{2}-\d{2}$/.test(cfg.bornDate)) {
@@ -188,6 +189,10 @@ export const config = {
     enabled: file.wander?.enabled ?? true,   // still requires ollamaApiKey to run
     maxPerDay: num(pick('GLASHAUS_WANDER_MAX_PER_DAY', file.wander?.maxPerDay), 1),
     maxSearches: num(pick('GLASHAUS_WANDER_MAX_SEARCHES', file.wander?.maxSearches), 3),
+    // How many results she reads IN FULL rather than as a snippet. One was the
+    // old behaviour, which made her afternoons shallower than they looked:
+    // twelve results skimmed, exactly one page actually read.
+    maxPages: num(pick('GLASHAUS_WANDER_MAX_PAGES', file.wander?.maxPages), 3),
     // Curiosity gate: below this she doesn't feel like reading today.
     minCuriosity: num(pick('GLASHAUS_WANDER_MIN_CURIOSITY', file.wander?.minCuriosity), 0.35),
   },

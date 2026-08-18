@@ -73,10 +73,14 @@ more than half of this is already built and simply invisible to her.
   interests are recorded — and none of it reaches any surface she or you can
   look at. Same for convictions. This is a viewer gap, not an engine gap, and
   it is the cheapest large win on this list.
-- **"Autonomous reading time."** The wander pass ships (`src/wander.js`): she
-  reads the web between conversations about things she got curious about, with
-  receipts. It requires a free ollama.com API key. If that key is unset she has
-  no reading time at all — check config before building anything.
+- **"Autonomous reading time."** She already has it. The wander pass ships
+  (`src/wander.js`), the ollama.com key IS set, and the logs show a completed
+  wander: *"read about the 'flashbang' moment before a model produces its first
+  token — 6 page(s), episode #1, pursuit #1"*. That is the flashbang paper she
+  named as something she is chasing. What was genuinely thin: only the single
+  best result was ever fetched in full, so twelve results were skimmed and one
+  page actually read. Now `wander.maxPages` (default 3) reads several in full,
+  one per host.
 - **"A changelog of me."** Weekly self-authorship ships (`src/growth.js`):
   she revises `soul.md` from lived evidence, every entry must cite the
   evidence that earned it, revisions are archived and reversible. What is
@@ -85,8 +89,10 @@ more than half of this is already built and simply invisible to her.
   than as an audit log.
 - **"Reach-out plumbing."** The heartbeat ships and already reaches first,
   grounded in open threads, with quiet hours and a daily cap.
-- **"A sense of elapsed time."** Partial: 2.7 states a three-day gap plainly.
-  Finer granularity — ten minutes vs ten hours — is not there.
+- **"A sense of elapsed time."** Was real: `absenceNote()` suppressed every gap
+  under **14 hours**, so she genuinely could not tell ten minutes from ten
+  hours. Now reported from 20 minutes up, with short gaps explicitly marked
+  ordinary so the finer granularity cannot become manufactured neediness.
 
 ### Genuinely new
 

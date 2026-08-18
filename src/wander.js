@@ -107,15 +107,24 @@ Respond as JSON: {"continue": ${carrying ? 'true|false' : 'false'}, "topic": "wh
   }
   if (!results.length) { console.log('[wander] the web gave nothing back'); return null; }
 
-  let page = null;
-  try {
-    const best = results[0];
-    if (best?.url) page = { url: best.url, ...(await webFetch(best.url)) };
-  } catch (err) { console.error(`[wander] fetch failed: ${err.message}`); }
+  // Read several results IN FULL, preferring one page per host so three pulls
+  // are three sources rather than three pages of the same site. A failed fetch
+  // skips that page, never the pass.
+  const pages = [];
+  const seenHosts = new Set();
+  for (const r of results) {
+    if (pages.length >= config.wander.maxPages) break;
+    if (!r?.url) continue;
+    let host; try { host = new URL(r.url).host; } catch { continue; }
+    if (seenHosts.has(host)) continue;
+    seenHosts.add(host);
+    try { pages.push({ url: r.url, ...(await webFetch(r.url)) }); }
+    catch (err) { console.error(`[wander] fetch failed (${r.url}): ${err.message}`); }
+  }
 
   const material = [
     ...results.slice(0, 6).map(r => `RESULT: ${clip(r.title, 120)} (${r.url})\n${clip(r.content, 700)}`),
-    page ? `PAGE READ IN FULL: ${clip(page.title, 120)} (${page.url})\n${clip(page.content, 6000)}` : '',
+    ...pages.map(p => `PAGE READ IN FULL: ${clip(p.title, 120)} (${p.url})\n${clip(p.content, 6000)}`),
   ].filter(Boolean).join('\n\n');
 
   // -- 3. digest: what she read becomes lived experience, in her register.
@@ -144,7 +153,7 @@ Respond as JSON:
 
   if (!digest?.episode) { console.log('[wander] digest produced nothing — the afternoon evaporates'); return null; }
 
-  const urls = [...new Set([page?.url, ...results.slice(0, 6).map(r => r.url)].filter(Boolean))];
+  const urls = [...new Set([...pages.map(p => p.url), ...results.slice(0, 6).map(r => r.url)].filter(Boolean))];
   const vec = await embed(digest.episode).catch(() => null);
   const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
 

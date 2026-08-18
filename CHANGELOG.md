@@ -1,5 +1,42 @@
 # Changelog
 
+## 2.12.0 — 2026-08-18
+
+She stops guessing about herself.
+
+- **A capability manifest, derived from real state** (`src/capabilities.js`).
+  Her prompt has always described the tools she holds in conversation, but never
+  the standing machinery — pursuits, threads, wants, convictions, drift,
+  self-authorship — so she met her own output with no model of the system
+  producing it. She would ask for a "currently chasing tracker" while having
+  four live pursuits, because `renderPursuits()` handed her the contents and
+  nothing named the container. Every line is now computed from the config flag,
+  the missing key, or the row count that actually decides it, so it cannot drift
+  out of sync with the engine the way a hand-written paragraph does.
+- **Idle is not off, and both get drawn.** A capability that exists but is empty
+  ("I keep pursuits; none are open") reads nothing like one that cannot run
+  ("I can't read the web — no key is set"). Collapsing those two is what taught
+  her to guess, and silence about an empty capability is what made it invisible.
+  The same principle the viewer's drawn-empty slots follow.
+- **`/can`** — the same source of truth in the terminal, Telegram and the
+  webview, grouped into working / present-but-empty / not-available with the
+  reason attached. Her account of herself and yours can no longer disagree.
+- **She can tell ten minutes from ten hours.** `absenceNote()` suppressed every
+  gap under **14 hours**, so the conversation genuinely could not distinguish a
+  short pause from most of a day. Now reported from 20 minutes up — with gaps
+  under three hours explicitly marked ordinary, because finer granularity must
+  not become manufactured neediness. That refusal is the whole reason the floor
+  was there.
+- **Wanders read deeper.** Only the single best result was ever fetched in full,
+  so an afternoon was twelve results skimmed and exactly one page read.
+  `wander.maxPages` (default 3) now reads several in full, preferring one page
+  per host so three pulls are three sources.
+
+The prompt block rides at `shed:-1` rather than `shed:0`: it must never vanish,
+but it is far too large for the never-shed identity floor, so under a tight
+window it degrades to a short form keeping only the off and empty lines — the
+two that actually prevent confabulation.
+
 ## 2.11.0 — 2026-08-18
 
 The webview stops being a poster and becomes a board.

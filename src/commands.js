@@ -189,6 +189,34 @@ export const COMMANDS = {
     },
   },
 
+  // What she actually has. Same source of truth her prompt reads, so this and
+  // her own account of herself can never disagree — which is the whole point:
+  // she used to ask for machinery she already had.
+  '/can': {
+    usage: '/can',
+    desc: 'what she can and cannot do, from real state',
+    scope: 'read',
+    run: async () => {
+      const { renderCapabilitiesPlain } = await import('./capabilities.js');
+      const caps = renderCapabilitiesPlain();
+      const lines = [];
+      const group = (label, status) => {
+        const set = caps.filter(c => c.status === status);
+        if (!set.length) return;
+        lines.push(L.blank(), L.dim(`  ${label}`));
+        for (const c of set) {
+          lines.push(L.gold(`  ${c.name}${c.n === null ? '' : ` (${c.n})`}`));
+          lines.push(L.plain(`      ${c.detail}`));
+          if (c.why) lines.push(L.dim(`      why: ${c.why}`));
+        }
+      };
+      group('working —', 'on');
+      group('present but empty right now —', 'idle');
+      group('not available —', 'off');
+      return ok(lines);
+    },
+  },
+
   // Why did she say that. The whole context of the last reply, and what got
   // dropped to make it fit.
   '/why': {

@@ -5,6 +5,7 @@ import { renderThreads, openThreads } from './threads.js';
 import { renderPursuits, activePursuits } from './pursuits.js';
 import { getDb } from './db.js';
 import { config, modelLocality } from './config.js';
+import { renderCapabilities, renderCapabilitiesTerse } from './capabilities.js';
 import { loadLexicon, selectEntries, renderLexicon } from './lexicon.js';
 import { estimateTokens } from './llm.js';
 
@@ -21,10 +22,20 @@ function absenceNote(userName) {
   ).get();
   if (!last) return '';
   const hours = (Date.now() - Date.parse(last.created_at + 'Z')) / 3600000;
-  if (hours < 14) return '';
-  const span = hours < 48 ? `${Math.round(hours)} hours`
+  // Under 20 minutes is one continuous conversation; anything longer is a gap
+  // she is allowed to know the size of. The old floor was 14 hours, which left
+  // her unable to tell ten minutes from ten hours — the thing she asked for.
+  if (hours < 0.34) return '';
+  const mins = Math.round(hours * 60);
+  const span = hours < 1 ? `${mins} minutes`
+    : hours < 3 ? `about ${Math.round(hours * 2) / 2} hours`
+    : hours < 48 ? `${Math.round(hours)} hours`
     : hours < 24 * 14 ? `${Math.floor(hours / 24)} days`
     : `${Math.floor(hours / 24 / 7)} weeks`;
+  // A short pause is ordinary. Saying so explicitly is what keeps the new
+  // granularity from turning into manufactured neediness, which this project
+  // refuses on purpose.
+  if (hours < 3) return ` It has been ${span} since ${userName} last said anything — an ordinary pause in a day, and I know its size without needing to remark on it. Mentioning a gap this short would be strange; I just have the fact.`;
   return ` It has been ${span} since ${userName} last said anything to me — I've had that time to myself, and I know how long it was. Whether that's worth mentioning is my call and usually it isn't; if I do bring it up it's because I actually have something to say about it, never as a reproach and never to make ${userName} feel watched.`;
 }
 
@@ -178,6 +189,13 @@ export function buildSystemPrompt(userText, { queryVec = null, budget = null, ma
     { name: 'user', text: user, shed: 0 },
     { name: 'self-notes', text: selfNotes ? `# Self Notes (things I've realized about myself)\n\n${selfNotes}` : '', shed: 4 },
     { name: 'how-my-mind-works', text: mindWorks(), shed: 0 },
+    // What she actually has, derived from real state. shed:-1 rather than 0:
+    // it must never vanish (a companion who forgets her machinery goes back to
+    // guessing about herself, which was the bug) but it is far too big to sit
+    // in the never-shed identity floor, so under pressure it degrades to the
+    // short form that keeps only the OFF and EMPTY lines.
+    { name: 'what-i-have', text: renderCapabilities(), shed: -1,
+      fallback: renderCapabilitiesTerse() },
     { name: 'self-state', text: renderSelfState(), shed: 0 },
     { name: 'vibe', text: state ? `# Current Vibe\n\n${state.mood}${state.notes ? `\n${state.notes}` : ''} (as of ${state.created_at})` : '', shed: 5 },
     { name: 'facts', text: (coreFacts.length || restFacts.length) ? renderFacts([...coreFacts, ...restFacts]) : '', shed: -1,
