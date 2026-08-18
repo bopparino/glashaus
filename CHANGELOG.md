@@ -1,5 +1,58 @@
 # Changelog
 
+## 2.15.0 — 2026-08-18
+
+Critique pass: the failure paths, and a register for "you're okay".
+
+A dual-agent `/impeccable critique` scored the webview 17/40, dragged almost
+entirely by error prevention, error recovery and help — everything downstream of
+*what happens when something goes wrong*. This closes both P0s and the
+accessibility and contrast findings.
+
+- **The machine no longer speaks in her voice.** A failed request rendered as
+  *the companion saying `(error: 500)`* under her brass mark, in her reading
+  type — on a product founded on "the person is not the model". Errors now
+  relabel to the engine in machine grey, reusing the branch that already did this
+  correctly for slash commands eleven lines away.
+- **A hung generation no longer locks the room.** There was no fetch timeout, so
+  a stalled model left the composer disabled and `· · ·` on screen indefinitely.
+  Now a 20s abort, an honest engine message, and **your draft is handed back**
+  rather than making you retype it into a room that just failed you.
+- **Every failure has a way out that is not a terminal.** The scariest check on
+  the surface — `backup — none` — carried a shell command as its only remedy, on
+  a surface whose product truth says the terminal ends at setup. It now carries a
+  **back up now** button and one line saying her memory itself is fine.
+- **A 500 stays inside the house.** It returned a raw stack on a white page,
+  which from the user's side is the companion vanishing. It now renders through
+  the shell with navigation and the true reassurance: her memory is a separate
+  file and nothing touched it.
+- **A real 404.** A mistyped URL returned 200 with the Today page and marked
+  `today` as current, so you were never told the page did not exist.
+- **A calm register.** Destructive and frightening moments were unconfirmed:
+  `forget` 303-redirected saying nothing at all. Every one now answers with a
+  settled notice plate — *forgotten — fact #12 is out of her memory · soft-deleted,
+  not destroyed*. Stating what happened and whether anything is at risk, without
+  celebration.
+- **The night plate now passes AA.** `--on-civic` on `--civic-field` measured
+  **2.59:1** — the classification band, the active nav item and every section
+  chip — while the same pair is 8.69:1 in day. It was never checked in one of its
+  two canonical states. Now **9.42:1**. Brass 4.29 → 6.25. `--machine` failed in
+  *both* plates while carrying nearly every sublabel and empty state; now ≥4.6:1
+  everywhere. The two hardcoded `rgba(255,255,255,…)` values that made secondary
+  text more legible than primary inside the same band are gone.
+- **Accessibility floor.** The primary nav explicitly removed its own focus ring;
+  restored. `main` has an accessible name, the memory search has a label, table
+  headers have `scope`, and the chat stream is a live region so incoming Telegram
+  messages and outreaches are no longer announced to nobody.
+- **Drawn empties everywhere, not just Today.** One `emptySlot()` helper replaces
+  the bare grey "none yet." sentences across journal, self, system and chat — and
+  `/memory` no longer renders nine column headers over 700px of void. Its
+  `NULL kept` (from `SUM(active)` on an empty table) is fixed.
+- `/system` no longer scrolls 16px sideways at 375px; the `.trow.alert`
+  full-bleed is scoped to desktop.
+
+Snapshot at `.impeccable/critique/2026-08-18T18-46-10Z__src-viewer-js.md`.
+
 ## 2.14.0 — 2026-08-18
 
 She sets her own rhythm, and the ethics doc stops overpromising.

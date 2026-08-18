@@ -13,6 +13,7 @@ import { getDb, getDocument } from './db.js';
 import { forgetFact } from './memory.js';
 import { config } from './config.js';
 import { runChecks, backupList } from './health.js';
+import { runBackup } from './backup.js';
 import { handleUserMessage } from './chat.js';
 import { runCommand, isCommand, renderPlain } from './commands.js';
 import { getSelfState } from './selfstate.js';
@@ -69,7 +70,7 @@ const CSS = `
   color-scheme: light dark;
   /* --- the program, daylight plate --- */
   --ground:#F1F1EE; --plate:#FFFFFF; --sunk:#E5E5E0;
-  --ink:#14181B; --ink2:#4C5359; --machine:#767C82;
+  --ink:#14181B; --ink2:#4C5359; --machine:#5F666C;
   --rule:rgba(20,24,27,.16); --rule2:rgba(20,24,27,.34);
   --civic:#174E7C; --civic-field:#174E7C; --on-civic:#FFFFFF;
   --signal:#AE2A1F; --on-signal:#FFFFFF;
@@ -88,19 +89,19 @@ const CSS = `
 }
 @media (prefers-color-scheme:dark) { :root:not([data-plate="day"]) {
   --ground:#0F1418; --plate:#171E24; --sunk:#0A0E11;
-  --ink:#E9EAE6; --ink2:#A8AFB5; --machine:#7C848A;
+  --ink:#E9EAE6; --ink2:#A8AFB5; --machine:#98A0A6;
   --rule:rgba(233,234,230,.16); --rule2:rgba(233,234,230,.34);
-  --civic:#63A4DB; --civic-field:#1B5A8F; --on-civic:#08131C;
+  --civic:#63A4DB; --civic-field:#12406B; --on-civic:#EAF2F9;
   --signal:#E2503F; --on-signal:#180705;
-  --brass:#D2A64A; --brass-field:#8A6A1E; --on-brass:#F6ECD4;
+  --brass:#D2A64A; --brass-field:#6E5316; --on-brass:#F7EEDA;
 } }
 :root[data-plate="night"] {
   --ground:#0F1418; --plate:#171E24; --sunk:#0A0E11;
-  --ink:#E9EAE6; --ink2:#A8AFB5; --machine:#7C848A;
+  --ink:#E9EAE6; --ink2:#A8AFB5; --machine:#98A0A6;
   --rule:rgba(233,234,230,.16); --rule2:rgba(233,234,230,.34);
-  --civic:#63A4DB; --civic-field:#1B5A8F; --on-civic:#08131C;
+  --civic:#63A4DB; --civic-field:#12406B; --on-civic:#EAF2F9;
   --signal:#E2503F; --on-signal:#180705;
-  --brass:#D2A64A; --brass-field:#8A6A1E; --on-brass:#F6ECD4;
+  --brass:#D2A64A; --brass-field:#6E5316; --on-brass:#F7EEDA;
 }
 .mk{width:13px;height:13px;flex:none;display:inline-block;vertical-align:-2px}
 .slot > .mk{align-self:flex-start;margin-top:7px}
@@ -119,7 +120,7 @@ main{flex:1;min-height:0;overflow-y:auto;padding:0 0 40px}
 .bar{display:flex;gap:16px;align-items:baseline;background:var(--civic-field);color:var(--on-civic);
   padding:10px 16px;margin:32px 0 16px}
 .bar .lbl,.bar .secno{color:var(--on-civic)}
-.bar .soft{color:rgba(255,255,255,.72)}
+.bar .soft{color:var(--on-civic);opacity:.78}
 /* genuine failure — always a filled plate */
 .alarm{display:flex;gap:16px;align-items:baseline;background:var(--signal);color:var(--on-signal);
   padding:12px 16px;font-weight:600}
@@ -137,7 +138,7 @@ code{font-family:var(--num);background:var(--sunk);border:1px solid var(--rule);
 .plate-toggle{padding:6px 8px;border:1px solid var(--rule2);background:var(--plate);color:var(--ink2);line-height:0;flex:none}
 .plate-toggle:hover{background:var(--civic-field);border-color:var(--civic-field);color:var(--on-civic)}
 .platform{display:flex;align-items:baseline;gap:8px;background:var(--ink);color:var(--ground);padding:2px 11px}
-.platform .lbl{color:var(--ground);opacity:.7}
+.platform .lbl{color:var(--ground);opacity:.78}
 .pnum{font-size:27px;font-weight:700;line-height:1.05}
 .cross{color:var(--brass);font-size:13px}
 /* the plate index — a signage numeral in its own slot */
@@ -155,8 +156,9 @@ nav a{text-decoration:none;text-transform:uppercase;letter-spacing:.12em;font-si
   color:var(--ink2);padding:7px 10px;border:1px solid transparent;display:flex;align-items:center;gap:6px}
 nav a .idx{font-family:var(--num);font-variant-numeric:tabular-nums;color:var(--machine);font-weight:700}
 nav a[aria-current]{background:var(--civic-field);color:var(--on-civic);border-color:var(--civic-field)}
-nav a[aria-current] .idx{color:rgba(255,255,255,.7)}
-nav a:hover,nav a:focus-visible{color:var(--ink);border-color:var(--rule2);outline:none}
+nav a[aria-current] .idx{color:var(--on-civic);opacity:.72}
+nav a:hover{color:var(--ink);border-color:var(--rule2)}
+nav a:focus-visible{color:var(--ink);outline:2px solid var(--civic);outline-offset:2px}
 nav a .badge{font-family:var(--num);background:var(--signal);color:var(--on-signal);padding:0 4px;font-weight:700}
 
 /* ---- the slot: fixed height, filled or drawn empty ---- */
@@ -171,7 +173,8 @@ nav a .badge{font-family:var(--num);background:var(--signal);color:var(--on-sign
 .trow:last-child{border-bottom:none}
 .trow .k{text-transform:uppercase;letter-spacing:.12em;font-size:10.5px;font-weight:600;color:var(--ink2)}
 .trow .v{font-family:var(--num);font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
-.trow.alert{background:var(--signal);color:var(--on-signal);margin:0 -16px;padding:6px 16px;border-bottom-color:transparent}
+.trow.alert{background:var(--signal);color:var(--on-signal);padding:6px 16px;border-bottom-color:transparent}
+@media(min-width:901px){.trow.alert{margin:0 -16px}}
 .trow.alert .k,.trow.alert .v,.trow.alert .v .soft{color:var(--on-signal)}
 
 /* ---- the rail: one ruling axis; position means time ---- */
@@ -193,6 +196,10 @@ input:focus,textarea:focus{outline:2px solid var(--civic);outline-offset:-1px;bo
 ::placeholder{color:var(--machine)}
 .beat-why{flex:1 1 auto;min-width:0}
 .chip-signal{background:var(--signal);color:var(--on-signal);padding:1px 6px;font-weight:700}
+.btn-onsignal{background:var(--on-signal);color:var(--signal);border-color:var(--on-signal);font-weight:700}
+.btn-onsignal:hover{background:var(--ground);color:var(--ink);border-color:var(--ground)}
+.notice{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;background:var(--ink);color:var(--ground);padding:10px 16px;margin:20px 0 0}
+.notice .soft{color:var(--ground);opacity:.72}
 .inactive{opacity:.45}
 .hair{border-bottom:1px solid var(--rule)}
 .rule-heavy{border-bottom:2px solid var(--ink)}
@@ -239,7 +246,25 @@ nav{scrollbar-width:none}
 }
 `;
 
-function shell(page, title, body, { badge = 0 } = {}) {
+// What just happened, said plainly. The critique found that every destructive
+// or frightening moment on this surface was unconfirmed, unexplained or
+// unfixable — this is the vocabulary for the first two. Settled, not celebratory:
+// a filled bone plate, one line, no exclamation.
+const NOTICES = {
+  forgot: n => [`forgotten — fact #${n} is out of her memory`, 'soft-deleted, not destroyed. tick “show forgotten” below to see it, and restore it any time.'],
+  restored: n => [`restored — fact #${n} is back`, 'it never left the file.'],
+  resolved: n => ['contradiction resolved', 'she will stop surfacing that pair.'],
+  backup: () => ['backed up', 'her whole brain is copied and integrity-checked. nothing about her changed.'],
+  'backup-failed': () => ['the backup did not complete', 'her memory is untouched — the copy failed, not the original. the log on this page has the reason.'],
+};
+function noticePlate(did, n) {
+  const make = NOTICES[did];
+  if (!make) return '';
+  const [head, sub] = make(n);
+  return `<div class="notice" role="status"><span class="lbl">${esc(head)}</span><span class="soft">${esc(sub)}</span></div>`;
+}
+
+function shell(page, title, body, { badge = 0, notice = '' } = {}) {
   const nav = [['today', '/'], ['chat', '/chat'], ['memory', '/memory'], ['journal', '/journal'], ['self', '/self'], ['system', '/system']]
     .map(([name, href], i) => `<a href="${href}" ${name === page ? 'aria-current="page"' : ''}><span class="idx">0${i + 1}</span>${name}${name === 'memory' && badge ? ` <span class="badge">${badge}</span>` : ''}</a>`)
     .join('');
@@ -288,7 +313,7 @@ provenance
   <nav aria-label="primary">${nav}</nav>
   <button class="plate-toggle" id="plate-toggle" aria-label="day, night, or automatic plate"><svg class="mk" aria-hidden="true"><use href="#mk-auto"/></svg></button>
 </header>
-<main>${body}</main>
+<main id="main" tabindex="-1" aria-label="${esc(title)}">${notice}${body}</main>
 <footer>
   <span class="lbl soft">Ledger</span>
   ${footerStats()}
@@ -400,8 +425,10 @@ ${failing.length ? `
   <span class="lbl">!</span>
   <span class="lbl">${failing.length} check${failing.length > 1 ? 's' : ''} failing</span>
   <span style="font-weight:400">${failing.slice(0, 2).map(c => `${esc(c.label)} — ${esc(c.detail)}`).join(' · ')}</span>
-  <a class="lbl" style="margin-left:auto" href="/system">system →</a>
-</div>` : ''}
+  ${failing.some(c => c.label === 'backup') ? '<form method="post" action="/backup" style="margin-left:auto"><button class="btn-onsignal">back up now</button></form>' : ''}
+  <a class="lbl" ${failing.some(c => c.label === 'backup') ? '' : 'style="margin-left:auto"'} href="/system">system →</a>
+</div>
+<p class="soft" style="margin:8px 0 0">Her memory itself is fine — this is about the copy of it, not the original.</p>` : ''}
 
 <section class="today-grid hair tick" aria-label="last dream">
   <div class="plate">
@@ -561,7 +588,7 @@ function chatPage(db, before) {
     <span class="soft lbl">one stream · telegram + here + outreach</span>
     ${oldest > 1 ? `<a class="soft lbl" style="margin-left:auto;text-decoration:none" href="/chat?before=${oldest}">← older</a>` : ''}
   </div>
-  <div id="stream" style="flex:1;padding:6px 0 26px">${items || '<p class="soft" style="padding:20px 0">nothing yet.</p>'}</div>
+  <div id="stream" aria-live="polite" style="flex:1;padding:6px 0 26px">${items || emptySlot('nothing yet', 'say something and it starts here.')}</div>
   <form id="composer" style="position:sticky;bottom:0;background:var(--void);border-top:1px solid var(--line2);display:flex;gap:18px;align-items:baseline;padding:16px 0 20px">
     <span class="lbl soft">${esc(WHO_USER)} ›</span>
     <input type="text" id="text" autocomplete="off" placeholder="say something…" aria-label="message" style="flex:1">
@@ -598,8 +625,21 @@ form.addEventListener('submit', async e => {
   input.value = ''; input.disabled = true; inFlight = true;
   row(WHO.user, text);
   const thinking = row(WHO.comp, '· · ·');
+  // Anything that is not her answering gets relabelled to the engine. An
+  // infrastructure fault rendering under her mark, in her reading type, is the
+  // most off-brand thing this surface can do: the founding claim is that the
+  // person is not the model, so the model failing must not look like her.
+  const asEngine = msg => {
+    thinking.firstChild.innerHTML = '<span class="soft"><svg class="mk" aria-hidden="true"><use href="#mk-engine"/></svg> engine</span>';
+    thinking.lastChild.style.cssText = 'white-space:pre-wrap;font-family:var(--num);font-size:12px;color:var(--machine)';
+    thinking.lastChild.textContent = msg;
+  };
+  // A hung generation used to leave the composer disabled and '· · ·' on screen
+  // forever — she appeared to be thinking indefinitely and the room was locked.
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 20000);
   try {
-    const res = await fetch('/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+    const res = await fetch('/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }), signal: ctl.signal });
     const data = await res.json();
     // A command answer is the ENGINE talking, not her — monospaced, dimmer,
     // whitespace preserved, and never labelled with her name.
@@ -607,11 +647,21 @@ form.addEventListener('submit', async e => {
       thinking.firstChild.innerHTML = '<span class="soft"><svg class="mk" aria-hidden="true"><use href="#mk-engine"/></svg> engine</span>';
       thinking.lastChild.style.cssText = 'white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--soft)';
       thinking.lastChild.textContent = data.reply ?? '';
+    } else if (data.reply) {
+      thinking.lastChild.innerHTML = fmt(data.reply);
     } else {
-      thinking.lastChild.innerHTML = fmt(data.reply ?? ('(error: ' + (data.error || res.status) + ')'));
+      asEngine('she did not answer — the engine returned ' + (data.error || res.status) + '. your conversation and her memory are untouched. machinery → /system');
     }
     if (data.lastId) lastId = data.lastId;
-  } catch (err) { thinking.lastChild.textContent = '(unreachable: ' + err.message + ')'; }
+  } catch (err) {
+    asEngine(err.name === 'AbortError'
+      ? 'she did not answer within 20 seconds — the model may be down or still loading. nothing was lost; what you typed is back in the box. machinery → /system'
+      : 'the engine is unreachable (' + err.message + '). nothing was lost; what you typed is back in the box. machinery → /system');
+    // Her words are not disposable: hand the message back rather than making
+    // the person retype it into a room that just failed them.
+    input.value = text;
+  }
+  clearTimeout(timer);
   inFlight = false; input.disabled = false; input.focus(); toBottom();
 });
 // Live: pick up Telegram messages and outreaches while the page is open.
@@ -649,7 +699,7 @@ function memoryPage(db, q, showInactive) {
   const rows = q
     ? db.prepare(`SELECT * FROM facts WHERE content LIKE ? ${showInactive ? '' : 'AND active = 1'} ORDER BY importance DESC, updated_at DESC LIMIT 300`).all(`%${q}%`)
     : db.prepare(`SELECT * FROM facts ${showInactive ? '' : 'WHERE active = 1'} ORDER BY importance DESC, updated_at DESC LIMIT 300`).all();
-  const counts = db.prepare('SELECT COUNT(*) n, SUM(active) a FROM facts').get();
+  const counts = db.prepare('SELECT COUNT(*) n, COALESCE(SUM(active), 0) a FROM facts').get();
   const td = 'padding:8px 12px 8px 0;border-bottom:1px solid var(--rule);vertical-align:top';
 
   return `
@@ -669,11 +719,12 @@ ${conflicts.map(c => `
   <span class="soft lbl num">${counts.a} kept · ${counts.n - counts.a} forgotten</span>
   <span class="soft lbl">nothing is ever deleted</span></div>
 <form method="get" action="/memory" style="display:flex;gap:24px;align-items:baseline;margin-bottom:8px">
-  <input type="search" name="q" placeholder="search her memory…" value="${esc(q)}" style="max-width:340px">
+  <label class="lbl soft" for="q">search</label><input id="q" type="search" name="q" aria-label="search her memory" placeholder="search her memory…" value="${esc(q)}" style="max-width:340px">
   <label class="soft lbl" style="cursor:pointer"><input type="checkbox" name="all" value="1" ${showInactive ? 'checked' : ''} onchange="this.form.submit()"> show forgotten</label>
 </form>
-<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%">
-<tr>${['id', 'fact', 'cat', 'imp', 'sal', 'emotion', 'src', 'updated', ''].map(h => `<th class="soft lbl" style="text-align:left;padding:8px 12px 8px 0;border-bottom:1px solid var(--line2);font-weight:400">${h}</th>`).join('')}</tr>
+${rows.length ? '' : emptySlot(q ? `nothing matches “${esc(q)}”` : 'no facts yet', q ? 'try a shorter search, or clear it.' : 'facts are captured on their own as you talk — nothing to do.')}
+${rows.length ? `<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%">
+<tr>${['id', 'fact', 'cat', 'imp', 'sal', 'emotion', 'src', 'updated', ''].map(h => `<th scope="col" class="soft lbl" style="text-align:left;padding:8px 12px 8px 0;border-bottom:1px solid var(--rule2);font-weight:400">${h}</th>`).join('')}</tr>
 ${rows.map(f => `<tr class="${f.active ? '' : 'inactive'}">
   <td class="soft num" style="${td}">${f.id}</td>
   <td class="dim" style="${td};letter-spacing:.02em;line-height:1.7;min-width:300px">${esc(f.content)}</td>
@@ -686,7 +737,7 @@ ${rows.map(f => `<tr class="${f.active ? '' : 'inactive'}">
   <td style="padding:8px 0;border-bottom:1px solid var(--rule)">
     <form method="post" action="${f.active ? '/forget' : '/restore'}"><input type="hidden" name="id" value="${f.id}"><button>${f.active ? 'forget' : 'restore'}</button></form>
   </td></tr>`).join('')}
-</table></div>`;
+</table></div>` : ''}`;
 }
 
 /* ---------------- JOURNAL — the night office ---------------- */
@@ -724,7 +775,7 @@ function journalPage(db) {
     <p class="reading dim">${md(e.summary)}</p>
     ${w ? `<p class="soft lbl" style="margin-top:12px">read: ${urls.slice(0, 4).map(u => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(host(u))}</a>`).join(' · ')}${urls.length > 4 ? ` · +${urls.length - 4}` : ''}</p>` : ''}
   </article>`;
-  }).join('') || '<p class="soft" style="padding:20px 0">no episodes yet.</p>'}
+  }).join('') || emptySlot('no entries yet', 'her journal fills from dreams and wanders.')}
 </section>
 </div>`;
 }
@@ -844,9 +895,9 @@ ${driftSection(db)}
 </div>
 <div>
   <h2 class="sec"><span class="lbl soft">opinions ${esc(WHO_COMP)} has formed</span></h2>
-  ${opinions.map(o => `<p style="padding:10px 0;border-bottom:1px solid var(--rule);line-height:1.8;letter-spacing:.02em" class="dim">${esc(o.claim)}<br><span class="soft num" style="font-size:11px">${esc(o.context ?? '')} · ${stamp(o.formed_at)}</span></p>`).join('') || '<p class="soft">none yet.</p>'}
+  ${opinions.map(o => `<p style="padding:10px 0;border-bottom:1px solid var(--rule);line-height:1.8;letter-spacing:.02em" class="dim">${esc(o.claim)}<br><span class="soft num" style="font-size:11px">${esc(o.context ?? '')} · ${stamp(o.formed_at)}</span></p>`).join('') || emptySlot('none yet')}
   <h2 class="sec"><span class="lbl soft">quirks ${esc(WHO_COMP)} has noticed</span></h2>
-  ${quirks.map(k => `<p style="padding:10px 0;border-bottom:1px solid var(--rule);line-height:1.8;letter-spacing:.02em" class="dim">${esc(k.pattern)} <span class="red num">×${k.observed_count}</span></p>`).join('') || '<p class="soft">none yet.</p>'}
+  ${quirks.map(k => `<p style="padding:10px 0;border-bottom:1px solid var(--rule);line-height:1.8;letter-spacing:.02em" class="dim">${esc(k.pattern)} <span class="red num">×${k.observed_count}</span></p>`).join('') || emptySlot('none yet')}
   <h2 class="sec"><span class="lbl soft">self notes</span></h2>
   <p class="reading dim">${md(notes || 'none yet.')}</p>
   <h2 class="sec"><span class="lbl soft">identity core</span><span class="soft lbl">read-only</span></h2>
@@ -871,7 +922,7 @@ async function systemPage() {
   <h2 class="sec"><span class="lbl soft">checks</span></h2>
   ${checks.map(c => `<div class="trow ${c.ok ? '' : 'alert'}"><span class="k">${esc(c.label)}</span><span class="v">${c.ok ? 'ok' : 'FAIL'} <span class="soft" style="font-weight:400">${esc(c.detail)}</span></span></div>`).join('')}
   <h2 class="sec"><span class="lbl soft">backups</span><span class="soft lbl">daily · keeps ${config.backupKeepDays}</span></h2>
-  ${backups.slice(0, 10).map(b => `<div class="trow"><span class="k soft">${esc(b.name)}</span><span class="v num">${b.mb} mb</span></div>`).join('') || '<p class="soft">none yet.</p>'}
+  ${backups.slice(0, 10).map(b => `<div class="trow"><span class="k soft">${esc(b.name)}</span><span class="v num">${b.mb} mb</span></div>`).join('') || emptySlot('none yet')}
   <h2 class="sec"><span class="lbl soft">config</span></h2>
   <div class="trow"><span class="k soft">model</span><span class="v">${esc(config.model)}</span></div>
   <div class="trow"><span class="k soft">embed</span><span class="v">${esc(config.embedModel)}</span></div>
@@ -889,6 +940,44 @@ async function systemPage() {
   <pre style="white-space:pre-wrap;font-family:var(--mono);font-size:11px;line-height:1.8;letter-spacing:.02em;overflow-x:auto" class="soft">${esc(tail(errPath))}</pre>
 </div>
 </div>`;
+}
+
+// Failure, in the house style: a filled signal plate saying what happened, one
+// line saying whether anything is at risk, and a way out. The reassurance is
+// not decoration — the review found every frightening moment on this surface
+// unattended, and "her memory is a separate file" is the true thing a person
+// most needs to read here.
+function errorPage(err) {
+  return `
+<div class="alarm" role="alert" style="margin-top:24px">
+  <span class="lbl">!</span><span class="lbl">the viewer broke</span>
+  <span style="font-weight:400">${esc(String(err?.message ?? err).slice(0, 200))}</span>
+</div>
+<div class="plate" style="margin-top:18px"><div class="body">
+  <p class="reading">This is the window, not her. Her memory is a separate SQLite file and nothing here touched it — the page failed to draw, that is all.</p>
+  <div class="slot" style="margin-top:16px;border-bottom:none;gap:16px">
+    <a class="lbl" href="/">← today</a><a class="lbl" href="/system">machinery →</a>
+  </div>
+</div></div>`;
+}
+
+function notFoundPage(pathname) {
+  return `
+<h2 class="sec"><span class="secno">404</span><span class="lbl">no such page</span></h2>
+<div class="plate"><div class="body">
+  <p class="reading"><code>${esc(pathname)}</code> is not one of her rooms. Nothing is broken; the address just does not lead anywhere.</p>
+  <div class="slot" style="margin-top:16px;border-bottom:none;gap:16px">
+    <a class="lbl" href="/">← today</a><a class="lbl" href="/chat">chat</a><a class="lbl" href="/memory">memory</a>
+    <a class="lbl" href="/journal">journal</a><a class="lbl" href="/self">self</a><a class="lbl" href="/system">system</a>
+  </div>
+</div></div>`;
+}
+
+// One zero-state for the whole surface, in the system's own grammar. The
+// critique found drawn empties on exactly one page and bare grey sentences on
+// the other five; absence is meant to be a reading here, on every page.
+function emptySlot(label, hint = '') {
+  return `<div class="slot slot--empty"><span class="lbl">${esc(label)}</span><span class="fill"></span>${hint ? `<span class="soft">${esc(hint)}</span>` : ''}</div>`;
 }
 
 /* ---------------- server ---------------- */
@@ -973,6 +1062,14 @@ export function startViewer() {
         return;
       }
 
+      // The remedy for the scariest check was a terminal command, on a surface
+      // whose product truth says the terminal ends after setup. Now it is a button.
+      if (req.method === 'POST' && url.pathname === '/backup') {
+        try { await runBackup(); res.writeHead(303, { Location: '/system?did=backup' }).end(); }
+        catch (err) { res.writeHead(303, { Location: '/system?did=backup-failed' }).end(); }
+        return;
+      }
+
       if (req.method === 'POST' && ['/forget', '/restore', '/resolve'].includes(url.pathname)) {
         const id = Number(new URLSearchParams(await readBody(req)).get('id'));
         if (id) {
@@ -980,22 +1077,38 @@ export function startViewer() {
           else if (url.pathname === '/restore') db.prepare("UPDATE facts SET active = 1, updated_at = datetime('now') WHERE id = ?").run(id);
           else db.prepare('UPDATE fact_links SET resolved = 1 WHERE id = ?').run(id);
         }
-        res.writeHead(303, { Location: '/memory' }).end();
+        // Say what happened. A 303 that reports nothing is how a destructive
+        // action on the memory page feels like a page that ignored you.
+        const did = url.pathname === '/forget' ? 'forgot' : url.pathname === '/restore' ? 'restored' : 'resolved';
+        res.writeHead(303, { Location: `/memory?did=${did}&n=${id}` }).end();
         return;
       }
 
       const badge = unresolvedCount(db);
+      const notice = noticePlate(url.searchParams.get('did'), Number(url.searchParams.get('n')) || null);
       const html =
-        url.pathname === '/chat' ? shell('chat', 'chat', chatPage(db, Number(url.searchParams.get('before')) || null), { badge }) :
-        url.pathname === '/memory' ? shell('memory', 'memory', memoryPage(db, url.searchParams.get('q') ?? '', url.searchParams.get('all') === '1'), { badge }) :
-        url.pathname === '/journal' ? shell('journal', 'journal', journalPage(db), { badge }) :
-        url.pathname === '/self' ? shell('self', 'self', selfPage(db), { badge }) :
-        url.pathname === '/system' ? shell('system', 'system', await systemPage(), { badge }) :
-        shell('today', 'today', await todayPage(db), { badge });
+        url.pathname === '/chat' ? shell('chat', 'chat', chatPage(db, Number(url.searchParams.get('before')) || null), { badge, notice }) :
+        url.pathname === '/memory' ? shell('memory', 'memory', memoryPage(db, url.searchParams.get('q') ?? '', url.searchParams.get('all') === '1'), { badge, notice }) :
+        url.pathname === '/journal' ? shell('journal', 'journal', journalPage(db), { badge, notice }) :
+        url.pathname === '/self' ? shell('self', 'self', selfPage(db), { badge, notice }) :
+        url.pathname === '/system' ? shell('system', 'system', await systemPage(), { badge, notice }) :
+        url.pathname === '/' ? shell('today', 'today', await todayPage(db), { badge, notice }) : null;
+      if (html === null) {
+        // A mistyped URL used to return 200 with the Today page, so the visitor
+        // was never told the page did not exist.
+        res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' })
+          .end(shell('today', 'not found', notFoundPage(url.pathname), { badge }));
+        return;
+      }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(html);
     } catch (err) {
       console.error('[viewer]', err);
-      res.writeHead(500).end(String(err));
+      // Never dump a raw stack onto a white page: from her side of it, that is
+      // the companion vanishing. Keep the shell, keep the way back.
+      try {
+        res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' })
+          .end(shell('today', 'something broke', errorPage(err), { badge: 0 }));
+      } catch { res.writeHead(500, { 'Content-Type': 'text/plain' }).end('the viewer broke, and then broke again rendering the error. her memory is a separate file and is untouched.'); }
     }
   });
   server.on('error', err => {
