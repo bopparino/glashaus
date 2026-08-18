@@ -90,8 +90,18 @@ export function apertureSummary() {
 // The queue: what she stacked for him, oldest first so it reads as a stack.
 export function queue(limit = 20) {
   return getDb().prepare(
-    "SELECT * FROM scratchpad WHERE aperture = 'shared' ORDER BY id ASC LIMIT ?"
+    "SELECT * FROM scratchpad WHERE aperture = 'shared' AND delivered_at IS NULL ORDER BY id ASC LIMIT ?"
   ).all(limit);
+}
+
+// She handed this one over in an outreach. It stays readable in the pad, but it
+// leaves the queue: re-offering something she already gave him is the same
+// not-having-listened failure the settled-thread list exists to prevent.
+export function markHandedOver(id) {
+  if (!id) return 0;
+  return getDb().prepare(
+    "UPDATE scratchpad SET delivered_at = datetime('now') WHERE id = ? AND delivered_at IS NULL"
+  ).run(id).changes;
 }
 
 // Notes from the last day, for the dream pass to reflect on. Marked as reflected

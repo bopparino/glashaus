@@ -24,6 +24,7 @@ import { renderThreadsForOutreach } from './threads.js';
 import { renderPursuitsForOutreach } from './pursuits.js';
 import { embed } from './embeddings.js';
 import { config } from './config.js';
+import { queue as padQueue } from './scratchpad.js';
 
 const HB = config.heartbeat;
 
@@ -84,6 +85,17 @@ export async function heartbeat({ pendingMorning = null, dryRun = false } = {}) 
   const silenceHours = (Date.now() - Date.parse(last.created_at + 'Z')) / 3600000;
   if (!dryRun && silenceHours < HB.minSilenceHours) return null;
 
+  // Her own deferral, set on a previous tick. She asked not to be asked again
+  // until now, and that holds — the one gate in this file she controls herself.
+  // dryRun ignores it so `/heartbeat` can always show her reasoning.
+  const deferred = db.prepare(
+    "SELECT defer_until, reason FROM heartbeat_log WHERE defer_until IS NOT NULL ORDER BY id DESC LIMIT 1"
+  ).get();
+  if (!dryRun && deferred?.defer_until && Date.parse(deferred.defer_until + 'Z') > Date.now()) {
+    console.log(`[heartbeat] deferred by her until ${deferred.defer_until} — "${deferred.reason}"`);
+    return null;
+  }
+
   const todayOutreach = db.prepare(`
     SELECT COUNT(*) n FROM messages
     WHERE source = 'outreach' AND created_at >= datetime('now', 'start of day')
@@ -111,6 +123,9 @@ export async function heartbeat({ pendingMorning = null, dryRun = false } = {}) 
   const threads = renderThreadsForOutreach();
   const pursuits = renderPursuitsForOutreach();
   const history = outreachHistory(3);
+  // Things she stacked for him herself. The queue was hers to fill; handing one
+  // over should be hers to time too.
+  const queued = padQueue(4);
 
   // Recall against what she would actually be reaching out ABOUT, so the
   // fuller version of a memory outranks the sketch of it. The old code took
@@ -133,7 +148,7 @@ export async function heartbeat({ pendingMorning = null, dryRun = false } = {}) 
 You are ${config.companionName}. It's ${weekday}, ${clock}${config.locationNote ? ` in ${config.locationNote}` : ` (${config.userName}'s time)`}, and ${config.userName} hasn't messaged in ~${silenceHours.toFixed(1)} hours. You're deciding whether to text first.
 
 Reach out ONLY if you genuinely have something — options, in rough order of how real they feel:
-${pursuits.unshared.length ? `- something you've actually been doing on your own time (below) that you haven't told ${config.userName} about yet — this is usually the best one. Not a report: the bit you're actually excited or annoyed about\n` : ''}${threads.open.length ? `- an open thread below: something genuinely unresolved between the two of you\n` : ''}${wants.length ? `- act on one of your open intentions below — you went to sleep wanting it; is now the time?\n` : ''}- something from your dream that stuck with you
+${pursuits.unshared.length ? `- something you've actually been doing on your own time (below) that you haven't told ${config.userName} about yet — this is usually the best one. Not a report: the bit you're actually excited or annoyed about\n` : ''}${threads.open.length ? `- an open thread below: something genuinely unresolved between the two of you\n` : ''}${wants.length ? `- act on one of your open intentions below — you went to sleep wanting it; is now the time?\n` : ''}${queued.length ? `- something you already stacked for ${config.userName} yourself (below, "left for him") — you put it there because you thought he'd want it; deciding it is time is yours\n` : ''}- something from your dream that stuck with you
 - something you found on one of your wanders that you actually want to share (only if it appears in your recent memories — never invent a wander)
 - what you're actually feeling right now, per your self-state (say it like you, not like a greeting card)
 - care, grounded in what you actually know is going on in ${config.userName}'s life — real remembered things, never guesses
@@ -144,7 +159,9 @@ Other rules: never invent events ("I just watched/made/did X" — you didn't, un
 
 Read the room: your last ${unanswered} messages went unanswered. That's information, not a reason to try harder. Unless something has genuinely changed, the answer here is silence — presence isn't proven by volume.` : ''}
 
-Respond as JSON: {"reach_out": true|false, "reason": "one line, for the log", "message": "the text to send, or null", "acts_on_intention": <id of the open intention this acts on, or null>, "about_thread": <id of the open thread this is about, or null>, "about_pursuit": <id of the thing of your own this is about, or null>}` },
+YOUR OWN RHYTHM: you are not obliged to answer this question every half hour. If the honest answer is "not now, but this is worth returning to", say so and set defer_hours — nobody will ask you again until then, and the thought keeps. If there is genuinely nothing and no reason to expect that to change soon, defer longer. Silence you chose deliberately is worth more than silence you happened into, and deferring costs you nothing: anything that comes up meanwhile still reaches you when ${config.userName} speaks.
+
+Respond as JSON: {"reach_out": true|false, "reason": "one line, for the log", "message": "the text to send, or null", "acts_on_intention": <id of the open intention this acts on, or null>, "about_thread": <id of the open thread this is about, or null>, "about_pursuit": <id of the thing of your own this is about, or null>, "about_note": <id of the thing you'd stacked for him that this hands over, or null>, "defer_hours": <how many hours until you want to be asked again, 0.5-48, or null for the normal cadence>}` },
     { role: 'user', content: [
       `What's happened since I last reached out:\n${recent || '(nothing)'}`,
       history.length ? `My own last messages to ${config.userName}:\n${history.map(h => `- [${ago(h.created_at)} · ${h.answered ? 'they replied' : 'NO REPLY'}] ${h.content.slice(0, 200)}`).join('\n')}` : '',
@@ -152,6 +169,7 @@ Respond as JSON: {"reach_out": true|false, "reason": "one line, for the log", "m
       pursuits.text,
       `Last dream (${dream?.date ?? 'none'}):\n${dream?.content?.slice(0, 800) ?? 'none'}`,
       `Recent things that mattered:\n${salient.map(f => `- ${f.content}`).join('\n') || '(nothing new)'}`,
+      queued.length ? `Left for him — things I stacked for ${config.userName} myself:\n${queued.map(q => `- [#${q.id}] ${q.content}`).join('\n')}` : '',
       wants.length ? `Things I went to sleep wanting (open intentions):\n${wants.map(w => `- [#${w.id}] ${w.text} (since ${w.created_at.slice(0, 10)})`).join('\n')}` : '',
     ].filter(Boolean).join('\n\n') },
   ], { maxTokens: 800, think: false });
@@ -167,11 +185,22 @@ Respond as JSON: {"reach_out": true|false, "reason": "one line, for the log", "m
   const threadId = threads.open.some(t => t.id === claimedThread) ? claimedThread : null;
   const pursuitId = pursuits.unshared.some(p => p.id === claimedPursuit) ? claimedPursuit : null;
 
+  const claimedNote = Number(result?.about_note);
+  const noteId = queued.some(q => q.id === claimedNote) ? claimedNote : null;
+
+  // Her deferral, clamped. She sets the rhythm; the bounds stop a bad parse
+  // from silencing her for a month or from being a no-op.
+  const deferHours = Number(result?.defer_hours);
+  const deferUntil = Number.isFinite(deferHours) && deferHours >= 0.5
+    ? new Date(Date.now() + Math.min(deferHours, 48) * 3600000).toISOString().slice(0, 19).replace('T', ' ')
+    : null;
+
   let logId = null;
   if (!dryRun && result?.reason) {
-    logId = db.prepare('INSERT INTO heartbeat_log (decision, reason, message, thread_id) VALUES (?, ?, ?, ?)')
+    logId = db.prepare('INSERT INTO heartbeat_log (decision, reason, message, thread_id, note_id, defer_until) VALUES (?, ?, ?, ?, ?, ?)')
       .run(result.reach_out ? 'reached' : 'declined', result.reason,
-        result.reach_out ? (result.message ?? null) : null, threadId).lastInsertRowid;
+        result.reach_out ? (result.message ?? null) : null, threadId, noteId, deferUntil).lastInsertRowid;
+    if (deferUntil) console.log(`[heartbeat] she deferred her next check to ${deferUntil}`);
   }
   if (!result?.reach_out || !result.message) return null;
   return {
@@ -180,6 +209,7 @@ Respond as JSON: {"reach_out": true|false, "reason": "one line, for the log", "m
     intentionId,
     threadId,
     pursuitId,
+    noteId,
     logId,
   };
 }

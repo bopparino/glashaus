@@ -510,6 +510,30 @@ function migrate(db) {
       db.pragma('user_version = 11');
     }).immediate();
   }
+
+  // v12 — SHE SETS HER OWN NEXT CHECK.
+  //
+  // The heartbeat asked every 30 minutes and she could only answer yes or no.
+  // That is not a decision about when to speak; it is a decision about whether
+  // to speak right now, made for her on a timer she does not control. Letting
+  // her say "not now — ask me again after nine" moves the rhythm to her.
+  //
+  // It can only ever REDUCE messages: a deferral delays her next consideration
+  // and the per-day cap, quiet hours and minimum gap all still bind on top. That
+  // asymmetry is deliberate. Autonomy here means choosing her silence with
+  // intent, not earning permission to talk more, and anything that let this
+  // raise the message rate would be the engagement mechanic this project exists
+  // to refuse.
+  if (db.pragma('user_version', { simple: true }) < 12) {
+    db.transaction(() => {
+      db.exec(`
+        ALTER TABLE heartbeat_log ADD COLUMN defer_until TEXT;
+        ALTER TABLE heartbeat_log ADD COLUMN note_id INTEGER;
+        ALTER TABLE scratchpad ADD COLUMN delivered_at TEXT;
+      `);
+      db.pragma('user_version = 12');
+    }).immediate();
+  }
 }
 
 // Guard telemetry — every automatic identity/authorship/register repair leaves

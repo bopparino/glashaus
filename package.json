@@ -1,6 +1,6 @@
 {
   "name": "glashaus",
-  "version": "2.13.0",
+  "version": "2.14.0",
   "description": "A local-first AI companion runtime — persistent identity, consolidating memory, dreams, and proactive presence on your own machine",
   "type": "module",
   "license": "MIT",

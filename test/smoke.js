@@ -28,7 +28,7 @@ assert.equal(config.userName, 'Sam');
 // -- db + migrations ----------------------------------------------------------
 const { getDb, setDocument, getDocument } = await import('../src/db.js');
 const db = getDb();
-assert.equal(db.pragma('user_version', { simple: true }), 11, 'migrations ran to v11');
+assert.equal(db.pragma('user_version', { simple: true }), 12, 'migrations ran to v12');
 // v11 gave her a scratchpad with an aperture she owns. Asserted here so the
 // table's existence is part of the born-instance contract, not incidental.
 assert.ok(db.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE type='table' AND name='scratchpad'").get().n === 1, 'scratchpad table exists');

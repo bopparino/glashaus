@@ -19,6 +19,7 @@ import { runBackup } from './backup.js';
 import { backfillEmbeddings } from './embeddings.js';
 import { startViewer } from './viewer.js';
 import { syncPersonaFromDisk } from './persona.js';
+import { markHandedOver } from './scratchpad.js';
 
 if (!isConfigured()) {
   console.error('No instance found. Run `glashaus setup` first.');
@@ -101,6 +102,9 @@ cron.schedule(config.crons.heartbeat, async () => {
       // She told him about it — so she won't tell him again. Delivery-first,
       // like everything else on this path.
       if (out.pursuitId) markShared(out.pursuitId);
+      // She handed over something she had stacked for him — it leaves the queue
+      // on delivery, same rule as every other side effect in this block.
+      if (out.noteId) markHandedOver(out.noteId);
       markDelivered(out.logId);
     }
   } catch (err) {

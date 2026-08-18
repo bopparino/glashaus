@@ -19,7 +19,7 @@ writeInstanceConfig({ companion: { name: 'Testa' }, user: { name: 'Sam' }, timez
 
 const { getDb, setDocument } = await import('../src/db.js');
 const db = getDb();
-assert.equal(db.pragma('user_version', { simple: true }), 11, 'migrations ran to v11');
+assert.equal(db.pragma('user_version', { simple: true }), 12, 'migrations ran to v12');
 
 const {
   startPursuit, recordSession, closePursuit, markShared, sweepPursuits,

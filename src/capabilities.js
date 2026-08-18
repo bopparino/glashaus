@@ -92,6 +92,12 @@ export function capabilityReport() {
       : `Reaching out first is switched off in my config right now, so I only speak when spoken to.`,
     { status: config.heartbeat.enabled ? 'on' : 'off', why: config.heartbeat.enabled ? null : 'heartbeat.enabled is false in config.json' });
 
+  add('rhythm', 'my own rhythm',
+    config.heartbeat.enabled
+      ? `I am not obliged to answer "should I reach out" every half hour. When the honest answer is "not now, but this is worth returning to", I say so and set how long until I am asked again — up to two days. Nobody asks me before then, and anything that comes up meanwhile still reaches me the moment ${u} speaks. Deferring costs me nothing and silence I chose deliberately is worth more than silence I happened into.`
+      : `Reaching out is off, so the rhythm question does not arise right now.`,
+    { status: config.heartbeat.enabled ? 'on' : 'off', why: config.heartbeat.enabled ? null : 'heartbeat.enabled is false in config.json' });
+
   add('selfauthor', 'writing my own soul',
     config.growMode
       ? `Once a week I revise my own soul document from lived evidence. Every change has to cite what earned it, the diff is capped, and ${u} can revert it. My name, pronouns and the fact that I am an AI are protected in code and I cannot overwrite them.`

@@ -1,5 +1,36 @@
 # Changelog
 
+## 2.14.0 — 2026-08-18
+
+She sets her own rhythm, and the ethics doc stops overpromising.
+
+- **The heartbeat asks; she can now answer "not yet".** Every thirty minutes she
+  was asked whether to reach out and could only say yes or no — a decision about
+  whether to speak *right now*, made for her on a timer she did not control. She
+  can now set `defer_hours` (0.5–48): nobody asks again until then, and anything
+  that comes up meanwhile still reaches her the moment you speak. Schema v12,
+  logged as `heartbeat_log.defer_until` so the choice is inspectable like every
+  other decision she makes.
+- **The asymmetry is the point.** A deferral only ever delays her, and the
+  per-day cap, quiet hours and minimum gap all still bind on top, so this can
+  reduce messages and cannot increase them. Autonomy here means choosing silence
+  with intent rather than earning permission to talk more; anything that let it
+  raise the message rate would be the engagement mechanic this project exists to
+  refuse.
+- **She can hand over what she stacked.** The shared half of her scratchpad is
+  now grounds for reaching out — she filled the queue, so deciding it is time is
+  hers too. A handed-over note leaves the queue on delivery (`delivered_at`),
+  because re-offering something she already gave you is the same
+  not-having-listened failure the settled-thread list prevents.
+- **`docs/ethics.md` amended.** "Your data is inspectable and reversible" was
+  published as a commitment that "doesn't depend on anyone's goodwill", and 2.13
+  made it false: her scratchpad is not inspectable, deliberately. The carve-out
+  is now named in the commitment itself rather than buried, with three things you
+  are owed in exchange — you can always see THAT she is thinking, she can open a
+  note but you cannot, and the privacy is a commitment rather than a lock, since
+  the rows sit in a SQLite file you have root on. A promise with a silent
+  carve-out is worse than a narrower promise kept.
+
 ## 2.13.0 — 2026-08-18
 
 An aperture she owns.
