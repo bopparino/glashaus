@@ -1,0 +1,59 @@
+name: Publish v3 portable app
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: glashaus-release
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11'
+      - name: Select unpublished package version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v$(node -p "JSON.parse(require('fs').readFileSync('package.json', 'utf8')).version")"
+          case "$TAG" in v3.*) ;; *) echo 'Expected a v3 package version'; exit 1 ;; esac
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          RELEASES=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100")
+          EXISTS=$(printf '%s' "$RELEASES" | jq -r --arg tag "$TAG" 'any(.[]; .tag_name == $tag)')
+          echo "exists=$EXISTS" >> "$GITHUB_OUTPUT"
+          if [ "$EXISTS" = true ]; then echo "$TAG already exists; no release assets will be overwritten."; fi
+      - run: pnpm install --frozen-lockfile
+        if: steps.version.outputs.exists == 'false'
+      - run: pnpm typecheck && pnpm test && pnpm build
+        if: steps.version.outputs.exists == 'false'
+      - name: Create portable archive
+        if: steps.version.outputs.exists == 'false'
+        run: |
+          zip -r glashaus-v3.zip dist bin/glashaus-v3.js package.json README.md RELEASE.md THIRD_PARTY_NOTICES.md LICENSE
+          sha256sum glashaus-v3.zip > glashaus-v3.zip.sha256
+      - name: Verify the actual portable archive
+        if: steps.version.outputs.exists == 'false'
+        run: |
+          mkdir portable-check
+          unzip -q glashaus-v3.zip -d portable-check
+          node tests/portable-smoke.cjs portable-check
+      - name: Publish the verified alpha
+        if: steps.version.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: gh release create "$RELEASE_TAG" glashaus-v3.zip glashaus-v3.zip.sha256 --target "$GITHUB_SHA" --prerelease --title "GlasHaus $RELEASE_TAG" --notes-file RELEASE_NOTES.md

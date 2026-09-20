@@ -1,171 +1,482 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-18T17:22:28Z",
-  "title": "Design System: GlasHaus",
+  "generatedAt": "2026-09-20T20:49:05.282Z",
+  "title": "Design System: GlasHaus v3 — Prism",
   "extensions": {
     "colorMeta": {
-      "ground": { "role": "neutral", "displayName": "Enamel Ground", "canonical": "#F1F1EE", "tonalRamp": ["#101314","#1E2325","#2E3437","#454C50","#5F676B","#8A9296","#C3C9CB","#F1F1EE"] },
-      "plate": { "role": "neutral", "displayName": "Plate", "canonical": "#FFFFFF" },
-      "sunk": { "role": "neutral", "displayName": "Sunk", "canonical": "#E5E5E0" },
-      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#14181B", "tonalRamp": ["#14181B","#232A2E","#353E43","#4C5359","#6B7378","#949BA0","#C2C7CA","#EDEFF0"] },
-      "ink2": { "role": "neutral", "displayName": "Ink Secondary", "canonical": "#4C5359" },
-      "machine": { "role": "neutral", "displayName": "Machine Grey", "canonical": "#767C82" },
-      "civic": { "role": "primary", "displayName": "Civic Blue", "canonical": "#174E7C", "tonalRamp": ["#071522","#0B2438","#10344F","#174E7C","#2A6B9F","#4F92C4","#8CBCDE","#CFE3F1"] },
-      "signal": { "role": "tertiary", "displayName": "Signal Red", "canonical": "#AE2A1F", "tonalRamp": ["#2B0906","#48100B","#661810","#8A2117","#AE2A1F","#D2492F","#E68C77","#F5CBC0"] },
-      "brass": { "role": "secondary", "displayName": "Brass", "canonical": "#7A5A12", "tonalRamp": ["#1B1403","#2E2207","#46340C","#5F4610","#7A5A12","#A87D1D","#D8B45A","#EFDCA9"] },
-      "brass-field": { "role": "secondary", "displayName": "Brass Field", "canonical": "#D8B45A" },
-      "rule": { "role": "neutral", "displayName": "Hairline", "canonical": "rgba(20,24,27,0.16)" },
-      "rule2": { "role": "neutral", "displayName": "Hairline Strong", "canonical": "rgba(20,24,27,0.34)" }
+      "carbon": {
+        "role": "neutral",
+        "displayName": "Carbon",
+        "tonalRamp": [
+          "oklch(15% 0.0028 145.43)",
+          "oklch(26% 0.0028 145.43)",
+          "oklch(38% 0.0028 145.43)",
+          "oklch(49% 0.0028 145.43)",
+          "oklch(61% 0.0028 145.43)",
+          "oklch(72% 0.0028 145.43)",
+          "oklch(84% 0.0028 145.43)",
+          "oklch(95% 0.0028 145.43)"
+        ]
+      },
+      "ink": {
+        "role": "primary",
+        "displayName": "Bone",
+        "tonalRamp": [
+          "oklch(15% 0.0081 98.88)",
+          "oklch(26% 0.0081 98.88)",
+          "oklch(38% 0.0081 98.88)",
+          "oklch(49% 0.0081 98.88)",
+          "oklch(61% 0.0081 98.88)",
+          "oklch(72% 0.0081 98.88)",
+          "oklch(84% 0.0081 98.88)",
+          "oklch(95% 0.0081 98.88)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted Ash",
+        "tonalRamp": [
+          "oklch(15% 0.0086 114.29)",
+          "oklch(26% 0.0086 114.29)",
+          "oklch(38% 0.0086 114.29)",
+          "oklch(49% 0.0086 114.29)",
+          "oklch(61% 0.0086 114.29)",
+          "oklch(72% 0.0086 114.29)",
+          "oklch(84% 0.0086 114.29)",
+          "oklch(95% 0.0086 114.29)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Dark Surface",
+        "tonalRamp": [
+          "oklch(15% 0.0042 128.71)",
+          "oklch(26% 0.0042 128.71)",
+          "oklch(38% 0.0042 128.71)",
+          "oklch(49% 0.0042 128.71)",
+          "oklch(61% 0.0042 128.71)",
+          "oklch(72% 0.0042 128.71)",
+          "oklch(84% 0.0042 128.71)",
+          "oklch(95% 0.0042 128.71)"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Quiet Rule",
+        "tonalRamp": [
+          "oklch(15% 0.0070 118.20)",
+          "oklch(26% 0.0070 118.20)",
+          "oklch(38% 0.0070 118.20)",
+          "oklch(49% 0.0070 118.20)",
+          "oklch(61% 0.0070 118.20)",
+          "oklch(72% 0.0070 118.20)",
+          "oklch(84% 0.0070 118.20)",
+          "oklch(95% 0.0070 118.20)"
+        ]
+      },
+      "graphite": {
+        "role": "neutral",
+        "displayName": "Graphite",
+        "tonalRamp": [
+          "oklch(15% 0.0040 128.64)",
+          "oklch(26% 0.0040 128.64)",
+          "oklch(38% 0.0040 128.64)",
+          "oklch(49% 0.0040 128.64)",
+          "oklch(61% 0.0040 128.64)",
+          "oklch(72% 0.0040 128.64)",
+          "oklch(84% 0.0040 128.64)",
+          "oklch(95% 0.0040 128.64)"
+        ]
+      },
+      "primary-hover": {
+        "role": "primary",
+        "displayName": "White Hover",
+        "tonalRamp": [
+          "oklch(15% 0.0000 89.88)",
+          "oklch(26% 0.0000 89.88)",
+          "oklch(38% 0.0000 89.88)",
+          "oklch(49% 0.0000 89.88)",
+          "oklch(61% 0.0000 89.88)",
+          "oklch(72% 0.0000 89.88)",
+          "oklch(84% 0.0000 89.88)",
+          "oklch(95% 0.0000 89.88)"
+        ]
+      },
+      "composer-fill": {
+        "role": "neutral",
+        "displayName": "Composer Glass",
+        "tonalRamp": [
+          "oklch(15% 0.0061 121.99)",
+          "oklch(26% 0.0061 121.99)",
+          "oklch(38% 0.0061 121.99)",
+          "oklch(49% 0.0061 121.99)",
+          "oklch(61% 0.0061 121.99)",
+          "oklch(72% 0.0061 121.99)",
+          "oklch(84% 0.0061 121.99)",
+          "oklch(95% 0.0061 121.99)"
+        ]
+      },
+      "composer-stroke": {
+        "role": "neutral",
+        "displayName": "Composer Edge",
+        "tonalRamp": [
+          "oklch(15% 0.0097 114.47)",
+          "oklch(26% 0.0097 114.47)",
+          "oklch(38% 0.0097 114.47)",
+          "oklch(49% 0.0097 114.47)",
+          "oklch(61% 0.0097 114.47)",
+          "oklch(72% 0.0097 114.47)",
+          "oklch(84% 0.0097 114.47)",
+          "oklch(95% 0.0097 114.47)"
+        ]
+      },
+      "message-fill": {
+        "role": "neutral",
+        "displayName": "Companion Fill",
+        "tonalRamp": [
+          "oklch(15% 0.0042 128.71)",
+          "oklch(26% 0.0042 128.71)",
+          "oklch(38% 0.0042 128.71)",
+          "oklch(49% 0.0042 128.71)",
+          "oklch(61% 0.0042 128.71)",
+          "oklch(72% 0.0042 128.71)",
+          "oklch(84% 0.0042 128.71)",
+          "oklch(95% 0.0042 128.71)"
+        ]
+      },
+      "user-message-fill": {
+        "role": "neutral",
+        "displayName": "Graphite Message Fill",
+        "tonalRamp": [
+          "oklch(15% 0.0040 128.64)",
+          "oklch(26% 0.0040 128.64)",
+          "oklch(38% 0.0040 128.64)",
+          "oklch(49% 0.0040 128.64)",
+          "oklch(61% 0.0040 128.64)",
+          "oklch(72% 0.0040 128.64)",
+          "oklch(84% 0.0040 128.64)",
+          "oklch(95% 0.0040 128.64)"
+        ]
+      },
+      "message-stroke": {
+        "role": "neutral",
+        "displayName": "Message Edge",
+        "tonalRamp": [
+          "oklch(15% 0.0102 114.60)",
+          "oklch(26% 0.0102 114.60)",
+          "oklch(38% 0.0102 114.60)",
+          "oklch(49% 0.0102 114.60)",
+          "oklch(61% 0.0102 114.60)",
+          "oklch(72% 0.0102 114.60)",
+          "oklch(84% 0.0102 114.60)",
+          "oklch(95% 0.0102 114.60)"
+        ]
+      },
+      "notice-fill": {
+        "role": "neutral",
+        "displayName": "Notice Fill",
+        "tonalRamp": [
+          "oklch(15% 0.0083 128.91)",
+          "oklch(26% 0.0083 128.91)",
+          "oklch(38% 0.0083 128.91)",
+          "oklch(49% 0.0083 128.91)",
+          "oklch(61% 0.0083 128.91)",
+          "oklch(72% 0.0083 128.91)",
+          "oklch(84% 0.0083 128.91)",
+          "oklch(95% 0.0083 128.91)"
+        ]
+      },
+      "notice-stroke": {
+        "role": "neutral",
+        "displayName": "Notice Edge",
+        "tonalRamp": [
+          "oklch(15% 0.0157 120.53)",
+          "oklch(26% 0.0157 120.53)",
+          "oklch(38% 0.0157 120.53)",
+          "oklch(49% 0.0157 120.53)",
+          "oklch(61% 0.0157 120.53)",
+          "oklch(72% 0.0157 120.53)",
+          "oklch(84% 0.0157 120.53)",
+          "oklch(95% 0.0157 120.53)"
+        ]
+      },
+      "error-fill": {
+        "role": "neutral",
+        "displayName": "Error Fill",
+        "tonalRamp": [
+          "oklch(15% 0.0140 41.59)",
+          "oklch(26% 0.0140 41.59)",
+          "oklch(38% 0.0140 41.59)",
+          "oklch(49% 0.0140 41.59)",
+          "oklch(61% 0.0140 41.59)",
+          "oklch(72% 0.0140 41.59)",
+          "oklch(84% 0.0140 41.59)",
+          "oklch(95% 0.0140 41.59)"
+        ]
+      },
+      "error-stroke": {
+        "role": "neutral",
+        "displayName": "Error Edge",
+        "tonalRamp": [
+          "oklch(15% 0.0596 35.84)",
+          "oklch(26% 0.0596 35.84)",
+          "oklch(38% 0.0596 35.84)",
+          "oklch(49% 0.0596 35.84)",
+          "oklch(61% 0.0596 35.84)",
+          "oklch(72% 0.0596 35.84)",
+          "oklch(84% 0.0596 35.84)",
+          "oklch(95% 0.0596 35.84)"
+        ]
+      },
+      "error-text": {
+        "role": "neutral",
+        "displayName": "Error Text",
+        "tonalRamp": [
+          "oklch(15% 0.0511 41.10)",
+          "oklch(26% 0.0511 41.10)",
+          "oklch(38% 0.0511 41.10)",
+          "oklch(49% 0.0511 41.10)",
+          "oklch(61% 0.0511 41.10)",
+          "oklch(72% 0.0511 41.10)",
+          "oklch(84% 0.0511 41.10)",
+          "oklch(95% 0.0511 41.10)"
+        ]
+      }
     },
     "typographyMeta": {
-      "display": { "displayName": "Monument", "purpose": "Her dream epigraph, hand-balanced into 2-3 word lines; four size steps down as the longest line grows." },
-      "headline": { "displayName": "Platform Numeral", "purpose": "Day-of-life on the inverted ink plate, at the scale a platform number has in life." },
-      "body": { "displayName": "Body", "purpose": "Archivo 14px — the interface default." },
-      "reading": { "displayName": "Reading", "purpose": "15px/1.75 pre-wrap for lived text only: chat, dreams, episodes. 62ch on the Today lede." },
-      "label": { "displayName": "Label", "purpose": "10.5px uppercase 0.13em at 600 — the workhorse, tightening to 0.12em in nav and row keys." },
-      "numeral": { "displayName": "Numeral", "purpose": "Monospace tabular, reserved for values that must align in columns." }
+      "display": {
+        "displayName": "Greeting",
+        "purpose": "Roboto Mono at weight 200; phone overrides are documented in DESIGN.md."
+      },
+      "title": {
+        "displayName": "Document Title",
+        "purpose": "Light Archivo heading for setup, settings, memory and journal."
+      },
+      "body": {
+        "displayName": "Document Body",
+        "purpose": "Archivo descriptions and supporting prose."
+      },
+      "reading": {
+        "displayName": "Conversation Text",
+        "purpose": "Light Archivo message paragraphs."
+      },
+      "label": {
+        "displayName": "Field Label",
+        "purpose": "Actual label elements associated with their controls."
+      },
+      "field": {
+        "displayName": "Field Input",
+        "purpose": "Mono input and select text; phone size is 16px."
+      },
+      "button": {
+        "displayName": "Form Button",
+        "purpose": "Primary and secondary form actions."
+      },
+      "text-button": {
+        "displayName": "Text Action",
+        "purpose": "Underlined supporting actions."
+      },
+      "navigation": {
+        "displayName": "Navigation",
+        "purpose": "Tracked uppercase labels for the four destinations."
+      },
+      "action": {
+        "displayName": "Home Action",
+        "purpose": "Tracked uppercase action name; supporting sentence retains normal case."
+      },
+      "composer": {
+        "displayName": "Composer",
+        "purpose": "Archivo multiline conversation input."
+      },
+      "helper": {
+        "displayName": "Helper",
+        "purpose": "Secondary form guidance."
+      },
+      "metadata": {
+        "displayName": "Message Metadata",
+        "purpose": "Speaker and timestamp information."
+      }
     },
     "shadows": [],
-    "motion": [],
-    "breakpoints": [{ "name": "compact", "value": "900px" }],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Shared settling curve for the optical plate and conversation entrance."
+      },
+      {
+        "name": "optical-state",
+        "value": "opacity 1.5s var(--ease), transform 1.5s var(--ease)",
+        "purpose": "One optical plate shifts between home, reading and conversation."
+      },
+      {
+        "name": "conversation-entrance",
+        "value": "450ms cubic-bezier(0.16, 1, 0.3, 1) both",
+        "purpose": "On mount: translateY(12px), blur(3px), opacity .65 settle to zero offset, no blur and opacity 1."
+      },
+      {
+        "name": "control-hover",
+        "value": "background 0.2s, border-color 0.2s",
+        "purpose": "Primary and secondary form button state changes."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation: none !important; transition: none !important; scroll-behavior: auto !important",
+        "purpose": "Applied to every element and pseudo-element under prefers-reduced-motion: reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile-max",
+        "value": "760px"
+      },
+      {
+        "name": "desktop-min",
+        "value": "761px"
+      },
+      {
+        "name": "short-desktop-max-height",
+        "value": "850px"
+      }
+    ],
     "notes": [
-      "No box-shadow and no border-radius exist anywhere in the system; depth is tonal layering plus hairlines, and emphasis inverts the ground.",
-      "The system ships with zero transitions and zero keyframes. It is still by construction, not by omission.",
-      "Light and dark are both canonical. Unset follows prefers-color-scheme; :root[data-plate='day'|'night'] overrides, set pre-paint from localStorage.",
-      "A legacy alias layer maps --void --pane --paper --mute --line --red --gilt --mono onto the new tokens so inline styles on the five inherited pages keep working. --red resolves to CIVIC BLUE and no longer means danger. This is a migration shim, not a semantic."
+      "Tonal ramps are synthesized preview-only OKLCH values, preserving each source hue and chroma while stepping lightness. Alpha colors use their RGB channels for the preview. They are not application tokens.",
+      "Sources: app/web/App.tsx, Icon.tsx, Forms.tsx, styles.css, motion.css and forms.css. Styles load in that order: styles, motion, forms. Documentation does not claim a final visual-review pass.",
+      "One shipping raster: app/web/public/art/prism-soft.png (1024 x 1536). The final edit softened the existing arc perimeter. Exact prompt: .impeccable/prism-soft-prompt.txt; prompt metadata is embedded in the PNG.",
+      "Optical plate: fixed behind the shell, pointer-events none, object-fit cover, object-position center top, mix-blend-mode lighten. Desktop size is min(90vw, 1320px) by 130vh, top 0, right -6vw. Phone size is 100vw by calc(100vw * 1.5), top 52px, right 0.",
+      "Scene cascade: desktop home opacity .86; phone home .82. Reading uses opacity .17 and translateY(30vh). Desktop conversation uses .34 and translateY(46vh); desktop generation changes opacity to .48. Phone conversation uses .38 and translateY(48vh); its later equal-specificity rule also holds .38 during generation.",
+      "No box shadows or backdrop blur. The optical plate must blend into carbon without an image-shaped boundary.",
+      "Shell: max-width 1600px and 6vw inline padding; phone padding 20px. Home width min(560px, 52%), conversation max-width 800px, documents max-width 760px.",
+      "Desktop active conversation height calc(100dvh - 132px), min-height 350px, bottom padding 26px. Phone height calc(100dvh - 74px), min-height 340px, bottom padding max(18px, env(safe-area-inset-bottom)). Messages scroll independently above the composer.",
+      "Phone navigation: fixed bottom bar, min-height 70px, padding 8px 28px max(12px, env(safe-area-inset-bottom)), background #090a09f5. Hidden during active conversation. Document bottom clearance is 100px on phones and 80px on desktop.",
+      "Focus outline: 2px solid var(--ink), offset 5px. Composer textarea suppresses its outline and uses its container focus-within border. Buttons disabled: opacity .45, cursor not-allowed.",
+      "Icons are Phosphor thin. The ArrowRight and ArrowUp snippet paths were copied from the installed package. Snippets are static, framework-free previews; their layout anchoring and real behavior belong to the application.",
+      "Fonts are local: archivo.ttf and roboto-mono.ttf, with OFL.txt and RobotoMono-OFL.txt. Saira is not loaded. No chip component is implemented in the current interface."
     ]
   },
   "components": [
     {
-      "name": "Tagged Plate",
-      "kind": "card",
-      "refersTo": "plate",
-      "description": "Flat enamel rectangle with its classification tag seated hard into the top-left corner. Civic tag for system classification, brass when the content is hers.",
-      "html": "<div class=\"ds-plate\"><span class=\"ds-tag ds-tag-hers\">01 · her night</span><div class=\"ds-plate-body\"><div class=\"ds-monument\">What having an<br>opinion costs</div></div></div>",
-      "css": ".ds-plate{background:#fff;border:1px solid rgba(20,24,27,.16);position:relative;border-radius:0;font-family:Archivo,system-ui,sans-serif;color:#14181B}.ds-tag{position:absolute;top:0;left:0;background:#174E7C;color:#fff;padding:4px 9px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;font-weight:600}.ds-tag-hers{background:#D8B45A;color:#1B1403}.ds-plate-body{padding:32px 22px 20px}.ds-monument{font-weight:800;font-size:clamp(28px,5vw,54px);line-height:1.02;letter-spacing:-.022em}"
-    },
-    {
-      "name": "Slot with Drawn Empty",
-      "kind": "custom",
-      "refersTo": "slot",
-      "description": "The system's atom. Fixed height, hairline beneath. Its empty state is DRAWN — a dashed rule spanning the remaining width — because on this runtime an omitted row was the wrong drawing.",
-      "html": "<div class=\"ds-slot\"><svg class=\"ds-mk\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M8 2 L14 8 L8 14 L2 8 Z\" fill=\"#7A5A12\"/></svg><span style=\"flex:1\">tell him I was wrong about the temperature<br><span class=\"ds-sub\">dream</span></span></div><div class=\"ds-slot ds-slot-empty\"><span class=\"ds-sub\">nothing held</span><span class=\"ds-fill\"></span></div>",
-      "css": ".ds-slot{display:flex;align-items:center;gap:14px;min-height:34px;padding:5px 0;border-bottom:1px solid rgba(20,24,27,.16);font-family:Archivo,system-ui,sans-serif;font-size:14px;color:#14181B}.ds-slot:last-child{border-bottom:none}.ds-mk{width:13px;height:13px;flex:none;align-self:flex-start;margin-top:7px}.ds-sub{text-transform:uppercase;letter-spacing:.13em;font-size:10.5px;font-weight:600;color:#767C82}.ds-slot-empty{color:#767C82}.ds-fill{flex:1;border-top:1px dashed rgba(20,24,27,.34);height:0}"
-    },
-    {
-      "name": "The Rail",
-      "kind": "custom",
-      "refersTo": "slot",
-      "description": "The page spine. One 2px line running full height; every top-level region registers a tick on it, so vertical position means time.",
-      "html": "<div class=\"ds-rail\"><div class=\"ds-tick\" style=\"padding:14px 0\">alarm</div><div class=\"ds-tick\" style=\"padding:34px 0\">the dream board</div><div class=\"ds-tick\" style=\"padding:14px 0\">heartbeat</div></div>",
-      "css": ".ds-rail{position:relative;padding-left:26px;font-family:Archivo,system-ui,sans-serif;font-size:14px;color:#14181B}.ds-rail:before{content:'';position:absolute;left:8px;top:4px;bottom:4px;width:2px;background:rgba(20,24,27,.34)}.ds-tick{position:relative}.ds-tick:before{content:'';position:absolute;left:-22px;top:14px;width:8px;height:8px;border-radius:50%;background:#F1F1EE;border:2px solid #174E7C}"
-    },
-    {
-      "name": "Button",
+      "name": "Primary Button",
       "kind": "button",
-      "refersTo": "button",
-      "description": "One variant only; destructive actions use the same treatment. Hover inverts to the civic field.",
-      "html": "<button class=\"ds-btn\">forget</button>",
-      "css": ".ds-btn{background:#fff;border:1px solid rgba(20,24,27,.34);color:#14181B;font-family:Archivo,system-ui,sans-serif;font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;padding:7px 13px;border-radius:0;cursor:pointer}.ds-btn:hover{background:#174E7C;border-color:#174E7C;color:#fff}.ds-btn:focus-visible{outline:2px solid #174E7C;outline-offset:2px}"
+      "refersTo": "button-primary",
+      "description": "Bone form action for saving settings or continuing setup.",
+      "html": "<button type=\"button\" class=\"ds-primary\">Save settings</button>",
+      "css": ".ds-primary{display:inline-flex;align-items:center;justify-content:center;gap:18px;min-height:46px;padding:12px 20px;border-radius:8px;font:13px/1.5 var(--mono, \"Roboto Mono\", monospace);text-decoration:none;cursor:pointer;transition:background .2s,border-color .2s;background:var(--ink, #e9e8e2);color:var(--carbon, #090a09);border:1px solid var(--ink, #e9e8e2)}.ds-primary:hover{background:#ffffff;border-color:#ffffff}.ds-primary:focus-visible{outline:2px solid var(--ink, #e9e8e2);outline-offset:5px}.ds-primary:disabled{opacity:.45;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-primary{animation:none!important;transition:none!important;scroll-behavior:auto!important}}"
     },
     {
-      "name": "Input",
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Quiet bordered action for testing a connection or retrying a reply.",
+      "html": "<button type=\"button\" class=\"ds-secondary\">Test connection</button>",
+      "css": ".ds-secondary{display:inline-flex;align-items:center;justify-content:center;gap:18px;min-height:46px;padding:12px 20px;border-radius:8px;font:13px/1.5 var(--mono, \"Roboto Mono\", monospace);text-decoration:none;cursor:pointer;transition:background .2s,border-color .2s;background:var(--surface, #141513);color:var(--ink, #e9e8e2);border:1px solid var(--rule, #353632)}.ds-secondary:hover{border-color:var(--muted, #a5a6a0);background:var(--surface, #141513)}.ds-secondary:focus-visible{outline:2px solid var(--ink, #e9e8e2);outline-offset:5px}.ds-secondary:disabled{opacity:.45;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-secondary{animation:none!important;transition:none!important;scroll-behavior:auto!important}}"
+    },
+    {
+      "name": "Text Button",
+      "kind": "button",
+      "refersTo": "button-text",
+      "description": "Underlined supporting action.",
+      "html": "<button type=\"button\" class=\"ds-text\">Back to your space</button>",
+      "css": ".ds-text{font:13px/1.7 var(--mono, \"Roboto Mono\", monospace);padding:6px 0;text-decoration:underline;text-underline-offset:5px;color:var(--muted, #a5a6a0);background:none;border:0;cursor:pointer}.ds-text:hover{color:var(--ink, #e9e8e2)}.ds-text:focus-visible{outline:2px solid var(--ink, #e9e8e2);outline-offset:5px}.ds-text:disabled{opacity:.45;cursor:not-allowed}@media(max-width:760px){.ds-text{min-height:44px}}"
+    },
+    {
+      "name": "Send Button",
+      "kind": "button",
+      "refersTo": "button-send",
+      "description": "Thin Phosphor arrow with a left separator; the app swaps it for Stop during generation.",
+      "html": "<button type=\"button\" class=\"ds-send\" aria-label=\"Send message\"><svg width=\"25\" height=\"25\" viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M202.83,114.83a4,4,0,0,1-5.66,0L132,49.66V216a4,4,0,0,1-8,0V49.66L58.83,114.83a4,4,0,0,1-5.66-5.66l72-72a4,4,0,0,1,5.66,0l72,72A4,4,0,0,1,202.83,114.83Z\"/></svg></button>",
+      "css": ".ds-send{display:flex;align-items:center;justify-content:center;width:44px;height:40px;flex-shrink:0;border:0;border-left:1px solid var(--rule, #353632);background:none;color:var(--ink, #e9e8e2);cursor:pointer}.ds-send:hover:enabled{color:#fff;background:#e9e8e210;border-radius:0 14px 14px 0}.ds-send:focus-visible{outline:2px solid var(--ink, #e9e8e2);outline-offset:5px}.ds-send:disabled{opacity:.45;cursor:not-allowed}@media(max-width:760px){.ds-send{width:39px;height:38px}}"
+    },
+    {
+      "name": "Labeled Field",
       "kind": "input",
-      "refersTo": "input",
-      "description": "Plate fill, square, focus draws an inset civic outline.",
-      "html": "<input class=\"ds-input\" type=\"search\" placeholder=\"search her memory…\">",
-      "css": ".ds-input{background:#fff;border:1px solid rgba(20,24,27,.34);border-radius:0;color:#14181B;font-family:Archivo,system-ui,sans-serif;font-size:15px;padding:9px 11px;width:100%;max-width:340px}.ds-input:focus{outline:2px solid #174E7C;outline-offset:-1px;border-color:#174E7C}.ds-input::placeholder{color:#767C82}"
+      "refersTo": "field",
+      "description": "A real label, neutral input and connected helper.",
+      "html": "<div class=\"ds-field\"><label for=\"ds-model\">Conversation model</label><input id=\"ds-model\" type=\"text\" placeholder=\"Choose or enter a model\" aria-describedby=\"ds-model-hint\"><small id=\"ds-model-hint\">Use the exact model name from Ollama.</small></div>",
+      "css": ".ds-field{display:flex;flex-direction:column;gap:10px;margin:24px 0;color:var(--muted, #a5a6a0);font:14px/1.5 var(--mono, \"Roboto Mono\", monospace)}.ds-field input{width:100%;background:var(--surface, #141513);border:1px solid var(--rule, #353632);border-radius:8px;color:var(--muted, #a5a6a0);padding:13px 15px;font:14px/1.6 var(--mono, \"Roboto Mono\", monospace);caret-color:var(--ink, #e9e8e2)}.ds-field input:focus{border-color:var(--ink, #e9e8e2)}.ds-field input::placeholder{color:var(--muted, #a5a6a0);opacity:1}.ds-field small{font:12px/1.8 var(--mono, \"Roboto Mono\", monospace);color:var(--muted, #a5a6a0)}.ds-field input:focus-visible{outline:2px solid var(--ink, #e9e8e2);outline-offset:5px}@media(max-width:760px){.ds-field input{font-size:16px}}"
     },
     {
-      "name": "Indexed Nav",
+      "name": "Main Navigation",
       "kind": "nav",
-      "refersTo": "nav-link",
-      "description": "Six lowercase links with mono indices. Active inverts to the civic field; a conflict count renders as a signal chip.",
-      "html": "<nav class=\"ds-nav\"><a href=\"#\"><span class=\"ds-idx\">01</span>today</a><a href=\"#\" class=\"ds-nav-on\"><span class=\"ds-idx\">03</span>memory <span class=\"ds-chip\">2</span></a><a href=\"#\"><span class=\"ds-idx\">05</span>self</a></nav>",
-      "css": ".ds-nav{display:flex;gap:2px;font-family:Archivo,system-ui,sans-serif}.ds-nav a{text-decoration:none;text-transform:uppercase;letter-spacing:.12em;font-size:10.5px;font-weight:600;color:#4C5359;padding:7px 10px;border:1px solid transparent;display:flex;align-items:center;gap:6px}.ds-idx{font-family:ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;color:#767C82;font-weight:700}.ds-nav a.ds-nav-on{background:#174E7C;color:#fff;border-color:#174E7C}.ds-nav a.ds-nav-on .ds-idx{color:rgba(255,255,255,.7)}.ds-nav a:hover{color:#14181B;border-color:rgba(20,24,27,.34)}.ds-chip{font-family:ui-monospace,Menlo,monospace;background:#AE2A1F;color:#fff;padding:0 4px;font-weight:700}"
+      "refersTo": "navigation",
+      "description": "Four mono destinations with a current-page dot; viewport anchoring belongs to the app shell.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Main\"><button type=\"button\" aria-current=\"page\">Home</button><button type=\"button\">Memory</button><button type=\"button\">Journal</button><button type=\"button\">Settings</button></nav>",
+      "css": ".ds-nav{display:flex;align-items:center;gap:22px}.ds-nav button{position:relative;min-height:44px;font:11px/1.5 var(--mono, \"Roboto Mono\", monospace);letter-spacing:.1em;text-transform:uppercase;color:var(--muted, #a5a6a0);padding:12px 8px;border:0;background:none;cursor:pointer}.ds-nav button:hover,.ds-nav button[aria-current]{color:var(--ink, #e9e8e2)}.ds-nav button[aria-current]::after{content:\"\";position:absolute;bottom:0;left:calc(50% - 2px);width:4px;height:4px;border-radius:50%;background:var(--ink, #e9e8e2)}.ds-nav button:focus-visible{outline:2px solid var(--ink, #e9e8e2);outline-offset:5px}.ds-nav button:disabled{opacity:.45;cursor:not-allowed}@media(max-width:760px){.ds-nav{justify-content:space-between;gap:12px}.ds-nav button{font-size:10px;min-width:48px;letter-spacing:.09em;padding:9px 0 17px}.ds-nav button[aria-current]::after{bottom:5px}}"
     },
     {
-      "name": "Platform Plate",
-      "kind": "custom",
-      "refersTo": "platform-plate",
-      "description": "Day-of-life as an inverted ink plate — a platform number at the scale it has in life.",
-      "html": "<span class=\"ds-platform\"><span class=\"ds-plabel\">day</span><span class=\"ds-pnum\">290</span></span>",
-      "css": ".ds-platform{display:inline-flex;align-items:baseline;gap:8px;background:#14181B;color:#F1F1EE;padding:2px 11px;font-family:Archivo,system-ui,sans-serif}.ds-plabel{text-transform:uppercase;letter-spacing:.13em;font-size:10.5px;font-weight:600;opacity:.7}.ds-pnum{font-family:ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;font-size:27px;font-weight:700;line-height:1.05}"
-    },
-    {
-      "name": "Alarm Plate",
-      "kind": "custom",
-      "refersTo": "alarm-plate",
-      "description": "Genuine failure, always a filled plate with inverted text. This reservation is what frees civic blue to carry structure.",
-      "html": "<div class=\"ds-alarm\" role=\"alert\"><span class=\"ds-alabel\">!</span><span class=\"ds-alabel\">1 check failing</span><span class=\"ds-adetail\">backup — none — glashaus backup</span><a class=\"ds-alabel ds-alink\" href=\"#\">system →</a></div>",
-      "css": ".ds-alarm{display:flex;gap:16px;align-items:baseline;background:#AE2A1F;color:#fff;padding:12px 16px;font-weight:600;border-radius:0;font-family:Archivo,system-ui,sans-serif}.ds-alabel{text-transform:uppercase;letter-spacing:.13em;font-size:10.5px}.ds-adetail{font-weight:400;font-size:14px}.ds-alink{margin-left:auto;color:#fff}"
-    },
-    {
-      "name": "Drift Sparkline",
-      "kind": "custom",
-      "refersTo": "slot",
-      "description": "Step-after because the value genuinely holds between events. The dashed rails are the real EWMA floor and ceiling; the brass rhombus marks dream- and wander-triggered drift — her inner life.",
-      "html": "<div class=\"ds-spark\"><span class=\"ds-sub\">warmth</span><svg width=\"100%\" viewBox=\"0 0 300 78\" role=\"img\" aria-label=\"warmth drift, current 0.612\"><line x1=\"0\" y1=\"12.3\" x2=\"248\" y2=\"12.3\" stroke=\"#174E7C\" stroke-opacity=\".45\" stroke-dasharray=\"2 4\"/><line x1=\"0\" y1=\"53.7\" x2=\"248\" y2=\"53.7\" stroke=\"#174E7C\" stroke-opacity=\".45\" stroke-dasharray=\"2 4\"/><path d=\"M0 38 H70 V34 H128 V29 H196 V26.6 H248\" fill=\"none\" stroke=\"#14181B\" stroke-width=\"1.6\" stroke-linejoin=\"miter\"/><circle cx=\"248\" cy=\"26.6\" r=\"5\" fill=\"#F1F1EE\"/><circle cx=\"248\" cy=\"26.6\" r=\"3\" fill=\"#174E7C\"/><text x=\"256\" y=\"30.6\" font-family=\"ui-monospace,Menlo,monospace\" font-size=\"12\" font-weight=\"700\" fill=\"#14181B\">0.612</text><circle cx=\"70\" cy=\"67\" r=\"2.6\" fill=\"#767C82\"/><circle cx=\"128\" cy=\"67\" r=\"2.6\" fill=\"#767C82\"/><path d=\"M196 63.5 L199.5 67 L196 70.5 L192.5 67 Z\" fill=\"#7A5A12\"/></svg></div>",
-      "css": ".ds-spark{min-width:0;font-family:Archivo,system-ui,sans-serif}.ds-spark .ds-sub{display:block;text-transform:uppercase;letter-spacing:.13em;font-size:10.5px;font-weight:600;color:#767C82;margin-bottom:2px}"
-    },
-    {
-      "name": "Her Stamp",
-      "kind": "custom",
-      "refersTo": "stamp",
-      "description": "The ledger signature. Its stipple is generated from eight live state counts through a seeded LCG, so density grows as she accumulates a life and two companions never stamp alike. Ornament as real state.",
-      "html": "<a class=\"ds-stamp\" href=\"#\"><svg class=\"ds-stamp-field\" viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\" aria-hidden=\"true\"><g fill=\"#1B1403\" opacity=\".34\"><circle cx=\"12.4\" cy=\"7.1\" r=\"1.1\"/><circle cx=\"31.8\" cy=\"22.4\" r=\"0.7\"/><circle cx=\"58.2\" cy=\"4.9\" r=\"1.3\"/><circle cx=\"74.6\" cy=\"18.2\" r=\"0.6\"/><circle cx=\"88.1\" cy=\"11.7\" r=\"1.0\"/><circle cx=\"21.3\" cy=\"26.1\" r=\"0.9\"/><circle cx=\"46.7\" cy=\"14.3\" r=\"1.2\"/><circle cx=\"66.9\" cy=\"27.8\" r=\"0.8\"/><circle cx=\"5.2\" cy=\"18.6\" r=\"0.7\"/><circle cx=\"95.4\" cy=\"24.2\" r=\"1.1\"/><circle cx=\"39.1\" cy=\"3.2\" r=\"0.9\"/><circle cx=\"81.7\" cy=\"6.4\" r=\"0.6\"/></g></svg><span class=\"ds-stamp-name\">Mira</span></a>",
-      "css": ".ds-stamp{position:relative;overflow:hidden;display:inline-block;background:#D8B45A;color:#1B1403;padding:4px 12px;text-decoration:none;font-family:Archivo,system-ui,sans-serif;font-weight:700;font-size:15px;letter-spacing:-.01em;border-radius:0}.ds-stamp-field{position:absolute;inset:0;width:100%;height:100%}.ds-stamp-name{position:relative}.ds-stamp:hover{filter:brightness(1.06)}"
-    },
-    {
-      "name": "Plate Toggle",
+      "name": "Home Action Row",
       "kind": "button",
-      "refersTo": "button",
-      "description": "Cycles auto / day / night, its drawn mark reflecting the active state. Persisted to localStorage and applied pre-paint so the wrong plate never flashes.",
-      "html": "<button class=\"ds-toggle\" aria-label=\"day, night, or automatic plate\"><svg viewBox=\"0 0 16 16\" width=\"13\" height=\"13\" aria-hidden=\"true\"><g stroke=\"currentColor\" stroke-width=\"1.6\"><circle cx=\"8\" cy=\"8\" r=\"5.2\" fill=\"none\"/><path d=\"M8 2.8a5.2 5.2 0 0 1 0 10.4Z\" fill=\"currentColor\"/></g></svg></button>",
-      "css": ".ds-toggle{padding:6px 8px;border:1px solid rgba(20,24,27,.34);background:#fff;color:#4C5359;line-height:0;border-radius:0;cursor:pointer}.ds-toggle:hover{background:#174E7C;border-color:#174E7C;color:#fff}"
+      "refersTo": "action-row",
+      "description": "Open action row that prepares an editable conversation starter.",
+      "html": "<button type=\"button\" class=\"ds-action\"><span>Catch up<small>Talk about your day</small></span><svg width=\"21\" height=\"21\" viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M218.83,130.83l-72,72a4,4,0,0,1-5.66-5.66L206.34,132H40a4,4,0,0,1,0-8H206.34L141.17,58.83a4,4,0,0,1,5.66-5.66l72,72A4,4,0,0,1,218.83,130.83Z\"/></svg></button>",
+      "css": ".ds-action{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:67px;padding:15px 6px;border:0;border-bottom:1px solid var(--rule, #353632);text-align:left;font:11px/1.6 var(--mono, \"Roboto Mono\", monospace);letter-spacing:.18em;text-transform:uppercase;background:none;color:var(--ink, #e9e8e2);cursor:pointer}.ds-action:hover{background:#e9e8e208}.ds-action small{display:block;color:var(--muted, #a5a6a0);font-size:12px;line-height:1.6;letter-spacing:.025em;text-transform:none;margin-top:2px}.ds-action svg{color:var(--muted, #a5a6a0);flex-shrink:0;margin-left:16px}.ds-action:focus-visible{outline:2px solid var(--ink, #e9e8e2);outline-offset:5px}.ds-action:disabled{opacity:.45;cursor:not-allowed}@media(min-width:761px) and (max-height:850px){.ds-action{min-height:58px;padding-block:10px}}@media(max-width:760px){.ds-action{min-height:55px;padding:11px 6px;font-size:10px}.ds-action small{font-size:11px}}"
+    },
+    {
+      "name": "Conversation Composer",
+      "kind": "input",
+      "refersTo": "composer",
+      "description": "Pill-shaped Archivo textarea and thin send action; the sample does not send messages.",
+      "html": "<div class=\"ds-composer\"><textarea aria-label=\"Message your companion\" rows=\"1\" placeholder=\"Talk to me…\"></textarea><button type=\"button\" class=\"ds-composer-send\" aria-label=\"Send message\" disabled><svg width=\"25\" height=\"25\" viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M202.83,114.83a4,4,0,0,1-5.66,0L132,49.66V216a4,4,0,0,1-8,0V49.66L58.83,114.83a4,4,0,0,1-5.66-5.66l72-72a4,4,0,0,1,5.66,0l72,72A4,4,0,0,1,202.83,114.83Z\"/></svg></button></div>",
+      "css": ".ds-composer{display:flex;align-items:center;gap:16px;padding:10px 12px 10px 24px;border:1px solid #53544e;border-radius:25px;background:#151613b8;min-height:58px;flex-shrink:0;color:var(--ink, #e9e8e2)}.ds-composer:focus-within{border-color:var(--muted, #a5a6a0)}.ds-composer textarea{display:block;width:100%;min-width:0;border:0;background:transparent;color:var(--ink, #e9e8e2);outline:none;resize:none;font:300 16px/1.6 Archivo,sans-serif;padding:3px 0;max-height:150px;caret-color:var(--ink, #e9e8e2)}.ds-composer textarea::placeholder{color:var(--muted, #a5a6a0);opacity:1}.ds-composer-send{display:flex;align-items:center;justify-content:center;width:44px;height:40px;flex-shrink:0;border:0;border-left:1px solid var(--rule, #353632);background:none;color:var(--ink, #e9e8e2);cursor:pointer}.ds-composer-send:hover:enabled{color:#fff;background:#e9e8e210;border-radius:0 14px 14px 0}.ds-composer-send:focus-visible{outline:2px solid var(--ink, #e9e8e2);outline-offset:5px}.ds-composer-send:disabled{opacity:.45;cursor:not-allowed}@media(max-width:760px){.ds-composer-send{width:39px;height:38px}}@media(max-width:760px){.ds-composer{min-height:53px;padding:7px 9px 7px 20px;border-radius:24px;gap:8px}}"
+    },
+    {
+      "name": "Preview Reply",
+      "kind": "card",
+      "refersTo": "preview-card",
+      "description": "Static setup preview panel; sample text is illustrative.",
+      "html": "<div class=\"ds-preview\"><span>Preview</span><p>Tell me about your day.</p><small>Example reply</small></div>",
+      "css": ".ds-preview{margin:30px 0;padding:28px;background:var(--surface, #141513);border-radius:12px;color:var(--ink, #e9e8e2)}.ds-preview>span{font:12px var(--mono, \"Roboto Mono\", monospace);color:var(--ink, #e9e8e2)}.ds-preview>p{font:18px/1.8 Archivo,sans-serif;white-space:pre-wrap;margin:15px 0}.ds-preview small{font:11px/1.7 var(--mono, \"Roboto Mono\", monospace);color:var(--muted, #a5a6a0)}"
+    },
+    {
+      "name": "Companion Message",
+      "kind": "custom",
+      "refersTo": "companion-message",
+      "description": "Outlined Archivo reply with quiet mono metadata; sample text is illustrative.",
+      "html": "<article class=\"ds-message\"><p>What’s on your mind?</p><div class=\"ds-message-meta\"><span>Companion</span><span>Example reply</span></div></article>",
+      "css": ".ds-message{width:fit-content;max-width:82%;color:var(--ink, #e9e8e2)}.ds-message>p{font:300 17px/1.65 Archivo,sans-serif;letter-spacing:.015em;padding:15px 19px;border:1px solid #3b3c36;border-radius:15px;background:#141513a6;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}.ds-message-meta{display:flex;justify-content:space-between;gap:12px;margin-top:9px;padding:0 4px;color:var(--muted, #a5a6a0);font:10px/1.7 var(--mono, \"Roboto Mono\", monospace)}@media(max-width:760px){.ds-message{max-width:88%}.ds-message>p{font-size:16px;line-height:1.6;padding:13px 15px}.ds-message-meta{font-size:9px;gap:8px}}"
     }
   ],
   "narrative": {
-    "northStar": "The Civic Signage Program",
-    "overview": "Nordic public-information design, applied to one private life. The lineage is Helsinki's civic identity and Scandinavian transit wayfinding: information lives on plates — flat enamel rectangles with fixed internal margins, a classification colour, and type locked to a baseline slot — and the plates hang off a single rail running down the page, so vertical position means time.\n\nThe system's governing move is that structure carries meaning rather than decorating it. Every row is a slot of fixed height which is either filled or drawn empty: on a runtime whose most common output is deliberate silence, an omitted row was the wrong drawing, so a quiet night renders as a dashed empty slot instead of a shorter list. Ornament is only ever real state — the drift rails are the actual EWMA bounds that keep identity stable, the ledger prints live counts, and the companion's stamp is stippled from those same counts, so two companions never stamp alike.\n\nLight and dark are not a default and its afterthought. The daylight enamel plate and the illuminated night plate are two real signage forms and either may lead: unset follows the system, and a header toggle cycles auto / day / night, persisted and applied before first paint.",
+    "northStar": "Prism",
+    "overview": "Prism is the owner's approved retro-futurist editorial minimalism: carbon, bone and graphite, generous space, fine rules, and one grainy optical arc. The arc carries presence while the controls remain quiet. This replaces the previous stone-and-coral world.\n\nThe reference governs atmosphere and visual language. The owner approved working-app adaptations: real setup, conversation, memory, journal and settings retain their function. The companion name is configurable; the greeting follows local time.",
     "keyCharacteristics": [
-      "Flat plates, edge-defined by hairlines; nothing is ever lifted",
-      "Zero border-radius and zero shadow across the entire surface",
-      "Four inks with strict jobs, one of them reserved for the companion alone",
-      "Fixed-height slots whose empty state is drawn, never omitted",
-      "One rail as the page's spine; every section registers a tick on it",
-      "Prominence comes from inverting the ground, never from elevation",
-      "Still: the system ships no transitions and no keyframes"
+      "One optical plate dissolving into a carbon field.",
+      "Roboto Mono at weight 200 for the greeting; Archivo for conversation and body text.",
+      "Small tracked mono controls, open action rows, and fine neutral borders.",
+      "A pill composer, outlined message bubbles, and restrained document forms.",
+      "State-based optical movement and one conversation entrance, with reduced-motion support."
     ],
     "rules": [
-      { "name": "The Four Jobs Rule", "body": "Civic is structure. Brass is hers. Machine grey is the system talking about itself. Signal is failure. A colour crossing into another's job is an error, not a variation.", "section": "colors" },
-      { "name": "The Filled-Plate Failure Rule", "body": "Failure is a filled signal plate with inverted text — never thin red text anywhere, including counts and inline status. This single reservation is what lets civic blue carry structure without the page reading as an alarm.", "section": "colors" },
-      { "name": "The Brass Is Also The Control Rule", "body": "Where a thing is hers and actionable, brass is the affordance, not just the honorific: brass text with a brass underline, inverting to the brass field on hover.", "section": "colors" },
-      { "name": "The Two Plates Rule", "body": "Neither light nor dark is the fallback. Any colour added to the system is defined in both palettes in the same commit.", "section": "colors" },
-      { "name": "The Tabular Truth Rule", "body": "Every quantity carries font-variant-numeric: tabular-nums. Numbers are state and state is read in columns.", "section": "typography" },
-      { "name": "The No-Orphan Monument Rule", "body": "The epigraph never overflows and never ends on a dangling word: it is carved into balanced 2-3 word lines against a stop-word list, and the size steps down rather than the text wrapping arbitrarily.", "section": "typography" },
-      { "name": "The Never-Lifted Rule", "body": "Emphasis inverts the ground. A surface that appears to float above the page contradicts the enamel-plate premise.", "section": "elevation" },
-      { "name": "The Drawn Marks Rule", "body": "Icons are drawn SVG from the sprite at one stroke weight. A Unicode glyph standing in for a mark is a defect; signage without a pictogram set is only text on plates.", "section": "shapes" }
+      {
+        "name": "The Singular Arc Rule",
+        "body": "Keep spectral color in the optical artwork; use neutral controls and the existing warm error treatment.",
+        "section": "colors"
+      },
+      {
+        "name": "The Thin Greeting Rule",
+        "body": "Use Roboto Mono at weight 200 for the greeting, Archivo for reading, and compact mono labels for controls.",
+        "section": "typography"
+      },
+      {
+        "name": "The Unframed Light Rule",
+        "body": "The optical plate must dissolve into the page without an image-shaped box, border, or card.",
+        "section": "elevation"
+      }
     ],
     "dos": [
-      "Do keep every ornament tied to real state. If a number cannot be traced to the database, it does not belong on the page.",
-      "Do draw the empty slot. Absence is a reading, not a gap.",
-      "Do reserve brass for the companion, and use it as the affordance where her things are actionable.",
-      "Do render failure as a filled signal plate with inverted text.",
-      "Do define every new colour in both the day and night palettes at once.",
-      "Do take marks from the SVG sprite at one stroke weight.",
-      "Do set every quantity in tabular numerals.",
-      "Do let her voice hold the first viewport at poster scale before any machinery is shown."
+      "Do carry the carbon, bone and graphite world through home, conversation and documents.",
+      "Do use the actual Roboto Mono greeting and Archivo reading roles.",
+      "Do keep the optical plate singular, grainy and unframed.",
+      "Do preserve keyboard focus, real labels, working controls and reduced-motion behavior.",
+      "Do keep the companion name configurable and model-location copy tied to real configuration.",
+      "Do preserve shipping artwork provenance and local font licenses."
     ],
     "donts": [
-      "Don't introduce a border-radius or a box-shadow. Depth is tonal; emphasis inverts the ground.",
-      "Don't use a Unicode glyph as an icon.",
-      "Don't use civic blue to mean danger. Note the legacy alias layer: --red resolves to civic, a compatibility shim for inline styles on the inherited pages, not a semantic.",
-      "Don't render failure, or any status, as thin coloured text.",
-      "Don't let it read as a consumer chat app: no bubbles, avatars, rounded pills, pastel accents, or decorative typing indicators.",
-      "Don't let it read as a SaaS dashboard: no rounded cards on grey, chips, gradient buttons, icon libraries, or illustrated empty states.",
-      "Don't let it read as a default platform app: no system display face, no translucency, no stock tab bar.",
-      "Don't add motion casually. The system ships still; motion would be a deliberate addition, defined once and orchestrated, not scattered hovers."
+      "Don't restore the retired stone, coral controls or desktop side rails.",
+      "Don't turn the spectral arc into repeated gradients, cards or decorative widgets.",
+      "Don't substitute Saira for the shipped Roboto Mono display face.",
+      "Don't add voice, music or attachment controls that the application does not implement.",
+      "Don't present demo copy as actual memory, conversation or capability status."
     ]
   }
 }

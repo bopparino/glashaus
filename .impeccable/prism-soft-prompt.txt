@@ -1,0 +1,7 @@
+Use case: lighting-weather
+Asset type: production photographic atmosphere plate, 1024 x 1536 portrait PNG.
+Input image: the existing prism.png is the edit target.
+Primary request: change ONLY the outer perimeter of this existing artwork so it blends into a black website background without a rectangular image boundary.
+Preserve exactly: the current broad C-shaped optical crescent, its center and curve position, its overall 1024x1536 composition, the thin cyan/violet/amber/coral spectral rim, the gentle light, dark interior, and fine photographic grain within the artwork.
+Perimeter correction: smoothly fade ALL light and ALL background grain to true solid RGB(0,0,0), hex #000000, within approximately the outer 100 pixels along every side. Most important are the upper and left boundaries where light currently touches the edge. Nothing luminous or textured may touch any of the four outer edges. Make the outermost 20 pixels on all four sides completely uniform pure black, with no grain, color, glow, line, or texture, and a smooth gradual feathered transition over the next approximately 80 pixels into the original artwork. Avoid a visible band, rectangle, or abrupt border.
+Keep the main arc at the right visible and recognizable. Keep all other image content unchanged. Do not shift, scale, rotate, recenter, redesign or change the shape of the crescent. No new shape, star, text, UI, frame, phone, symbol or watermark.

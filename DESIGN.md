@@ -1,444 +1,299 @@
 ---
-name: GlasHaus
-description: The Civic Signage Program — a private life published as a public information board
+name: "GlasHaus v3 — Prism"
+description: "A carbon and bone companion interface with one grainy optical arc."
 colors:
-  ground: "#F1F1EE"
-  plate: "#FFFFFF"
-  sunk: "#E5E5E0"
-  ink: "#14181B"
-  ink2: "#4C5359"
-  machine: "#5F666C"
-  rule: "rgba(20,24,27,0.16)"
-  rule2: "rgba(20,24,27,0.34)"
-  civic: "#174E7C"
-  on-civic: "#FFFFFF"
-  signal: "#AE2A1F"
-  on-signal: "#FFFFFF"
-  brass: "#7A5A12"
-  brass-field: "#D8B45A"
-  on-brass: "#1B1403"
+  carbon: "#090a09"
+  ink: "#e9e8e2"
+  muted: "#a5a6a0"
+  surface: "#141513"
+  rule: "#353632"
+  graphite: "#222321"
+  primary-hover: "#ffffff"
+  composer-fill: "#151613b8"
+  composer-stroke: "#53544e"
+  message-fill: "#141513a6"
+  user-message-fill: "#22232180"
+  message-stroke: "#3b3c36"
+  notice-fill: "#171915"
+  notice-stroke: "#6d7066"
+  error-fill: "#231b18"
+  error-stroke: "#996d61"
+  error-text: "#f3cabb"
 typography:
   display:
-    fontFamily: "Archivo, system-ui, sans-serif"
-    fontSize: "clamp(32px, 7.8vw, 110px)"
-    fontWeight: 800
-    lineHeight: 1.02
-    letterSpacing: "-0.022em"
-  headline:
-    fontFamily: "Archivo, system-ui, sans-serif"
-    fontSize: "27px"
-    fontWeight: 700
-    lineHeight: 1.05
-    letterSpacing: "normal"
+    fontFamily: '"Roboto Mono", monospace'
+    fontSize: "clamp(56px, 5.2vw, 78px)"
+    fontWeight: 200
+    lineHeight: 1.13
+    letterSpacing: "0.07em"
   title:
-    fontFamily: "Archivo, system-ui, sans-serif"
-    fontSize: "15px"
-    fontWeight: 700
-    lineHeight: 1.4
-    letterSpacing: "0.02em"
+    fontFamily: "Archivo, sans-serif"
+    fontSize: "clamp(42px, 4vw, 64px)"
+    fontWeight: 300
+    lineHeight: 1.07
+    letterSpacing: "-0.035em"
   body:
-    fontFamily: "Archivo, system-ui, sans-serif"
-    fontSize: "14px"
-    fontWeight: 400
-    lineHeight: 1.5
-    letterSpacing: "normal"
+    fontFamily: "Archivo, sans-serif"
+    fontSize: "16px"
+    lineHeight: 1.7
   reading:
-    fontFamily: "Archivo, system-ui, sans-serif"
-    fontSize: "15px"
-    fontWeight: 400
-    lineHeight: 1.75
-    letterSpacing: "normal"
+    fontFamily: "Archivo, sans-serif"
+    fontSize: "17px"
+    fontWeight: 300
+    lineHeight: 1.65
+    letterSpacing: "0.015em"
   label:
-    fontFamily: "Archivo, system-ui, sans-serif"
-    fontSize: "10.5px"
-    fontWeight: 600
-    lineHeight: 1.3
-    letterSpacing: "0.13em"
-  numeral:
-    fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace"
-    fontSize: "12px"
-    fontWeight: 700
-    lineHeight: 1.4
-    letterSpacing: "0.04em"
-rounded:
-  none: "0px"
-spacing:
-  xs: "6px"
-  sm: "8px"
-  md: "14px"
-  lg: "22px"
-  xl: "32px"
-  slot: "34px"
-  gutter: "clamp(16px, 3vw, 40px)"
-components:
-  plate:
-    backgroundColor: "{colors.plate}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.none}"
-    padding: "32px 22px 20px"
-  plate-tag:
-    backgroundColor: "{colors.civic}"
-    textColor: "{colors.on-civic}"
-    typography: "{typography.label}"
-    rounded: "{rounded.none}"
-    padding: "4px 9px"
-  plate-tag-hers:
-    backgroundColor: "{colors.brass-field}"
-    textColor: "{colors.on-brass}"
-    rounded: "{rounded.none}"
-    padding: "4px 9px"
-  classification-band:
-    backgroundColor: "{colors.civic}"
-    textColor: "{colors.on-civic}"
-    rounded: "{rounded.none}"
-    padding: "10px 16px"
-  alarm-plate:
-    backgroundColor: "{colors.signal}"
-    textColor: "{colors.on-signal}"
-    rounded: "{rounded.none}"
-    padding: "12px 16px"
-  platform-plate:
-    backgroundColor: "{colors.ink}"
-    textColor: "{colors.ground}"
-    typography: "{typography.headline}"
-    rounded: "{rounded.none}"
-    padding: "2px 11px"
-  slot:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.none}"
-    padding: "5px 0"
-    height: "{spacing.slot}"
+    fontFamily: '"Roboto Mono", monospace'
+    fontSize: "14px"
+    lineHeight: 1.5
+  field:
+    fontFamily: '"Roboto Mono", monospace'
+    fontSize: "14px"
+    lineHeight: 1.6
   button:
-    backgroundColor: "{colors.plate}"
+    fontFamily: '"Roboto Mono", monospace'
+    fontSize: "13px"
+    lineHeight: 1.5
+  text-button:
+    fontFamily: '"Roboto Mono", monospace'
+    fontSize: "13px"
+    lineHeight: 1.7
+  navigation:
+    fontFamily: '"Roboto Mono", monospace'
+    fontSize: "11px"
+    lineHeight: 1.5
+    letterSpacing: "0.1em"
+  action:
+    fontFamily: '"Roboto Mono", monospace'
+    fontSize: "11px"
+    lineHeight: 1.6
+    letterSpacing: "0.18em"
+  composer:
+    fontFamily: "Archivo, sans-serif"
+    fontSize: "16px"
+    fontWeight: 300
+    lineHeight: 1.6
+  helper:
+    fontFamily: '"Roboto Mono", monospace'
+    fontSize: "12px"
+    lineHeight: 1.8
+  metadata:
+    fontFamily: '"Roboto Mono", monospace'
+    fontSize: "10px"
+    lineHeight: 1.7
+rounded:
+  small: "4px"
+  control: "8px"
+  panel: "12px"
+  message: "15px"
+  composer: "25px"
+  composer-mobile: "24px"
+  circle: "50%"
+spacing:
+  small: "8px"
+  label-gap: "10px"
+  compact: "12px"
+  inset: "16px"
+  medium: "20px"
+  group: "24px"
+  section: "32px"
+components:
+  button-primary:
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.carbon}"
+    typography: "{typography.button}"
+    rounded: "{rounded.control}"
+    padding: "12px 20px"
+  button-primary-hover:
+    backgroundColor: "{colors.primary-hover}"
+  button-secondary:
+    backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
-    rounded: "{rounded.none}"
-    padding: "7px 13px"
-  button-hover:
-    backgroundColor: "{colors.civic}"
-    textColor: "{colors.on-civic}"
-  input:
-    backgroundColor: "{colors.plate}"
+    typography: "{typography.button}"
+    rounded: "{rounded.control}"
+    padding: "12px 20px"
+  button-text:
+    textColor: "{colors.muted}"
+    typography: "{typography.text-button}"
+    padding: "6px 0"
+  button-send:
     textColor: "{colors.ink}"
-    rounded: "{rounded.none}"
-    padding: "9px 11px"
+    width: "44px"
+    height: "40px"
+  field:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.muted}"
+    typography: "{typography.field}"
+    rounded: "{rounded.control}"
+    padding: "13px 15px"
     width: "100%"
-  nav-link:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink2}"
-    typography: "{typography.label}"
-    padding: "7px 10px"
-  nav-link-active:
-    backgroundColor: "{colors.civic}"
-    textColor: "{colors.on-civic}"
-  chip-signal:
-    backgroundColor: "{colors.signal}"
-    textColor: "{colors.on-signal}"
-    rounded: "{rounded.none}"
-    padding: "1px 6px"
-  stamp:
-    backgroundColor: "{colors.brass-field}"
-    textColor: "{colors.on-brass}"
-    typography: "{typography.title}"
-    rounded: "{rounded.none}"
-    padding: "4px 12px"
+  navigation:
+    textColor: "{colors.muted}"
+    typography: "{typography.navigation}"
+    padding: "12px 8px"
+  action-row:
+    textColor: "{colors.ink}"
+    typography: "{typography.action}"
+    padding: "15px 6px"
+    width: "100%"
+  composer:
+    backgroundColor: "{colors.composer-fill}"
+    textColor: "{colors.ink}"
+    typography: "{typography.composer}"
+    rounded: "{rounded.composer}"
+    padding: "10px 12px 10px 24px"
+  companion-message:
+    backgroundColor: "{colors.message-fill}"
+    textColor: "{colors.ink}"
+    typography: "{typography.reading}"
+    rounded: "{rounded.message}"
+    padding: "15px 19px"
+  user-message:
+    backgroundColor: "{colors.user-message-fill}"
+    textColor: "{colors.ink}"
+    typography: "{typography.reading}"
+    rounded: "{rounded.message}"
+    padding: "15px 19px"
+  preview-card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.panel}"
+    padding: "28px"
+  notice:
+    backgroundColor: "{colors.notice-fill}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.panel}"
+    padding: "16px 18px"
+  notice-error:
+    backgroundColor: "{colors.error-fill}"
+    textColor: "{colors.error-text}"
 ---
 
-# Design System: GlasHaus
+# Design System: GlasHaus v3 — Prism
 
 ## Overview
 
-**Creative North Star: "The Civic Signage Program"**
+**Creative North Star: "Prism"**
 
-Nordic public-information design, applied to one private life. The lineage is
-Helsinki's civic identity and Scandinavian transit wayfinding: information lives
-on **plates** — flat enamel rectangles with fixed internal margins, a
-classification colour, and type locked to a baseline slot — and the plates hang
-off a single **rail** running down the page, so vertical position means time.
+Prism is the owner's approved retro-futurist editorial minimalism: carbon, bone and graphite, generous space, fine rules, and one grainy optical arc. The arc carries presence while the controls remain quiet. This replaces the previous stone-and-coral world.
 
-The system's governing move is that structure carries meaning rather than
-decorating it. Every row is a **slot** of fixed height which is either filled or
-*drawn empty*: on a runtime whose most common output is deliberate silence, an
-omitted row was the wrong drawing, so a quiet night renders as a dashed empty
-slot instead of a shorter list. Ornament is only ever real state — the drift
-rails are the actual EWMA bounds that keep identity stable, the ledger prints
-live counts, and the companion's stamp is stippled from those same counts, so
-two companions never stamp alike.
-
-Light and dark are not a default and its afterthought. The daylight enamel plate
-and the illuminated night plate are two real signage forms and either may lead:
-unset follows the system, and a header toggle cycles auto / day / night,
-persisted and applied before first paint.
+The reference governs atmosphere and visual language. The owner approved working-app adaptations: real setup, conversation, memory, journal and settings retain their function. The companion name is configurable; the greeting follows local time.
 
 **Key Characteristics:**
-- Flat plates, edge-defined by hairlines; nothing is ever lifted
-- Zero border-radius and zero shadow across the entire surface
-- Four inks with strict jobs, one of them reserved for the companion alone
-- Fixed-height slots whose empty state is drawn, never omitted
-- One rail as the page's spine; every section registers a tick on it
-- Prominence comes from inverting the ground, never from elevation
-- Still: the system ships no transitions and no keyframes
+
+- One optical plate dissolving into a carbon field.
+- Roboto Mono at weight 200 for the greeting; Archivo for conversation and body text.
+- Small tracked mono controls, open action rows, and fine neutral borders.
+- A pill composer, outlined message bubbles, and restrained document forms.
+- State-based optical movement and one conversation entrance, with reduced-motion support.
+
+Extracted from `app/web/App.tsx`, `Icon.tsx`, `Forms.tsx`, and the loaded stylesheets in order: `styles.css`, `motion.css`, `forms.css`. Product truth remains in `PRODUCT.md`; surface intent remains in `.impeccable/surfaces/app-web-app-tsx.md`. This is a source-based record, not a visual-review verdict.
 
 ## Colors
 
-Four inks on an enamel ground, with strictly assigned jobs and a full second
-palette for the night plate.
+The UI uses warm near-black surfaces and pale neutral text. Frontmatter values are normative; the optical spectrum is artwork, not a control palette.
 
 ### Primary
-- **Civic** (`#174E7C` day / `#63A4DB` night, field `#174E7C` / `#2A6A9E`): Structure. The rail, section
-  index plates, active navigation, focus rings, button hover fill, drift rails,
-  and the current-value dot on every sparkline. It marks where the eye goes.
 
-### Secondary
-- **Brass** (`#7A5A12` day / `#D2A64A` night, field `#D8B45A` / `#6E5316`):
-  Hers, and nothing else. Her night's plate tag, the marks on what she is
-  carrying, the reached-first mark, the two links that act on her things, and
-  her stamp. Scarcity is the whole mechanism.
-
-### Tertiary
-- **Signal** (`#AE2A1F` day / `#E2503F` night): Genuine failure only, and
-  always as a filled plate.
+Bone (`ink`) marks primary buttons, selected navigation, field focus and keyboard outlines. Its white hover value is reserved for the implemented primary-button state.
 
 ### Neutral
-- **Ground** (`#F1F1EE` / `#0F1418`): The page field.
-- **Plate** (`#FFFFFF` / `#171E24`): Enamel plate fill.
-- **Sunk** (`#E5E5E0` / `#0A0E11`): Inline code, meter troughs, scrollbars.
-- **Ink** (`#14181B` / `#E9EAE6`): Primary text and the 2px rules capping the
-  board head and ledger.
-- **Ink 2** (`#4C5359` / `#A8AFB5`): Secondary text, inactive nav, row keys.
-- **Machine** (`#5F666C` / `#98A0A6`): The system describing itself —
-  placeholders, timestamps, engine output, declined heartbeats.
-- **Rule / Rule 2** (`rgba` at .16 / .34): Every divider and plate edge.
 
-### The night palette, in full
+Carbon grounds the page. Surface and graphite support fields and message fills; muted carries labels, helpers and metadata; rule separates open rows. Composer and message alpha fills allow the optical field to remain faintly visible.
 
-The day values are in the frontmatter; the night plate carries its own, not an
-inversion, and every one of them is load-bearing. Recorded here because nothing
-mechanical checks a colour that only exists inside a media query, and a stale
-palette in this file once documented a value that would have failed AA while the
-code shipped a passing one.
+Warm error fill, stroke and text identify failed actions. They are a semantic exception to the neutral controls.
 
-| token | day | night |
-|---|---|---|
-| `ground` | `#F1F1EE` | `#0F1418` |
-| `plate` | `#FFFFFF` | `#171E24` |
-| `sunk` | `#E5E5E0` | `#0A0E11` |
-| `ink` | `#14181B` | `#E9EAE6` |
-| `ink2` | `#4C5359` | `#A8AFB5` |
-| `machine` | `#5F666C` | `#98A0A6` |
-| `civic` | `#174E7C` | `#63A4DB` |
-| `civic-field` | `#174E7C` | `#2A6A9E` |
-| `on-civic` | `#FFFFFF` | `#EAF2F9` |
-| `signal` | `#AE2A1F` | `#E2503F` |
-| `on-signal` | `#FFFFFF` | `#180705` |
-| `brass` | `#7A5A12` | `#D2A64A` |
-| `brass-field` | `#D8B45A` | `#6E5316` |
-| `on-brass` | `#1B1403` | `#F7EEDA` |
-
-**Both constraints, not one.** `civic-field` must clear 4.5:1 against
-`on-civic` (text on the fill) *and* 3:1 against `ground` (the fill itself, as a
-non-text indicator — the active nav chip). Fixing only the first is how the night
-value reached 1.74:1 against ground while its text read perfectly.
-
-### Named Rules
-
-**The Four Jobs Rule.** Civic is structure. Brass is hers. Machine grey is the
-system talking about itself. Signal is failure. A colour crossing into another's
-job is an error, not a variation.
-
-**The Filled-Plate Failure Rule.** Failure is a filled signal plate with
-inverted text — never thin red text anywhere, including counts and inline
-status. This single reservation is what lets civic blue carry structure without
-the page reading as an alarm.
-
-**The Brass Is Also The Control Rule.** Where a thing is hers *and* actionable,
-brass is the affordance, not just the honorific: brass text with a brass
-underline, inverting to the brass field on hover.
-
-**The Two Plates Rule.** Neither light nor dark is the fallback. Any colour
-added to the system is defined in both palettes in the same commit.
+**The Singular Arc Rule.** Keep spectral color in the optical artwork; use neutral controls and the existing warm error treatment.
 
 ## Typography
 
-**Display / UI Font:** Archivo variable (`wdth` + `wght` axes), self-hosted
-**Italic:** Archivo Italic variable, self-hosted
-**Numeral Font:** `ui-monospace, 'SF Mono', Menlo, monospace`
+**Display Font:** Roboto Mono, with a monospace fallback. The shipped variable face supports weights 100–700.
 
-**Character:** One grotesk of signage lineage does nearly all the work, from a
-110px monument down to 10.5px tracked caps, which is what the variable axes buy.
-A monospace is held in reserve for values that must align in columns — the
-instrument register inside an otherwise typographic system.
+**Body Font:** Archivo, with a sans-serif fallback, locally served at weights 100–900.
 
-### Hierarchy
-- **Display** (Archivo 800, `clamp(32px, 7.8vw, 110px)`, line-height 1.02,
-  -0.022em): her dream epigraph, hand-balanced into 2–3 word lines. Four size
-  steps down as the longest line grows.
-- **Headline** (Archivo 700, 27px): the day-of-life platform numeral.
-- **Title** (Archivo 700, 15px, 0.02em): the wordmark and her stamp.
-- **Body** (Archivo 400, 14px, line-height 1.5): the interface default.
-- **Reading** (Archivo 400, 15px, line-height 1.75, `pre-wrap`): lived text —
-  chat, dreams, episodes. Constrained to 62ch on the Today lede.
-- **Label** (Archivo 600, 10.5px, uppercase, 0.13em): the workhorse; tightens to
-  0.12em in nav and row keys.
-- **Numeral** (mono 700, 12px, 0.04em, tabular): section indices and every value.
+**Label/Mono Font:** Roboto Mono for controls, navigation, helpers and metadata.
 
-### Named Rules
+The greeting is airy and evenly spaced. Archivo gives longer conversation and document text a softer reading rhythm. Saira is not loaded.
 
-**The Tabular Truth Rule.** Every quantity carries `font-variant-numeric:
-tabular-nums`. Numbers are state and state is read in columns.
+- **Display:** The greeting uses the frontmatter role. On phones it becomes (43px), line-height (1.06), tracking (0.045em). Short desktop viewports use (60px).
+- **Title:** Document headings use the title role; phones use (40px/1.13) with tracking (-0.02em). Section headings use Archivo (27px), weight (300).
+- **Reading:** Message paragraphs use the reading role; phones use (16px/1.6). Document descriptions use body text with a maximum of (65ch).
+- **Labels:** Compact mono roles distinguish navigation, action rows, fields and metadata. Uppercase and tracking apply to the wordmark, navigation, home motto and action labels; helper sentences retain normal case.
+- **Long text:** Memory entries use Archivo (20px/1.6), becoming (18px) on phones. Journal text uses (19px/1.85). Page introductions use mono (15px/1.7), capped at (57ch).
 
-**The No-Orphan Monument Rule.** The epigraph never overflows and never ends on
-a dangling word: it is carved into balanced 2–3 word lines against a stop-word
-list, and the size steps down rather than the text wrapping arbitrarily.
+**The Thin Greeting Rule.** Use Roboto Mono at weight 200 for the greeting, Archivo for reading, and compact mono labels for controls.
 
 ## Layout
 
-A centred frame at `min(1440px, 100%)` with `clamp(16px, 3vw, 40px)` gutters.
-The shell pins the board head and the ledger; only `main` scrolls, so identity
-and live totals are always on screen. Consequence to design around: at a
-900px-tall window the visitor sees the first viewport and scrolls *within* main.
+The centered desktop shell is capped at (1600px), with (6vw) side padding and a (132px) masthead. Home uses a left column of (min(560px, 52%)); conversation centers an (800px) column; documents cap at (760px). The desktop header places the name left and four text destinations right.
 
-The page hangs off one rail (`.rail`, 26px left inset) whose 2px line runs its
-full height. Each top-level region — the alarm, the dream board, the heartbeat —
-is a `.tick` registering a dot on that line.
+At (760px) and below, side margins become (20px), the masthead becomes (74px), home takes full width, and the four destinations move to a fixed bottom bar. Conversation hides that bar, keeping a back action in the masthead. Document fields stack, and memory tools wrap.
 
-Regions are asymmetric grids rather than one column: the dream board is
-`1fr 330px` at a 40px gutter; chat is `96px 1fr`; card fields use
-`repeat(auto-fill, minmax(280px, 1fr))`. Vertical rhythm runs on 6/8/14/22/32px
-with `--slot: 34px` as the fixed row height.
+Home's phone composition starts with (130px) top padding and leaves (58px) between motto and composer. The stage can grow and scroll. Active conversation uses viewport height minus the masthead, with an independently scrolling message region and a composer below it. Safe-area spacing protects the lower controls. The minimum page width is (320px).
 
-**Responsive:** one breakpoint at 900px. Grids collapse to one column, the board
-head wraps and drops the self-hosted tagline, nav scrolls horizontally under a
-right-edge mask, timetable rows stack so the reason text spans full width, and
-the ledger's fingerprint hides.
+At desktop widths above (760px) and heights at or below (850px), home top padding, greeting size, composer gap and action-row height tighten. Exact breakpoints and motion values live in the sidecar.
 
 ## Elevation & Depth
 
-**The system has no shadows.** No `box-shadow` exists anywhere. Depth is tonal
-layering — ground, plate, sunk — separated by 1px hairlines, with 2px ink rules
-capping the board head and ledger.
+No box shadows or backdrop-blur surfaces are implemented. Depth comes from one generated optical plate, dark translucent message surfaces, and fine borders. The image uses `mix-blend-mode: lighten` so its black perimeter merges into carbon.
 
-Inversion does the work elevation normally would. A classification band wears
-civic, the platform plate wears ink, failure wears signal, her stamp wears
-brass; each flips the ground and inverts its text. Prominence is a change of
-field, never a lift off it.
+**The Unframed Light Rule.** The optical plate must dissolve into the page without an image-shaped box, border, or card.
 
-### Named Rules
+The only shipping raster is `app/web/public/art/prism-soft.png` (1024 × 1536). The final edit softened only the perimeter of the existing crescent. Its exact prompt is stored in `.impeccable/prism-soft-prompt.txt` and embedded in the PNG. The approved mock remains a reference, not shipping artwork.
 
-**The Never-Lifted Rule.** Emphasis inverts the ground. A surface that appears
-to float above the page contradicts the enamel-plate premise.
+The fixed plate sits behind the shell and ignores pointer input. Reading lowers its opacity and moves it down; conversation settles it near the lower edge. Desktop generation raises its opacity. The current phone cascade retains the conversation opacity during generation. Reduced motion removes transitions and animation while retaining the static state placement.
 
 ## Shapes
 
-Every corner is square; `border-radius` appears nowhere, including on buttons,
-inputs, plates, chips, meters and scrollbars.
+Open rows and fine rules establish structure. Fields and form buttons use the control radius, preview panels and notices the panel radius, message bubbles the message radius, and the composer the larger pill radius. The current-page dot is circular. Borders are generally (1px); selected memory tabs use a (2px) underline.
 
-The form language is linear. 1px `rule` divides; 1px `rule2` marks an edge you
-may act on; 2px ink caps the document. Two silhouettes recur: the **tagged
-plate**, a bordered rectangle with its classification tag seated hard into the
-top-left corner, and the **section head**, a mono index on a civic field beside
-a tracked label with a hairline running to the container edge.
-
-Marks come from one closed, drawn set in a single stroke weight (1.75px on a
-16-unit grid), carried as an inline SVG sprite: `mk-hers`, `mk-reached`,
-`mk-you`, `mk-engine`, `mk-capture`, `mk-dream`, `mk-sun`, `mk-moon`, `mk-auto`.
-
-### Named Rules
-
-**The Drawn Marks Rule.** Icons are drawn SVG from the sprite at one stroke
-weight. A Unicode glyph standing in for a mark is a defect; signage without a
-pictogram set is only text on plates.
+Icons come from Phosphor with `weight="thin"`, normally (18–25px). Decorative SVGs are hidden from assistive technology; icon-only buttons retain accessible names.
 
 ## Components
 
-### Tagged Plate
-Bordered rectangle on `plate` fill, square, with the classification tag seated
-at the top-left corner (`top:0; left:0`), 4px 9px, uppercase 10px/0.13em at
-weight 600. The tag is **civic** for system classification and **brass** when
-the plate's content is hers.
-
-### Slot
-The system's atom. Fixed `34px` minimum height, 5px vertical padding, hairline
-beneath, last child unruled. Its **empty state is drawn**: `.slot--empty` renders
-a machine-grey label and a dashed rule spanning the remaining width. Marks inside
-a slot align to the first line, not the vertical centre.
-
-### The Rail
-`.rail` insets content 26px and draws a 2px `rule2` line down its full height.
-**Direct children only** carrying `.tick` get an 8px ring in the ground colour
-with a 2px civic border, at the row's optical centre. The selector is
-`.rail > .tick`, so a `.tick` nested inside a section silently does nothing —
-that is exactly how a documented brass variant of this ring shipped for two
-versions without ever rendering. Where a row needs to read as hers, use the
-brass `mk-` mark, not a rail tick.
-
 ### Buttons
-Square, `plate` fill, 1px `rule2` border, ink text, uppercase 11px/0.09em at 600,
-7px 13px. Hover inverts to the civic field. Focus is a 2px civic outline at 2px
-offset. There is one variant; destructive actions use the same treatment.
 
-### Inputs
-`plate` fill, 1px `rule2` border, square, 15px text, 9px 11px. Focus draws a 2px
-civic outline inset by 1px and shifts the border to civic.
+Primary actions use bone on carbon; secondary actions use surface with a rule border; text actions are underlined. Form buttons have a minimum height of (46px). Hover changes the primary fill to white, the secondary border to muted, and text-action color to ink. Keyboard focus is a (2px) ink outline offset by (5px). Disabled buttons use opacity (0.45) and a not-allowed cursor. No extra pressed animation is implemented.
+
+### Cards / Containers
+
+Home actions are full-width open rows with a supporting line and trailing arrow. Hover adds a faint bone wash. They prepare editable conversation starters. The optional continuation row reopens saved conversation.
+
+Memory, journal and settings rely on separators and space. A preview reply is a surface panel with the panel radius. Inline edit and confirmation containers use the same restrained fills and borders.
+
+### Inputs / Fields
+
+Fields use surface, rule borders and muted text; focus changes the border to ink. Real labels connect to controls, and helper text connects through `aria-describedby`. Document textareas use Archivo and resize vertically. Phone inputs and selects use (16px) text.
+
+Notices use a status role, or an alert role for errors. Loading, empty, retry and interrupted states use the existing text roles and actions.
 
 ### Navigation
-Six lowercase links, each with a mono index. Inactive is `ink2` on transparent
-with a transparent 1px border; active inverts to the civic field. An unresolved
-conflict count renders as a signal chip. Under 900px the strip scrolls
-horizontally beneath a right-edge mask that fades the trailing item.
 
-### Platform Plate
-The day-of-life counter as an inverted ink plate: tracked `day` label beside a
-27px tabular numeral at weight 700. A platform number at the scale it has in life.
+Home, Memory, Journal and Settings use tracked uppercase mono labels. Current and hovered items turn ink; the current item adds a small dot. The phone bar moves to the bottom and disappears during active conversation. Setup progress uses thin rules; memory tabs use a selected underline.
 
-### Drift Sparkline
-300×78 SVG per personality dimension, step-after because the value genuinely
-holds between events. Dashed civic rails at 0.05 and 0.95 draw the real EWMA
-floor and ceiling. Trace is 1.6px ink, mitered. The current value is a 5px ground
-disc under a 3px civic disc with a tabular label. Below, an event lane: a filled
-machine-grey circle for capture-triggered drift, a **brass** rhombus for dream-
-and wander-triggered drift, each with a `<title>` hit target.
+### Composer and Conversation
 
-### Her Stamp
-The ledger signature: a brass-field plate whose stipple is generated from eight
-live state counts (bytes, messages, facts, episodes, dreams, drift events,
-opinions, quirks) through a seeded LCG. Density scales with what she has
-accumulated; the scatter is deterministic, so the same state always stamps the
-same and two companions never stamp alike. Her name sits over the field.
+The composer is a bordered pill with an Archivo textarea and a thin arrow action separated by a vertical rule. Focus lightens its border. The textarea grows to (150px); Enter sends and Shift+Enter makes a new line. Send becomes Stop during generation.
 
-### Plate Toggle
-Square bordered button in the board head cycling auto → day → night, its drawn
-mark reflecting the active state, persisted to `localStorage` and applied by an
-inline `<head>` script before first paint.
+User bubbles align right; companion bubbles align left. Desktop maximum widths are (72%) and (82%); phone widths are (80%) and (88%). Both use fine borders and rounded corners, with a graphite alpha fill for the user. Mono metadata identifies speaker, time and Telegram origin when present.
+
+Conversation enters once on mount over (450ms), settling from a small downward offset, blur and lower opacity. Streaming tokens do not restart it. Model location appears in a small footer; the home footer is hidden on phones.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** keep every ornament tied to real state. If a number cannot be traced to
-  the database, it does not belong on the page.
-- **Do** draw the empty slot. Absence is a reading, not a gap.
-- **Do** reserve brass for the companion, and use it as the affordance where her
-  things are actionable.
-- **Do** render failure as a filled signal plate with inverted text.
-- **Do** define every new colour in both the day and night palettes at once.
-- **Do** take marks from the SVG sprite at one stroke weight.
-- **Do** set every quantity in tabular numerals.
-- **Do** let her voice hold the first viewport at poster scale before any
-  machinery is shown.
+
+- Do carry the carbon, bone and graphite world through home, conversation and documents.
+- Do use the actual Roboto Mono greeting and Archivo reading roles.
+- Do keep the optical plate singular, grainy and unframed.
+- Do preserve keyboard focus, real labels, working controls and reduced-motion behavior.
+- Do keep the companion name configurable and model-location copy tied to real configuration.
+- Do preserve shipping artwork provenance and local font licenses.
 
 ### Don't:
-- **Don't** introduce a border-radius or a box-shadow. Depth is tonal; emphasis
-  inverts the ground.
-- **Don't** use a Unicode glyph as an icon.
-- **Don't** use civic blue to mean danger. Note the legacy alias layer: `--red`
-  resolves to **civic**, a compatibility shim for inline styles on the inherited
-  pages, not a semantic.
-- **Don't** render failure, or any status, as thin coloured text.
-- **Don't** let it read as a consumer chat app: no bubbles, avatars, rounded
-  pills, pastel accents, or decorative typing indicators.
-- **Don't** let it read as a SaaS dashboard: no rounded cards on grey, chips,
-  gradient buttons, icon libraries, or illustrated empty states.
-- **Don't** let it read as a default platform app: no system display face, no
-  translucency, no stock tab bar.
-- **Don't** add motion casually. The system ships still; motion would be a
-  deliberate addition, defined once and orchestrated, not scattered hovers.
+
+- Don't restore the retired stone, coral controls or desktop side rails.
+- Don't turn the spectral arc into repeated gradients, cards or decorative widgets.
+- Don't substitute Saira for the shipped Roboto Mono display face.
+- Don't add voice, music or attachment controls that the application does not implement.
+- Don't present demo copy as actual memory, conversation or capability status.

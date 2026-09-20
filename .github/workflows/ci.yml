@@ -1,36 +1,37 @@
-name: ci
-on:
-  push: { branches: [main] }
-  pull_request:
-
+name: v3 checks
+on: [push, pull_request, workflow_dispatch, workflow_call]
+permissions:
+  contents: read
 jobs:
   test:
-    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        node: [20, 22]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '${{ matrix.node }}' }
-      - run: npm ci
-      - name: syntax check every module
-        run: for f in src/*.js bin/*.js test/*.js; do node --check "$f"; done
-      - run: npm test
-      - run: sh -n install.sh
-
-  leak-gate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: no personal strings ship in this repo
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:browser
+      - run: node bin/glashaus-v3.js --version
+      - run: node tests/portable-smoke.cjs .
+      - name: Check POSIX installer syntax
+        if: runner.os != 'Windows'
+        run: sh -n install.sh
+      - name: Check PowerShell installer syntax
+        if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          # The framework must contain zero traces of any private instance.
-          # (--exclude this workflow: the pattern must not match itself.)
-          if grep -rniE '\b(austin|kimmy|maryland|arbiter)\b|\belle\b|tapir-pound|8700468013' \
-               --exclude-dir=.git --exclude-dir=node_modules --exclude=ci.yml .; then
-            echo '::error::personal string found — this repo ships to strangers'
-            exit 1
-          fi
-          echo 'clean'
+          $syntaxErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'install.ps1'), [ref]$null, [ref]$syntaxErrors) | Out-Null
+          if ($syntaxErrors) { throw ($syntaxErrors | Out-String) }

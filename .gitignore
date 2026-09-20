@@ -15,3 +15,12 @@ glashaus.pid
 
 # Impeccable build evidence (screenshots), not source
 .impeccable/review/
+dist/
+.glashaus-v3/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+.impeccable/build/
+.impeccable/mocks/
+!.impeccable/config.json
+.impeccable/references/

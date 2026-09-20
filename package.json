@@ -1,7 +1,7 @@
 {
   "name": "glashaus",
-  "version": "2.15.1",
-  "description": "A local-first AI companion runtime — persistent identity, consolidating memory, dreams, and proactive presence on your own machine",
+  "version": "3.0.0-alpha.2",
+  "description": "An Ollama companion with persistent identity, source-backed character setup, inspectable memory, and a shared web and Telegram conversation.",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -25,36 +25,42 @@
     "self-hosted"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=24.14.0 <25"
   },
   "bin": {
-    "glashaus": "bin/glashaus.js"
+    "glashaus": "bin/glashaus-v3.js"
   },
   "files": [
-    "bin/",
-    "src/",
-    "assets/",
+    "bin/glashaus-v3.js",
+    "dist/",
     "README.md",
+    "RELEASE.md",
+    "THIRD_PARTY_NOTICES.md",
     "LICENSE"
   ],
   "scripts": {
-    "setup": "node src/setup.js",
-    "chat": "node src/cli.js",
-    "bot": "node src/index.js",
-    "dream": "node src/dream.js --now",
-    "smoke": "node test/smoke.js",
-    "test": "node test/smoke.js && node test/register.test.js && node test/threads.test.js && node test/commands.test.js && node test/pursuits.test.js && node test/update.test.js && node test/bench.test.js && node test/longitudinal.test.js && node test/purge.test.js"
+    "dev": "node --watch app/server/main.ts",
+    "dev:web": "vite",
+    "build": "tsc -p tsconfig.server.json && vite build --configLoader native",
+    "start": "node bin/glashaus-v3.js",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit",
+    "test": "node --test tests/*.test.ts",
+    "test:browser": "node tests/browser.e2e.ts",
+    "prepack": "npm run build"
   },
   "dependencies": {
-    "@clack/prompts": "^0.11.0",
-    "better-sqlite3": "^12.11.1",
-    "grammy": "^1.36.1",
-    "node-cron": "^3.0.3"
-  },
-  "allowScripts": {
-    "better-sqlite3@12.11.1": true
+    "@phosphor-icons/react": "^2.1.10",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
-    "node-gyp": "^13.0.1"
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "playwright": "^1.63.0",
+    "prettier": "^3.9.8",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.0"
   }
 }
