@@ -20,7 +20,7 @@ The default home is `~/.glashaus-v3` on every OS. `GLASHAUS_HOME` selects anothe
 
 The included installers download the prebuilt `glashaus-v3.zip` asset from a GitHub release. They require Node 24 and do not install Ollama, download a model, change your PATH, start at login, or modify v2 data.
 
-The commands below install **v3.0.0-alpha.2**. They require its [published release assets](https://github.com/bopparino/glashaus/releases/tag/v3.0.0-alpha.2); a pending or failed release check will not publish an unverified app.
+The commands below install **v3.0.0-alpha.3**. They require its [published release assets](https://github.com/bopparino/glashaus/releases/tag/v3.0.0-alpha.3); a pending or failed release check will not publish an unverified app.
 
 Windows PowerShell:
 

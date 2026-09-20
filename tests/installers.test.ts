@@ -17,10 +17,16 @@ test("both one-line installers select the package's v3 release instead of GitHub
   const version = JSON.parse(readFileSync("package.json", "utf8")).version;
   for (const file of ["install.ps1", "install.sh"]) {
     const script = readFileSync(file, "utf8");
-    assert.ok(script.includes(`v${version}`), `${file} must select v${version}`);
+    assert.ok(
+      script.includes(`v${version}`),
+      `${file} must select v${version}`,
+    );
     assert.ok(!script.includes("releases/latest/download"));
     if (file.endsWith(".ps1")) {
-      assert.equal((script.match(/Invoke-WebRequest -UseBasicParsing/g) ?? []).length, 2);
+      assert.equal(
+        (script.match(/Invoke-WebRequest -UseBasicParsing/g) ?? []).length,
+        2,
+      );
     }
   }
 });
@@ -87,7 +93,7 @@ test("platform installer checks integrity, handles spaced paths, and never repla
             GLASHAUS_ARCHIVE: archive,
             GLASHAUS_INSTALL_ROOT: installRoot,
             GLASHAUS_INSTALL_ONLY: "1",
-            GLASHAUS_RELEASE_TAG: "v3.0.0-alpha.2",
+            GLASHAUS_RELEASE_TAG: "v3.0.0-alpha.3",
           },
         },
       );
@@ -111,17 +117,61 @@ test("platform installer checks integrity, handles spaced paths, and never repla
       readFileSync(path.join(installRoot, "existing.txt"), "utf8"),
       "Leave me intact.",
     );
+    // Match GitHub's application/octet-stream response in Windows PowerShell 5.
+    // No network is used: the real installer receives the same fixture bytes.
+    const networkRun = () =>
+      spawnSync(
+        "powershell.exe",
+        [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-Command",
+          `
+        function Invoke-WebRequest {
+          param([switch]$UseBasicParsing, [string]$Uri, [string]$OutFile)
+          $source = if ($Uri.EndsWith('.sha256')) { "$env:FIXTURE_ARCHIVE.sha256" } else { $env:FIXTURE_ARCHIVE }
+          if ($OutFile) { Copy-Item -LiteralPath $source -Destination $OutFile }
+          else { [pscustomobject]@{ Content = [IO.File]::ReadAllBytes($source) } }
+        }
+        & $env:INSTALL_SCRIPT
+      `,
+        ],
+        {
+          encoding: "utf8",
+          timeout: 30000,
+          windowsHide: true,
+          env: {
+            ...childEnv,
+            GLASHAUS_ARCHIVE: "",
+            GLASHAUS_RELEASE_TAG: "",
+            GLASHAUS_INSTALL_ROOT: installRoot,
+            GLASHAUS_INSTALL_ONLY: "1",
+            FIXTURE_ARCHIVE: archive,
+            INSTALL_SCRIPT: path.resolve("install.ps1"),
+          },
+        },
+      );
+    if (windows) {
+      const downloaded = networkRun();
+      assert.equal(downloaded.status, 0, downloaded.stderr);
+    }
     writeFileSync(`${archive}.sha256`, `${"0".repeat(64)}  glashaus-v3.zip\n`);
     const failed = run();
     assert.notEqual(failed.status, 0);
     assert.match(failed.stderr, /checksum/i);
+    if (windows) {
+      const refused = networkRun();
+      assert.notEqual(refused.status, 0);
+      assert.match(refused.stderr, /checksum/i);
+    }
     assert.equal(
       readdirSync(installRoot).filter(
         (name) =>
           name.startsWith("v3-") &&
           readdirSync(path.join(installRoot, name)).length,
       ).length,
-      2,
+      windows ? 3 : 2,
     );
   } finally {
     rmSync(directory, { recursive: true, force: true });

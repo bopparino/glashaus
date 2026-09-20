@@ -1,6 +1,8 @@
-# GlasHaus v3.0.0-alpha.2
+# GlasHaus v3.0.0-alpha.3
 
 A fresh Ollama companion app with a shared web and Telegram conversation, inspectable memory, and portable identity.
+
+Alpha.3 fixes Windows PowerShell 5 checksum handling for GitHub's binary download responses. The public alpha.2 app archive was intact, but its Windows network installer rejected a valid checksum. Use these current installers. There is no new database migration in alpha.3.
 
 ## Install
 

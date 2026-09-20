@@ -1,4 +1,4 @@
-# v3 alpha.2 release checks
+# v3 alpha.3 release checks
 
 The owner approved replacing the repository's current app with v3 and publishing an installable alpha. Git history and the v2 source are retained. Release status is recorded by GitHub Actions and the release page.
 
@@ -14,7 +14,11 @@ The owner approved replacing the repository's current app with v3 and publishing
 1. Review the branch diff and preserve the existing v2 tag/history. The historical source under `legacy-v2/` is not included in runtime archives.
 2. Run the included GitHub Actions Windows/macOS/Linux matrix. It covers installer execution, browser regression, build, and separate-process portable startup. Mac/Linux results are not verified locally.
 3. A push to `main` runs the release workflow. It publishes a **prerelease** only after the full matrix succeeds, the build completes, and the actual ZIP passes a separate-process startup/restart test.
-4. The package version selects the release tag. Existing release assets are never overwritten. Both installers default to `v3.0.0-alpha.2`, avoiding GitHub's stable-only latest-release lookup. `GLASHAUS_RELEASE_TAG` can select another v3 version.
+4. The package version selects the release tag. Existing release assets are never overwritten. Both installers default to `v3.0.0-alpha.3`, avoiding GitHub's stable-only latest-release lookup. `GLASHAUS_RELEASE_TAG` can select another v3 version.
+
+## Published-install regression
+
+The alpha.2 public ZIP matched its SHA-256, but Windows PowerShell 5 returned the checksum response as a byte array because GitHub serves it as `application/octet-stream`. Casting those bytes to a string rejected a valid download. Alpha.3 reads the checksum from a downloaded file, adds a binary-response regression fixture, and retains refusal of an invalid checksum. No database schema or companion behavior changed in alpha.3.
 
 ## Upgrade and rollback
 

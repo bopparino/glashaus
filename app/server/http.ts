@@ -111,7 +111,7 @@ export function createApp(options: {
             reflections: store.reflections(),
             research: store.research(),
             csrfToken,
-            version: "3.0.0-alpha.2",
+            version: "3.0.0-alpha.3",
             background: service.background,
             telegram: telegram.status,
           });
