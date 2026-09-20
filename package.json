@@ -4,6 +4,7 @@
   "description": "An Ollama companion with persistent identity, source-backed character setup, inspectable memory, and a shared web and Telegram conversation.",
   "type": "module",
   "license": "MIT",
+  "packageManager": "pnpm@11.19.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/bopparino/glashaus.git"

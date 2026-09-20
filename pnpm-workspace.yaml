@@ -1,0 +1,7 @@
+packages:
+  - .
+
+# Vite's locked compiler installs its platform binary. Other dependency scripts
+# remain unapproved; review this entry when upgrading the locked compiler.
+allowBuilds:
+  esbuild@0.28.2: true
