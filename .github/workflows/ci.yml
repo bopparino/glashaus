@@ -23,6 +23,14 @@ jobs:
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:browser
+      - name: Save synthetic browser review captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-review-${{ matrix.os }}
+          path: .impeccable/review/browser-regression/
+          retention-days: 7
+          if-no-files-found: ignore
       - run: node bin/glashaus-v3.js --version
       - run: node tests/portable-smoke.cjs .
       - name: Prepare Linux user service session

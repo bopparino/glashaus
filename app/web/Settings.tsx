@@ -5,6 +5,7 @@ import { Field, Notice, messageOf } from "./Forms";
 import { Icon } from "./Icon";
 import { modelLocation } from "./model-location";
 import { StartupSettings } from "./Startup";
+import { UpdateSettings } from "./Updates";
 export function Settings({
   state,
   refresh,
@@ -323,6 +324,7 @@ export function Settings({
         </div>
       </form>
       <StartupSettings refresh={refresh} />
+      <UpdateSettings />
       {state.companion && (
         <>
           <section className="settings-section">

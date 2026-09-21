@@ -3,7 +3,7 @@ function Install-GlasHaus {
     if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw 'Install Node.js 24 LTS first: https://nodejs.org/en/download' }
     & node -e 'const [major,minor]=process.versions.node.split(/\./).map(Number);process.exit(major===24&&minor>=14?0:1)'
     if ($LASTEXITCODE -ne 0) { throw 'GlasHaus v3 requires Node 24.14 or newer within the 24.x line.' }
-    $releaseTag = if ($env:GLASHAUS_RELEASE_TAG) { $env:GLASHAUS_RELEASE_TAG } else { 'v3.0.0-alpha.5' }
+    $releaseTag = if ($env:GLASHAUS_RELEASE_TAG) { $env:GLASHAUS_RELEASE_TAG } else { 'v3.0.0-alpha.6' }
     if ($releaseTag -and $releaseTag -notmatch '^v3\.[A-Za-z0-9._-]+$') { throw 'GLASHAUS_RELEASE_TAG must be a v3 release tag.' }
     $releaseBase = "https://github.com/bopparino/glashaus/releases/download/$releaseTag"
     $installBase = if ($env:GLASHAUS_INSTALL_ROOT) { [IO.Path]::GetFullPath($env:GLASHAUS_INSTALL_ROOT) } else { Join-Path ([Environment]::GetFolderPath('UserProfile')) '.local/share/glashaus' }
@@ -33,7 +33,7 @@ function Install-GlasHaus {
         Write-Host "Installed in $installDir"
         Write-Host "To start again: node `"$entry`""
         Write-Host 'Your companion data is separate, in ~/.glashaus-v3. Existing v2 data is untouched.'
-        if ($env:GLASHAUS_INSTALL_ONLY -ne '1') { & node $entry; if ($LASTEXITCODE -ne 0) { throw "GlasHaus exited with code $LASTEXITCODE." } }
+        if ($env:GLASHAUS_INSTALL_ONLY -ne '1') { & node $entry install; if ($LASTEXITCODE -ne 0) { throw "GlasHaus exited with code $LASTEXITCODE." } }
     } catch { throw "Installation stopped. Check that a v3 release and checksum have been published. $($_.Exception.Message)" }
     finally {
         # Delete only the two exact download files created by this invocation.

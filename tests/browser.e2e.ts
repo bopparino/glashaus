@@ -6,6 +6,7 @@ import { chromium } from "playwright";
 import { createApp } from "../app/server/http.ts";
 import { AppError } from "../app/server/validation.ts";
 import type { ChatOptions, ModelProvider } from "../app/server/ollama.ts";
+import { updateFixture } from "./update-fixture.ts";
 
 class BrowserModel implements ModelProvider {
   async models() {
@@ -55,11 +56,13 @@ class BrowserModel implements ModelProvider {
   }
 }
 const directory = mkdtempSync(path.join(tmpdir(), "glashaus-browser-"));
+const updates = updateFixture();
 const app = createApp({
   directory,
   webRoot: path.resolve("dist/web"),
   provider: new BrowserModel(),
   background: false,
+  updates,
   startup: {
     async status() {
       return {
@@ -293,6 +296,49 @@ try {
     .click();
   await capture("settings-mobile", 390, 844);
   await capture("settings-desktop", 1440, 1024);
+  const updateSection = page.getByRole("region", {
+    name: "Updates",
+    exact: true,
+  });
+  await updateSection
+    .getByRole("button", { name: "Check for updates" })
+    .click();
+  await updateSection
+    .getByRole("alert")
+    .filter({ hasText: "GitHub could not be reached" })
+    .waitFor();
+  await updateSection
+    .getByRole("button", { name: "Check for updates" })
+    .click();
+  await updateSection.getByRole("button", { name: "Update GlasHaus" }).click();
+  assert.equal(
+    updates.starts,
+    0,
+    "Opening confirmation must not start an update",
+  );
+  await updateSection
+    .getByRole("button", { name: "Cancel", exact: true })
+    .click();
+  assert.equal(updates.starts, 0);
+  assert.equal(
+    await page.evaluate(() => document.activeElement?.textContent),
+    "Check for updates",
+  );
+  await updateSection.getByRole("button", { name: "Update GlasHaus" }).click();
+  await capture("update-confirm-mobile", 390, 844);
+  await capture("update-confirm-desktop", 1440, 1024);
+  await capture("update-confirm-user", 1280, 720);
+  await updateSection
+    .getByRole("button", { name: "Update and restart" })
+    .click();
+  await updateSection
+    .getByText("Preparing the update.", { exact: false })
+    .waitFor();
+  assert.equal(updates.starts, 1);
+  await updateSection
+    .getByRole("alert")
+    .filter({ hasText: "previous version is running again" })
+    .waitFor();
   await page
     .getByRole("button", { name: "Edit identity", exact: true })
     .click();

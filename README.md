@@ -20,7 +20,7 @@ The default home is `~/.glashaus-v3` on every OS. `GLASHAUS_HOME` selects anothe
 
 The included installers download the prebuilt `glashaus-v3.zip` asset from a GitHub release. They require Node 24 and do not install Ollama, download a model, change your PATH, or modify v2 data. Sign-in startup is off unless you choose it in setup or Settings.
 
-The commands below install **v3.0.0-alpha.5**. They require its [published release assets](https://github.com/bopparino/glashaus/releases/tag/v3.0.0-alpha.5); a pending or failed release check will not publish an unverified app.
+The commands below install **v3.0.0-alpha.6**. They require its [published release assets](https://github.com/bopparino/glashaus/releases/tag/v3.0.0-alpha.6); a pending or failed release check will not publish an unverified app.
 
 Windows PowerShell:
 
@@ -57,7 +57,19 @@ node bin/glashaus-v3.js service stop
 
 `stop` ends the current background session without erasing data. `disable` turns off sign-in startup; use both to turn it off and stop it now. These commands respect `GLASHAUS_HOME` and `GLASHAUS_PORT`. `status` shows the native service name and log location. Logs live in `<companion-home>/startup/background.log`; startup records contain paths and port numbers, not API keys, and are excluded from JSON companion backups. Disabled service registrations are retained so they can be re-enabled.
 
-Before changing installed versions or moving Node, use `service disable` and `service stop` in the old installation. Start the new version manually, then enable background startup again in Settings. Do not run two different ports against the same companion home.
+Before moving Node or manually moving an app folder, disable and stop its service first. For normal upgrades, use the update flow below. Do not run two different ports against the same companion home.
+
+## Updating an existing v3 install
+
+**Rerun the same one-line installer.** From alpha.6 onward, the installer downloads and checks the new release, stops an existing background app, makes a local database backup, switches the service to the new folder, and checks that it restarted. Chats, identity, memories, keys, Telegram pairing, and the sign-in preference stay in place. A running alpha.4 or alpha.5 background install can use this installer too; you do not need to disable its service first. An already-current running install is left alone.
+
+Or use **Settings → Updates → Check for updates → Update GlasHaus → Update and restart**. This checks published v3 releases, including newer alphas when you are on an alpha. A stable v3 install checks stable releases only. Updates are started by you, never silently scheduled. The Settings button requires a background session; enable it in the section above if needed.
+
+For a manual terminal session, press Ctrl+C before rerunning the installer. Manual offline installs start in the terminal again. Keep `GLASHAUS_HOME` set if you use a custom companion home; the installer reads its registered port unless `GLASHAUS_PORT` is specified. Extracted portable archives can use `node bin/glashaus-v3.js install` for the same handoff. `git pull` by itself only changes source files; it does not build or replace a running installed app.
+
+Let a reply or research finish before updating. Download or checksum failures leave the running app unchanged. If the new background app fails its startup check, GlasHaus attempts to restore the previous database and app. Both app folders and the recovery copy are retained. Backups live in `<companion-home>/backups/update-<id>/`; **these private SQLite copies include saved keys**, unlike exported JSON backups. They are not uploaded or automatically deleted.
+
+If a power loss or failed rollback leaves the app offline, run `node bin/glashaus-v3.js recover` from the downloaded app folder, using the same companion home. It refuses to restore over a running updater or a process that may still own the database. Keep the old app, new app, and companion folder until recovery succeeds. Recovery is not a substitute for your own backups.
 
 ## What works in this alpha
 

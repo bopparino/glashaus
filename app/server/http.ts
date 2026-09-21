@@ -9,6 +9,8 @@ import { Ollama } from "./ollama.ts";
 import type { ModelProvider } from "./ollama.ts";
 import { Telegram } from "./telegram.ts";
 import type { StartupControl } from "./startup.ts";
+import type { UpdateControl } from "./updates.ts";
+import { VERSION } from "../shared/version.ts";
 import {
   AppError,
   companionInput,
@@ -35,16 +37,31 @@ export function createApp(options: {
   server?: http.Server;
   startup?: StartupControl;
   handoff?: () => void;
+  updates?: UpdateControl;
+  activation?: { id: string; ready: () => boolean };
 }) {
   const store = new Store(options.directory);
   const provider = options.provider ?? new Ollama(() => store.settings());
   const service = new CompanionService(store, provider);
   const telegram = new Telegram(store, service);
   const csrfToken = randomBytes(32).toString("hex");
-  if (options.background !== false) {
-    service.start();
-    telegram.start();
-  }
+  let activating = !!options.activation && !options.activation.ready();
+  const startBackground = () => {
+    if (options.background !== false) {
+      service.start();
+      telegram.start();
+    }
+  };
+  if (!activating) startBackground();
+  const activationTimer = activating
+    ? setInterval(() => {
+        if (options.activation?.ready()) {
+          activating = false;
+          clearInterval(activationTimer);
+          startBackground();
+        }
+      }, 250)
+    : undefined;
   const server = options.server ?? http.createServer();
   let handingOff = false;
   server.on("request", async (req, res) => {
@@ -108,11 +125,67 @@ export function createApp(options: {
             );
         }
         const route = `${req.method} ${url.pathname}`;
+        if (
+          activating &&
+          !["GET", "HEAD"].includes(req.method ?? "") &&
+          route !== "POST /api/startup/stop"
+        )
+          throw new AppError(
+            "The update is checking startup. Your companion will be available in a moment.",
+            503,
+          );
         if (handingOff && !["GET", "HEAD"].includes(req.method ?? ""))
           throw new AppError(
             "GlasHaus is switching to background mode. Wait a moment before trying again.",
             503,
           );
+        if (route === "GET /api/health")
+          return json({
+            version: VERSION,
+            id: (await options.startup?.status())?.id,
+            updateId: options.activation?.id ?? null,
+            activating,
+          });
+        if (route === "GET /api/updates")
+          return json(
+            options.updates
+              ? await options.updates.status()
+              : {
+                  current: VERSION,
+                  latest: null,
+                  checkedAt: null,
+                  available: false,
+                  message: "Updates are available in the installed app.",
+                  operation: null,
+                },
+          );
+        if (route === "POST /api/updates/check") {
+          if (!options.updates)
+            throw new AppError("Updates are unavailable in this preview.");
+          return json(await options.updates.check());
+        }
+        if (route === "POST /api/updates") {
+          if (!options.updates)
+            throw new AppError("Updates are unavailable in this preview.");
+          const input = record(await body(req));
+          if (input.confirmed !== true)
+            throw new AppError("Confirm Update and restart first.");
+          if (
+            service.busy ||
+            service.background !== "Idle" ||
+            store.research().some((r) => r.status === "running")
+          )
+            throw new AppError(
+              "Let the current conversation or research finish, then update.",
+              409,
+            );
+          return json(
+            await options.updates.start(
+              text(input.version, "Release version", 80, true),
+            ),
+            202,
+          );
+        }
         if (route === "GET /api/startup")
           return json(
             options.startup
@@ -145,6 +218,15 @@ export function createApp(options: {
             );
           const input = record(await body(req));
           const before = await options.startup.status();
+          if (
+            service.busy ||
+            service.background !== "Idle" ||
+            store.research().some((r) => r.status === "running")
+          )
+            throw new AppError(
+              "Let the current conversation or research finish, then try again.",
+              409,
+            );
           const stopping = route.endsWith("/stop");
           if (stopping && !before.managed)
             throw new AppError(
@@ -165,6 +247,8 @@ export function createApp(options: {
             !stopping && input.enabled === true && !before.managed;
           if (restarting || stopping) {
             handingOff = true;
+            service.stop();
+            telegram.stop();
             res.once("finish", () => {
               setTimeout(options.handoff!, 250);
             });
@@ -180,7 +264,7 @@ export function createApp(options: {
             reflections: store.reflections(),
             research: store.research(),
             csrfToken,
-            version: "3.0.0-alpha.5",
+            version: VERSION,
             background: service.background,
             telegram: telegram.status,
           });
@@ -344,6 +428,7 @@ export function createApp(options: {
     service,
     telegram,
     async close() {
+      clearInterval(activationTimer);
       service.stop();
       await telegram.shutdown();
       await new Promise<void>((resolve) => server.close(() => resolve()));

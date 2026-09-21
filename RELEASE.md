@@ -1,8 +1,16 @@
-# v3 alpha.5 release checks
+# v3 alpha.6 release checks
 
 The owner approved replacing the repository's current app with v3 and publishing an installable alpha. Git history and the v2 source are retained. Release status is recorded by GitHub Actions and the release page.
 
-## Verified here
+## Alpha.6 update checks
+
+The new update engine is tested with isolated synthetic homes for successful handoff, sign-in preference preservation, busy refusal, backup failure, startup failure, health-check failure, database rollback, concurrency, mismatched ports, downgrade refusal, same-version reruns, process-exit safety, native updater job creation, CSRF, and the activation write barrier. No owner credentials or conversations are used.
+
+The native Windows/macOS/Linux CI lifecycle now runs two real background-service updates through the HTTP Settings API and a separately owned OS updater job: one successful candidate, then one intentionally broken candidate that must restore the previous app and database. Release discovery/download are replaced only inside disposable fixture app copies; service registration, worker launch, backup, restart, and rollback are real. The separate updater must survive the old service stopping.
+
+Browser regression covers check failure/retry, inline confirmation/cancel, update progress and rollback feedback. Synthetic screenshots are retained as short-lived CI artifacts for review. Production releases remain gated on every platform passing. Native integration is never run on the owner's PC during development.
+
+## Earlier verified baseline
 
 - 47 automated checks on Windows with Node 24.19: persistence, source evidence, archive restore, memory correction and forgetting, Telegram reconnect/rate limits/pairing/delivery, installer integrity, background-service behavior, and first-person prompt coverage. Both TypeScript checks, the production build, and the separate-process portable restart check also passed.
 - The real Windows PowerShell 5 installer was tested twice with a spaced path. Each install used a new directory; a sentinel existing file survived. A bad checksum was refused before running app code.
@@ -14,7 +22,7 @@ The owner approved replacing the repository's current app with v3 and publishing
 1. Review the branch diff and preserve the existing v2 tag/history. The historical source under `legacy-v2/` is not included in runtime archives.
 2. Run the included GitHub Actions Windows/macOS/Linux matrix. It covers installer execution, browser regression, build, and separate-process portable startup. Mac/Linux results are not verified locally.
 3. A push to `main` runs the release workflow. It publishes a **prerelease** only after the full matrix succeeds, the build completes, and the actual ZIP passes a separate-process startup/restart test.
-4. The package version selects the release tag. Existing release assets are never overwritten. Both installers default to `v3.0.0-alpha.5`, avoiding GitHub's stable-only latest-release lookup. `GLASHAUS_RELEASE_TAG` can select another v3 version.
+4. The package version selects the release tag. Existing release assets are never overwritten. Both installers default to `v3.0.0-alpha.6`, avoiding GitHub's stable-only latest-release lookup. `GLASHAUS_RELEASE_TAG` can select another v3 version.
 
 ## First-person voice checks
 
@@ -36,7 +44,7 @@ The alpha.2 public ZIP matched its SHA-256, but Windows PowerShell 5 returned th
 
 ## Upgrade and rollback
 
-Stop GlasHaus before changing app versions. Export a JSON archive in Settings, and keep a filesystem copy of the old data directory while the app is stopped. Protect that copy: it includes credentials and private conversations. Do not upload it with source or release assets.
+For alpha.6 and later, rerun the installer or use Settings → Updates. The updater downloads first, then stops the background service, takes a SQLite backup including committed WAL contents, checks its integrity, and starts the candidate with web writes, jobs and Telegram held until the health check commits. Failed startup attempts restore the previous database and service; failures to prove process shutdown require explicit recovery instead of replacing a possibly live database. See README for manual sessions, recovery, and custom-home instructions. Export your own JSON archive as an additional backup. Never upload private recovery copies with source or releases.
 
 Alpha.2 upgrades the v3 SQLite schema additively from version 1 to version 2. Older rows stay intact; two tables track replaced memories and suppressions. Keep your pre-upgrade copy if you want to go back to alpha.1. Do not point alpha.1 at the upgraded database. To roll back, run the old app against the untouched pre-upgrade copy, or restore the old export into a separate empty home compatible with that version.
 

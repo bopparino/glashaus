@@ -117,6 +117,27 @@ export interface StartupStatus {
   platform: string;
   message: string;
 }
+export interface UpdateStatus {
+  current: string;
+  latest: { version: string; tag: string; url: string } | null;
+  checkedAt: number | null;
+  available: boolean;
+  message: string;
+  operation: {
+    id: string;
+    version: string;
+    phase:
+      | "preparing"
+      | "stopping"
+      | "backing-up"
+      | "starting"
+      | "complete"
+      | "failed"
+      | "recovery-needed";
+    message: string;
+    backup: string | null;
+  } | null;
+}
 export interface StreamEvent {
   type: "status" | "token" | "sources" | "draft" | "done" | "error";
   text?: string;

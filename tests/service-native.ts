@@ -1,12 +1,24 @@
 // Disposable CI machines only. Never register a service on a developer's PC.
 import assert from "node:assert/strict";
 import { spawn, execFile } from "node:child_process";
-import { mkdtempSync, existsSync, rmSync, readFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  existsSync,
+  rmSync,
+  readFileSync,
+  cpSync,
+  mkdirSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import net from "node:net";
 import { promisify } from "node:util";
 import { Startup } from "../app/server/startup.ts";
+import { pathToFileURL } from "node:url";
+import { VERSION } from "../app/shared/version.ts";
+import { alive } from "../app/server/update-engine.ts";
+import { readUpdate } from "../app/server/update-state.ts";
 
 if (
   process.env.CI !== "true" ||
@@ -16,6 +28,41 @@ if (
     "Native service tests require an explicitly opted-in disposable CI runner.",
   );
 const root = mkdtempSync(path.join(os.tmpdir(), "glashaus service 'Ω-"));
+const appRoot = mkdtempSync(path.join(os.tmpdir(), "glashaus update apps 'Ω-"));
+function copyApp(name: string, version: string) {
+  const folder = path.join(appRoot, name);
+  mkdirSync(folder);
+  cpSync(path.resolve("dist"), path.join(folder, "dist"), { recursive: true });
+  cpSync(path.resolve("bin"), path.join(folder, "bin"), { recursive: true });
+  const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+  writeFileSync(
+    path.join(folder, "package.json"),
+    JSON.stringify({ ...pkg, version }),
+  );
+  writeFileSync(
+    path.join(folder, "dist/shared/version.js"),
+    `export const VERSION = ${JSON.stringify(version)};`,
+  );
+  return folder;
+}
+const oldApp = copyApp("old", VERSION);
+const newApp = copyApp("new", "3.0.1-alpha.0");
+const badApp = copyApp("bad", "3.0.2-alpha.0");
+writeFileSync(
+  path.join(badApp, "dist/server/main.js"),
+  "throw new Error('Synthetic candidate startup failure');",
+);
+// Only disposable app copies use this offline release source. The production
+// HTTP control, independent OS job, worker, database backup and handoff are real.
+for (const [app, candidate, version] of [
+  [oldApp, newApp, "3.0.1-alpha.0"],
+  [newApp, badApp, "3.0.2-alpha.0"],
+]) {
+  writeFileSync(
+    path.join(app, "dist/server/update-release.js"),
+    `export {compareVersions} from ${JSON.stringify(pathToFileURL(path.resolve("dist/server/update-release.js")).href)}; export async function latestRelease(){return ${JSON.stringify({ version, tag: `v${version}`, url: `https://github.com/bopparino/glashaus/releases/tag/v${version}` })}} export async function stageRelease(){return ${JSON.stringify(candidate)}}`,
+  );
+}
 const socket = net.createServer();
 await new Promise<void>((r) => socket.listen(0, "127.0.0.1", r));
 const address = socket.address();
@@ -25,15 +72,19 @@ await new Promise<void>((r) => socket.close(() => r()));
 const startup = new Startup({
   directory: root,
   port,
-  entry: path.resolve("dist/server/background.js"),
+  entry: path.join(oldApp, "dist/server/background.js"),
 });
 const base = `http://127.0.0.1:${port}`;
 const exec = promisify(execFile);
-const foreground = spawn(process.execPath, ["bin/glashaus-v3.js"], {
-  env: { ...process.env, GLASHAUS_HOME: root, GLASHAUS_PORT: String(port) },
-  stdio: "ignore",
-  windowsHide: true,
-});
+const foreground = spawn(
+  process.execPath,
+  [path.join(oldApp, "bin/glashaus-v3.js")],
+  {
+    env: { ...process.env, GLASHAUS_HOME: root, GLASHAUS_PORT: String(port) },
+    stdio: "ignore",
+    windowsHide: true,
+  },
+);
 const exited = new Promise((r) => foreground.once("exit", r));
 async function poll<T>(task: () => Promise<T>, timeout = 60000): Promise<T> {
   const deadline = Date.now() + timeout;
@@ -51,7 +102,7 @@ async function state() {
     await fetch(`${base}/api/state`, { signal: AbortSignal.timeout(1500) })
   ).json()) as { csrfToken: string; companion: { name: string } | null };
 }
-async function post(route: string, data: unknown) {
+async function post(route: string, data: unknown, expected = 200) {
   const current = await state();
   const r = await fetch(`${base}/api${route}`, {
     method: "POST",
@@ -63,7 +114,7 @@ async function post(route: string, data: unknown) {
     signal: AbortSignal.timeout(60000),
   });
   const value = await r.json();
-  assert.equal(r.status, 200, JSON.stringify(value));
+  assert.equal(r.status, expected, JSON.stringify(value));
   return value;
 }
 try {
@@ -119,10 +170,56 @@ try {
   await poll(async () =>
     assert.equal((await state()).companion?.name, "Service fixture"),
   );
-  await startup.disable();
+  await post("/settings", {
+    model: "synthetic-model",
+    ollamaApiKey: "synthetic-private-key",
+    telegramOwnerId: "synthetic-pairing",
+  });
+  await post("/updates/check", {});
+  await post("/updates", { confirmed: true, version: "3.0.1-alpha.0" }, 202);
+  await poll(async () => {
+    const update = await (await fetch(`${base}/api/updates`)).json();
+    assert.equal(update.operation?.phase, "complete", JSON.stringify(update));
+    assert.equal(update.current, "3.0.1-alpha.0");
+    assert.equal((await state()).companion?.name, "Service fixture");
+    assert.ok(existsSync(update.operation.backup));
+    assert.equal(startup.registration()?.updateId, undefined);
+    assert.equal(
+      alive(readUpdate(root)!.pid),
+      false,
+      "The independent updater must exit after committing",
+    );
+  }, 120000);
+  if (process.platform === "win32")
+    await poll(async () => {
+      const task = await exec(
+        "powershell.exe",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          `(Get-ScheduledTask -TaskName '${startup.id}-update').State`,
+        ],
+        { windowsHide: true },
+      );
+      assert.doesNotMatch(task.stdout, /Running/);
+    });
+  // A bad subsequent release must restore this new app and its exact data.
+  await post("/startup", { enabled: false });
+  await post("/updates/check", {});
+  await post("/updates", { confirmed: true, version: "3.0.2-alpha.0" }, 202);
+  await poll(async () => {
+    const update = await (await fetch(`${base}/api/updates`)).json();
+    assert.equal(update.operation?.phase, "failed", JSON.stringify(update));
+    assert.equal(update.current, "3.0.1-alpha.0");
+    assert.match(update.operation.message, /previous version is running again/);
+    assert.equal((await state()).companion?.name, "Service fixture");
+    assert.equal((await startup.status()).enabled, false);
+  }, 180000);
+  await post("/startup", { enabled: false });
   await post("/startup/stop", {});
   console.log(
-    `${process.platform}: real service enable, foreground handoff, duplicate prevention, disable, stop, and restart passed.`,
+    `${process.platform}: real service handoff, duplicate prevention, restart, Settings update, independent worker survival, backup, and failed-release rollback passed.`,
   );
 } catch (error) {
   const log = path.join(startup.folder, "background.log");
@@ -143,6 +240,16 @@ try {
       ],
       { windowsHide: true },
     );
+    await exec(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        `$t=Get-ScheduledTask -TaskName '${startup.id}-update' -ErrorAction SilentlyContinue; if($t -and $t.Description -eq '${startup.id}-update'){Stop-ScheduledTask -TaskName '${startup.id}-update'; Unregister-ScheduledTask -TaskName '${startup.id}-update' -Confirm:$false}`,
+      ],
+      { windowsHide: true },
+    );
   } else if (process.platform === "linux") {
     await exec("systemctl", ["--user", "stop", `${startup.id}.service`]).catch(
       () => {},
@@ -154,6 +261,10 @@ try {
       rmSync(startup.nativeFile);
     await exec("systemctl", ["--user", "daemon-reload"]);
   } else {
+    await exec("launchctl", [
+      "bootout",
+      `gui/${process.getuid!()}/${startup.id}-update`,
+    ]).catch(() => {});
     await exec("launchctl", [
       "bootout",
       `gui/${process.getuid!()}/${startup.id}`,
@@ -169,4 +280,8 @@ try {
     path.resolve(root).startsWith(path.resolve(os.tmpdir()) + path.sep),
   );
   rmSync(root, { recursive: true, force: true });
+  assert.ok(
+    path.resolve(appRoot).startsWith(path.resolve(os.tmpdir()) + path.sep),
+  );
+  rmSync(appRoot, { recursive: true, force: true });
 }

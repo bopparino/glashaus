@@ -3,8 +3,10 @@ import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { createApp } from "./http.ts";
 import http from "node:http";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { Startup } from "./startup.ts";
+import { Updates } from "./updates.ts";
+import { updateCommitted } from "./update-state.ts";
 
 const directory = path.resolve(
   process.env.GLASHAUS_HOME ?? path.join(os.homedir(), ".glashaus-v3"),
@@ -57,11 +59,30 @@ while (true) {
   }
 }
 const startup = new Startup({ directory, port });
+const updateId = process.env.GLASHAUS_UPDATE_ID;
+const activation = updateId
+  ? {
+      id: updateId,
+      ready: () => {
+        if (!updateCommitted(directory, updateId)) return false;
+        const config = startup.registration();
+        if (config?.updateId === updateId) {
+          delete config.updateId;
+          writeFileSync(startup.configFile, JSON.stringify(config, null, 2), {
+            mode: 0o600,
+          });
+        }
+        return true;
+      },
+    }
+  : undefined;
 const app = createApp({
   directory,
   webRoot,
   server,
   startup,
+  updates: new Updates(startup),
+  activation,
   handoff: () => close(),
 });
 console.log(

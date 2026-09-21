@@ -5,6 +5,7 @@ import os from "node:os";
 import { createApp } from "../app/server/http.ts";
 import { AppError, companionInput } from "../app/server/validation.ts";
 import type { ModelProvider } from "../app/server/ollama.ts";
+import { updateFixture } from "./update-fixture.ts";
 const provider: ModelProvider = {
   async models() {
     return [{ name: "demo-model", size: 0 }];
@@ -34,12 +35,14 @@ for (const [port, seed] of [
   let startupAttempts = 0;
   const directory = mkdtempSync(path.join(os.tmpdir(), "glashaus-preview-"));
   let app: ReturnType<typeof createApp>;
+  const updates = updateFixture();
   const makeApp = () =>
     createApp({
       directory,
       webRoot: path.resolve("dist/web"),
       provider,
       background: false,
+      updates,
       startup: {
         async status() {
           return {

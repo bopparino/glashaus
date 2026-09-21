@@ -568,3 +568,6 @@ summary:hover {
     padding-inline: 16px;
   }
 }
+.update-backup {
+  overflow-wrap: anywhere;
+}

@@ -11,16 +11,25 @@ if (nodeMajor !== 24 || nodeMinor < 14) {
   process.exit(1);
 }
 if (command === "--version" || command === "version") {
-  console.log("3.0.0-alpha.5");
+  console.log("3.0.0-alpha.6");
   process.exit(0);
 }
 if (command === "--help" || command === "help") {
+  console.log("  glashaus install       Apply this downloaded release; update an existing background app\n  glashaus recover       Recover an interrupted update\n");
   console.log(
     "GlasHaus v3\n\n  glashaus [start]       Start the local companion app\n  glashaus setup         Open the same app for guided setup\n  glashaus doctor        Check Node and Ollama\n  glashaus service enable   Run in background and start at sign-in\n  glashaus service disable  Turn off sign-in startup (keeps this session)\n  glashaus service stop     Stop the current background session\n  glashaus service status   Check startup and find the service log\n\nGLASHAUS_HOME chooses a data directory (default: ~/.glashaus-v3).\nGLASHAUS_PORT chooses a port (default: 7777).\nThis alpha uses a separate v3 home; it never opens your v2 database.",
   );
   process.exit(0);
 }
-if (command === "service") {
+if (command === "install" || command === "recover") {
+  try {
+    const { installCommand } = await import("../dist/server/install-cli.js");
+    if (await installCommand(command)) await import("../dist/server/main.js");
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+  }
+} else if (command === "service") {
   try {
     const { serviceCommand } = await import("../dist/server/service-cli.js");
     await serviceCommand(process.argv[3] ?? "status");

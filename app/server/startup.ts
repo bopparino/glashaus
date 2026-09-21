@@ -21,6 +21,7 @@ export interface Registration {
   node: string;
   entry: string;
   nonce: string;
+  updateId?: string;
 }
 type Runner = (file: string, args: string[]) => Promise<string>;
 const exec = promisify(execFile);
@@ -74,6 +75,7 @@ export class Startup implements StartupControl {
   readonly managed: boolean;
   private busy = false;
   private readyTimeout: number;
+  private updateId?: string;
 
   constructor(options: {
     directory: string;
@@ -87,6 +89,7 @@ export class Startup implements StartupControl {
     execute?: Runner;
     managed?: boolean;
     readyTimeout?: number;
+    updateId?: string;
   }) {
     this.directory = path.resolve(options.directory);
     this.folder = path.join(this.directory, "startup");
@@ -122,6 +125,7 @@ export class Startup implements StartupControl {
     this.execute = options.execute ?? run;
     this.managed = options.managed ?? process.env.GLASHAUS_MANAGED === "1";
     this.readyTimeout = options.readyTimeout ?? 15000;
+    this.updateId = options.updateId;
   }
   private config(): Registration | null {
     if (!existsSync(this.configFile)) return null;
@@ -136,6 +140,50 @@ export class Startup implements StartupControl {
       throw new AppError(
         "The background-startup record is unreadable. Keep using manual start; check the startup folder in your companion home.",
       );
+    }
+  }
+  registration() {
+    return this.config();
+  }
+  // Only an updater outside the service may use this, after graceful shutdown
+  // or when rolling back a candidate that never reached its health endpoint.
+  async stopNative() {
+    const config = this.config();
+    if (!config || config.entry !== this.entry || config.node !== this.node)
+      throw new AppError(
+        "This installation does not own the background service.",
+      );
+    if (this.platform === "win32") {
+      await this.windowsState();
+      await this.ps(`Stop-ScheduledTask -TaskName ${psQuote(this.id)}`);
+    } else {
+      if (
+        !existsSync(this.nativeFile) ||
+        !readFileSync(this.nativeFile, "utf8").includes(this.id)
+      )
+        throw new AppError("The service ownership record does not match.");
+      if (this.platform === "linux")
+        await this.execute("systemctl", [
+          "--user",
+          "stop",
+          `${this.id}.service`,
+        ]);
+      else {
+        let loaded = true;
+        try {
+          await this.execute("launchctl", [
+            "print",
+            `gui/${this.uid}/${this.id}`,
+          ]);
+        } catch {
+          loaded = false;
+        }
+        if (loaded)
+          await this.execute("launchctl", [
+            "bootout",
+            `gui/${this.uid}/${this.id}`,
+          ]);
+      }
     }
   }
   private write(config: Registration) {
@@ -375,6 +423,7 @@ export class Startup implements StartupControl {
         node: this.node,
         entry: this.entry,
         nonce: previous?.enabled ? previous.nonce : randomUUID(),
+        ...(this.updateId ? { updateId: this.updateId } : {}),
       };
       // Re-enabling a currently managed process needs no restart or readiness handshake.
       this.write(config);
