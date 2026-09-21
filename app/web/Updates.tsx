@@ -9,7 +9,13 @@ const pending = (status: UpdateStatus | null) =>
     status.operation.phase,
   );
 
-export function UpdateSettings() {
+export function UpdateSettings({
+  blockedReason,
+  onUpdatingChange,
+}: {
+  blockedReason: string;
+  onUpdatingChange: (value: boolean) => void;
+}) {
   const [status, setStatus] = useState<UpdateStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -69,10 +75,12 @@ export function UpdateSettings() {
             );
             reconnecting.current = false;
           }
-        } else
+        } else {
+          onUpdatingChange(false);
           setError(
             "Could not read update status. Try Check for updates, or reopen Settings.",
           );
+        }
       }
     };
     void load();
@@ -98,6 +106,10 @@ export function UpdateSettings() {
   }
   async function update() {
     if (!status?.latest) return;
+    if (blockedReason) {
+      setError(blockedReason);
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -115,6 +127,9 @@ export function UpdateSettings() {
     }
   }
   const running = pending(status);
+  useEffect(() => {
+    if (status) onUpdatingChange(running || (busy && confirm));
+  }, [status, running, busy, confirm, onUpdatingChange]);
   const recovery = status?.operation?.phase === "recovery-needed";
   return (
     <section className="settings-section" aria-labelledby="updates-title">
@@ -139,6 +154,11 @@ export function UpdateSettings() {
         </p>
       )}
       {status?.message && <p className="helper">{status.message}</p>}
+      {blockedReason && (
+        <p role="status" className="helper">
+          {blockedReason}
+        </p>
+      )}
       {!running && !recovery && (
         <>
           {status?.checkedAt && (
@@ -161,7 +181,7 @@ export function UpdateSettings() {
                 <button
                   ref={confirmButton}
                   className="button primary"
-                  disabled={busy}
+                  disabled={busy || !!blockedReason}
                   onClick={() => void update()}
                 >
                   {busy ? "Starting update…" : "Update and restart"}
@@ -192,7 +212,7 @@ export function UpdateSettings() {
                 <>
                   <button
                     className="button primary"
-                    disabled={busy || !status.available}
+                    disabled={busy || !status.available || !!blockedReason}
                     onClick={() => setConfirm(true)}
                   >
                     Update GlasHaus

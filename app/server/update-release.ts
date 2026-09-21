@@ -74,8 +74,8 @@ export async function latestRelease(
       }
     : null;
 }
-async function download(url: string, limit: number) {
-  const response = await fetch(url, { signal: AbortSignal.timeout(120000) });
+async function download(url: string, limit: number, request: typeof fetch) {
+  const response = await request(url, { signal: AbortSignal.timeout(120000) });
   if (!response.ok || !response.body)
     throw new AppError(
       "The release download failed. The running app has not changed.",
@@ -90,13 +90,17 @@ async function download(url: string, limit: number) {
   }
   return Buffer.concat(chunks);
 }
-export async function stageRelease(release: Release) {
+export async function stageRelease(
+  release: Release,
+  request: typeof fetch = fetch,
+  installRoot?: string,
+) {
   if (!pattern.test(release.tag) || release.tag !== `v${release.version}`)
     throw new AppError("Invalid release tag.");
   const base = `https://github.com/bopparino/glashaus/releases/download/${release.tag}`;
   const [archive, checksum] = await Promise.all([
-    download(`${base}/glashaus-v3.zip`, 100_000_000),
-    download(`${base}/glashaus-v3.zip.sha256`, 1024),
+    download(`${base}/glashaus-v3.zip`, 100_000_000, request),
+    download(`${base}/glashaus-v3.zip.sha256`, 1024, request),
   ]);
   const expected = checksum
     .toString("utf8")
@@ -111,7 +115,8 @@ export async function stageRelease(release: Release) {
       "Release checksum did not match. No downloaded code was run.",
     );
   const root = path.resolve(
-    process.env.GLASHAUS_INSTALL_ROOT ??
+    installRoot ??
+      process.env.GLASHAUS_INSTALL_ROOT ??
       path.join(os.homedir(), ".local", "share", "glashaus"),
   );
   mkdirSync(root, { recursive: true });

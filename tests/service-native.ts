@@ -19,6 +19,7 @@ import { pathToFileURL } from "node:url";
 import { VERSION } from "../app/shared/version.ts";
 import { alive } from "../app/server/update-engine.ts";
 import { readUpdate } from "../app/server/update-state.ts";
+import { stageRelease } from "../app/server/update-release.ts";
 
 if (
   process.env.CI !== "true" ||
@@ -48,6 +49,15 @@ function copyApp(name: string, version: string) {
 const oldApp = copyApp("old", VERSION);
 const newApp = copyApp("new", "3.0.1-alpha.0");
 const badApp = copyApp("bad", "3.0.2-alpha.0");
+const legacyApp = await stageRelease(
+  {
+    version: "3.0.0-alpha.5",
+    tag: "v3.0.0-alpha.5",
+    url: "https://github.com/bopparino/glashaus/releases/tag/v3.0.0-alpha.5",
+  },
+  fetch,
+  appRoot,
+);
 writeFileSync(
   path.join(badApp, "dist/server/main.js"),
   "throw new Error('Synthetic candidate startup failure');",
@@ -72,13 +82,13 @@ await new Promise<void>((r) => socket.close(() => r()));
 const startup = new Startup({
   directory: root,
   port,
-  entry: path.join(oldApp, "dist/server/background.js"),
+  entry: path.join(legacyApp, "dist/server/background.js"),
 });
 const base = `http://127.0.0.1:${port}`;
 const exec = promisify(execFile);
 const foreground = spawn(
   process.execPath,
-  [path.join(oldApp, "bin/glashaus-v3.js")],
+  [path.join(legacyApp, "bin/glashaus-v3.js")],
   {
     env: { ...process.env, GLASHAUS_HOME: root, GLASHAUS_PORT: String(port) },
     stdio: "ignore",
@@ -174,6 +184,24 @@ try {
     model: "synthetic-model",
     ollamaApiKey: "synthetic-private-key",
     telegramOwnerId: "synthetic-pairing",
+  });
+  // The exact published alpha.5 app has no updater. The new installer must
+  // still find it, stop it, back it up, and transfer its registration.
+  await exec(
+    process.execPath,
+    [path.join(oldApp, "bin/glashaus-v3.js"), "install"],
+    {
+      env: { ...process.env, GLASHAUS_HOME: root, GLASHAUS_PORT: String(port) },
+      windowsHide: true,
+      timeout: 120000,
+    },
+  );
+  await poll(async () => {
+    const result = await (await fetch(`${base}/api/updates`)).json();
+    assert.equal(result.current, VERSION);
+    assert.equal(result.operation.phase, "complete");
+    assert.equal(startup.registration()?.updateId, undefined);
+    assert.equal((await state()).companion?.name, "Service fixture");
   });
   await post("/updates/check", {});
   await post("/updates", { confirmed: true, version: "3.0.1-alpha.0" }, 202);

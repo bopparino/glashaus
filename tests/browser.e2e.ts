@@ -328,6 +328,27 @@ try {
   await capture("update-confirm-mobile", 390, 844);
   await capture("update-confirm-desktop", 1440, 1024);
   await capture("update-confirm-user", 1280, 720);
+  await page
+    .getByLabel("Ollama address", { exact: true })
+    .fill("http://127.0.0.1:11435");
+  assert.equal(
+    await updateSection
+      .getByRole("button", { name: "Update and restart" })
+      .isEnabled(),
+    false,
+  );
+  await updateSection
+    .getByText("Save your settings changes before updating.")
+    .waitFor();
+  assert.equal(updates.starts, 0);
+  await page
+    .getByRole("button", { name: "Save settings", exact: true })
+    .click();
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll("button")].some(
+      (b) => b.textContent === "Update and restart" && !b.disabled,
+    ),
+  );
   await updateSection
     .getByRole("button", { name: "Update and restart" })
     .click();
@@ -335,10 +356,19 @@ try {
     .getByText("Preparing the update.", { exact: false })
     .waitFor();
   assert.equal(updates.starts, 1);
+  assert.equal(
+    await page.getByLabel("Ollama address", { exact: true }).isEnabled(),
+    false,
+    "Do not allow a new unsaved draft during restart",
+  );
   await updateSection
     .getByRole("alert")
     .filter({ hasText: "previous version is running again" })
     .waitFor();
+  assert.equal(
+    await page.getByLabel("Ollama address", { exact: true }).isEnabled(),
+    true,
+  );
   await page
     .getByRole("button", { name: "Edit identity", exact: true })
     .click();

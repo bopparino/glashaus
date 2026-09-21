@@ -25,6 +25,7 @@ import { readUpdate, updateCommitted } from "../app/server/update-state.ts";
 import {
   compareVersions,
   latestRelease,
+  stageRelease,
 } from "../app/server/update-release.ts";
 import { launchUpdater } from "../app/server/update-launch.ts";
 import { createApp } from "../app/server/http.ts";
@@ -191,6 +192,31 @@ test("release selection sorts numeric prereleases and ignores v2, drafts, missin
     /not changed/,
   );
 });
+test("bad downloads and mismatched checksums cannot stage or execute a release", async () => {
+  const release = {
+    version: VERSION,
+    tag: `v${VERSION}`,
+    url: "https://example.invalid/not-used",
+  };
+  await assert.rejects(
+    stageRelease(
+      release,
+      (async () => new Response("", { status: 502 })) as typeof fetch,
+    ),
+    /running app has not changed/i,
+  );
+  await assert.rejects(
+    stageRelease(
+      release,
+      (async (url) =>
+        new Response(
+          String(url).endsWith("sha256") ? "0".repeat(64) : "not a release",
+        )) as typeof fetch,
+    ),
+    /checksum did not match/,
+  );
+});
+
 for (const enabled of [true, false])
   test(`update preserves data and sign-in preference (${enabled}) and commits only after health`, async () => {
     const f = fixture({ enabled });
