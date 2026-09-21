@@ -1,10 +1,10 @@
-# v3 alpha.4 release checks
+# v3 alpha.5 release checks
 
 The owner approved replacing the repository's current app with v3 and publishing an installable alpha. Git history and the v2 source are retained. Release status is recorded by GitHub Actions and the release page.
 
 ## Verified here
 
-- 31 automated checks on Windows with Node 24.19: persistence, source evidence, archive restore, memory correction and forgetting, Telegram reconnect/rate limits/pairing/delivery, installer integrity, and matching the default installer release to the package version.
+- 47 automated checks on Windows with Node 24.19: persistence, source evidence, archive restore, memory correction and forgetting, Telegram reconnect/rate limits/pairing/delivery, installer integrity, background-service behavior, and first-person prompt coverage. Both TypeScript checks, the production build, and the separate-process portable restart check also passed.
 - The real Windows PowerShell 5 installer was tested twice with a spaced path. Each install used a new directory; a sentinel existing file survived. A bad checksum was refused before running app code.
 - Live Kimi K2.6 cloud: streaming, public character research, concise preview, conversation, evidence-backed extraction, history-free recall, reflection, explicit correction, corrected recall after 100 additional synthetic exchanges, and archive restore.
 - Owner confirmed Telegram paired and returned a reply. Tests did not alter the real companion's identity or history.
@@ -14,7 +14,15 @@ The owner approved replacing the repository's current app with v3 and publishing
 1. Review the branch diff and preserve the existing v2 tag/history. The historical source under `legacy-v2/` is not included in runtime archives.
 2. Run the included GitHub Actions Windows/macOS/Linux matrix. It covers installer execution, browser regression, build, and separate-process portable startup. Mac/Linux results are not verified locally.
 3. A push to `main` runs the release workflow. It publishes a **prerelease** only after the full matrix succeeds, the build completes, and the actual ZIP passes a separate-process startup/restart test.
-4. The package version selects the release tag. Existing release assets are never overwritten. Both installers default to `v3.0.0-alpha.4`, avoiding GitHub's stable-only latest-release lookup. `GLASHAUS_RELEASE_TAG` can select another v3 version.
+4. The package version selects the release tag. Existing release assets are never overwritten. Both installers default to `v3.0.0-alpha.5`, avoiding GitHub's stable-only latest-release lookup. `GLASHAUS_RELEASE_TAG` can select another v3 version.
+
+## First-person voice checks
+
+Alpha.5 adds a shared first-person default for self speech and permitted roleplay actions. Six automated regression cases cover character/authored/grow identities, web and Telegram history, previews and reflections, explicit narration requests, and preserving other people's pronouns and old replies. The tests use an in-memory synthetic companion, not the owner's data. This is a prompt change, not a database migration or a text-replacement filter.
+
+The optional `node tests/live-perspective.ts --run <model> [ollama-url]` check exercises ordinary conversation, roleplay actions, an explicit third-person request, another character's actions, and voice preview. It sends only synthetic conversations to the selected Ollama model. Hosted inference may consume the account's allowance; this test is not part of automatic CI.
+
+All five cases passed in a full live run with `kimi-k2.6:cloud`. An earlier run exposed drafting text in a model response ending with an unmatched `</think>` marker despite `think: false`. The live check treats that as a failure, not as a valid first-person reply. A separate test assertion was corrected to accept past-tense third-person narration as well as present tense. The later successful run does not prove the drafting-text issue is fixed; alpha.5 leaves inference settings and the existing reply filter unchanged.
 
 ## Background-service checks
 

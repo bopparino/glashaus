@@ -1,8 +1,12 @@
-# GlasHaus v3.0.0-alpha.4
+# GlasHaus v3.0.0-alpha.5
 
 A fresh Ollama companion app with a shared web and Telegram conversation, inspectable memory, and portable identity.
 
-Alpha.4 adds optional background startup during setup, restore, and in Settings. Windows uses a per-user scheduled task, macOS uses a LaunchAgent, and Linux uses a systemd user service. It switches the current session into the background without running two Telegram pollers. Manual start remains the default. There is no new database migration.
+Alpha.5 makes first person the default for a companion's speech and any allowed roleplay actions: "I open the door," not "She opens the door." Character biographies and older third-person replies are treated as background, not a voice template. An explicit request for another perspective still works, and references to other people and quotations stay intact.
+
+The rule applies to web chat, Telegram, voice previews, and journal reflections. Existing companions do not need to be absorbed again. Identity, memories, and past replies are not rewritten, and there is no new database migration. Output still depends on the selected model following the prompt.
+
+Optional background startup from alpha.4 remains available during setup, restore, and in Settings. Windows uses a per-user scheduled task, macOS uses a LaunchAgent, and Linux uses a systemd user service. Manual start remains the default.
 
 ## Install
 
@@ -42,6 +46,10 @@ This is an alpha, not feature parity with v2. The full Git history and `legacy-v
 
 Back up existing v3 data before upgrading. Alpha.2 adds schema-2 memory correction tables. Do not run alpha.1 against an upgraded database.
 
+To update from alpha.4, disable and stop its background service first (or stop the terminal session if you start manually), then run the installer again. Keep the same `GLASHAUS_HOME` if you use a custom data folder. Re-enable background startup in the new app's Settings so it points to the new installation. Your existing companion and history stay in the separate data folder; do not reset setup or re-absorb the character.
+
 Voice, photos, scheduled outreach, and full v2 conversation migration are not included. Forgetting excludes a memory and its source exchange from later recall, but does not securely erase the private archive. Memory extraction can be wrong. An ambiguous Telegram network failure can cause a duplicate delivery.
+
+The five live first-person checks passed with Kimi K2.6 cloud. An earlier test also caught a reply containing drafting notes despite thinking being disabled. That separate model-output issue is not fixed by this release; a later passing run is not a guarantee it cannot recur.
 
 The release workflow requires Windows, macOS, and Linux checks, including a real background-service lifecycle on each disposable runner, before publishing these assets. Live Kimi K2.6 cloud tests and a real Telegram pairing/reply were also verified during development.

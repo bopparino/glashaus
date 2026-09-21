@@ -180,7 +180,7 @@ export function createApp(options: {
             reflections: store.reflections(),
             research: store.research(),
             csrfToken,
-            version: "3.0.0-alpha.4",
+            version: "3.0.0-alpha.5",
             background: service.background,
             telegram: telegram.status,
           });
