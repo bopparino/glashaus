@@ -527,7 +527,8 @@ try {
   assert.equal(app.store.settings().model, "test-model");
   assert(app.store.settings().ollamaApiKey);
   await page
-    .getByRole("button", { name: "Open settings", exact: true })
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("button", { name: "Settings", exact: true })
     .click();
   await dataSection
     .getByRole("button", { name: "Purge local data", exact: true })
