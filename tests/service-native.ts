@@ -6,6 +6,7 @@ import {
   existsSync,
   rmSync,
   readFileSync,
+  readdirSync,
   cpSync,
   mkdirSync,
   writeFileSync,
@@ -244,10 +245,44 @@ try {
     assert.equal((await state()).companion?.name, "Service fixture");
     assert.equal((await startup.status()).enabled, false);
   }, 180000);
+  await poll(async () => {
+    assert.equal(alive(readUpdate(root)!.pid), false);
+    assert.equal(existsSync(path.join(root, "updates", "lock.json")), false);
+  });
+  const beforeDelete = await state();
+  await post("/data/reset", {
+    mode: "companion",
+    companionId: beforeDelete.companion.id,
+    confirmation: "DELETE Service fixture",
+    confirmed: true,
+  });
+  assert.equal((await state()).companion, null);
+  assert.equal((await state()).settings.model, "synthetic-model");
+  assert.ok(existsSync(readUpdate(root)!.backup!));
+  await post("/companion", {
+    name: "Replacement fixture",
+    mode: "grow",
+    userName: "Test visitor",
+    relationship: "Synthetic service lifecycle test.",
+  });
+  const replacement = await state();
+  await post("/data/reset", {
+    mode: "purge",
+    companionId: replacement.companion.id,
+    confirmation: "PURGE ALL",
+    confirmed: true,
+  });
+  const purged = await state();
+  assert.equal(purged.companion, null);
+  assert.equal(purged.settings.model, "");
+  assert.equal(purged.settings.hasSearchKey, false);
+  assert.equal(purged.settings.telegramOwnerId, "");
+  assert.equal((await startup.status()).enabled, false);
+  assert.deepEqual(readdirSync(path.join(root, "backups")), []);
   await post("/startup", { enabled: false });
   await post("/startup/stop", {});
   console.log(
-    `${process.platform}: real service handoff, duplicate prevention, restart, Settings update, independent worker survival, backup, and failed-release rollback passed.`,
+    `${process.platform}: real service handoff, restart, Settings update, worker survival, rollback, companion deletion, replacement and purge passed.`,
   );
 } catch (error) {
   const log = path.join(startup.folder, "background.log");

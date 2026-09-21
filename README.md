@@ -20,7 +20,7 @@ The default home is `~/.glashaus-v3` on every OS. `GLASHAUS_HOME` selects anothe
 
 The included installers download the prebuilt `glashaus-v3.zip` asset from a GitHub release. They require Node 24 and do not install Ollama, download a model, change your PATH, or modify v2 data. Sign-in startup is off unless you choose it in setup or Settings.
 
-The commands below install **v3.0.0-alpha.6**. They require its [published release assets](https://github.com/bopparino/glashaus/releases/tag/v3.0.0-alpha.6); a pending or failed release check will not publish an unverified app.
+The commands below install **v3.0.0-alpha.7**. They require its [published release assets](https://github.com/bopparino/glashaus/releases/tag/v3.0.0-alpha.7); a pending or failed release check will not publish an unverified app.
 
 Windows PowerShell:
 
@@ -80,6 +80,19 @@ If a power loss or failed rollback leaves the app offline, run `node bin/glashau
 - **Journal:** on-demand reflections and optional daily reflection after 9pm while running. A minimal grow persona can form conversational preferences; autonomous identity rewriting is not included yet.
 - **Telegram:** private text chats, owner-only pairing, initial-connect retries, rate-limit backoff, clear polling/webhook conflict errors, typing/draft updates where supported, long-message splitting, shared memory and history, `/status` and `/memory`. Do not run v2 and v3 with the same bot token at once. Delivery retry is at-least-once; an ambiguous network failure may duplicate a delivered message.
 - **Backup:** v3 archive export/restore includes identity revisions, conversations, active and forgotten memories, reflections, and character research. Credentials and machine settings are excluded. Restore requires an empty home and is atomic.
+
+## Delete a companion or purge this home
+
+Open **Settings → Start over**. A data folder holds one companion; deleting them returns it to setup so you can create or restore another.
+
+- **Delete companion** removes identity and revisions, all conversations, memories and opinions (including forgotten items), journal entries, character research, imported originals, and queued work from the current database. Model settings, saved keys, Telegram pairing, and existing recovery copies stay. Those copies can still contain the deleted companion.
+- **Purge local data** also resets saved settings and pairing, and removes known GlasHaus update recovery databases (including failed-candidate copies) and background logs inside this home. The app and startup preference stay installed.
+
+Both actions require the exact typed phrase and an acknowledgement. Save settings edits first and let replies, research, and background memory work finish. Cleanup and updates share an exclusive lock. Deletion never creates a backup for you; export one beforehand only if you want to keep a copy. Cancel changes nothing. After successful cleanup the page reloads into setup.
+
+Purge does not touch Ollama or its models, Telegram's own message history, downloaded exports, files in other companion homes, unrelated files, or external/OS/cloud backups. It refuses linked data paths and unfamiliar files inside managed recovery folders. Partial file-cleanup failures are shown as incomplete; retry Purge after resolving the file-access problem. If an interrupted cleanup leaves a lock, stop the app and run `node bin/glashaus-v3.js recover` from the installed app folder with the same `GLASHAUS_HOME`. This clears only the interrupted cleanup lock; it does not restore deleted data.
+
+The app clears SQLite rows, compacts the database and truncates its write-ahead log. This is **not secure disk erasure** and cannot erase SSD remnants or filesystem snapshots. See SQLite's [secure-delete](https://www.sqlite.org/pragma.html#pragma_secure_delete) and [VACUUM](https://www.sqlite.org/lang_vacuum.html) documentation for the database-level behavior.
 
 ## Privacy and limitations
 

@@ -1,6 +1,12 @@
-# v3 alpha.6 release checks
+# v3 alpha.7 release checks
 
 The owner approved replacing the repository's current app with v3 and publishing an installable alpha. Git history and the v2 source are retained. Release status is recorded by GitHub Actions and the release page.
+
+## Alpha.7 deletion and purge checks
+
+Synthetic tests cover transactional removal of companion content, preservation of connections on Delete, complete settings reset on Purge, managed recovery and log cleanup, external-file preservation, junction/hard-link refusal, unexpected recovery files, partial cleanup/retry, update lock exclusion, interrupted-lock recovery, exact confirmation/CSRF/stale-companion checks, active-work refusal, and mutation blocking while Telegram shuts down. The native three-platform lifecycle deletes its synthetic companion, creates a replacement and purges it after the update/rollback checks. No schema version change is included.
+
+Browser tests cover save-first protection, wrong phrases, acknowledgement, cancellation and focus restoration, both confirmation scopes, busy refusal, controls disabled during cleanup, return to setup, and purge from an empty home. Review uses phone, desktop and the observed user-width captures.
 
 ## Alpha.6 update checks
 
@@ -22,7 +28,7 @@ Browser regression covers check failure/retry, inline confirmation/cancel and fo
 1. Review the branch diff and preserve the existing v2 tag/history. The historical source under `legacy-v2/` is not included in runtime archives.
 2. Run the included GitHub Actions Windows/macOS/Linux matrix. It covers installer execution, browser regression, build, and separate-process portable startup. Mac/Linux results are not verified locally.
 3. A push to `main` runs the release workflow. It publishes a **prerelease** only after the full matrix succeeds, the build completes, and the actual ZIP passes a separate-process startup/restart test.
-4. The package version selects the release tag. Existing release assets are never overwritten. Both installers default to `v3.0.0-alpha.6`, avoiding GitHub's stable-only latest-release lookup. `GLASHAUS_RELEASE_TAG` can select another v3 version.
+4. The package version selects the release tag. Existing release assets are never overwritten. Both installers default to `v3.0.0-alpha.7`, avoiding GitHub's stable-only latest-release lookup. `GLASHAUS_RELEASE_TAG` can select another v3 version.
 
 ## First-person voice checks
 

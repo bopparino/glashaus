@@ -26,8 +26,16 @@ export default function App() {
   const refresh = useCallback(async () => {
     const next = await api<State>("/state");
     setState(next);
-    setOnboarding((current) => current ?? !next.companion);
+    setOnboarding((current) => !next.companion || (current ?? false));
   }, []);
+  useEffect(() => {
+    if (state && !state.companion) {
+      setText("");
+      setLive(null);
+      setEditingIdentity(false);
+      setHome(true);
+    }
+  }, [state?.companion?.id]);
   useEffect(() => {
     void refresh().catch((e) => setError(messageOf(e)));
     const timer = setInterval(() => {

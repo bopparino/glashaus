@@ -394,9 +394,162 @@ try {
   assert.equal(app.store.memories().length, 1);
   assert.equal(app.store.reflections().length, 1);
   assert.equal(app.store.companion()?.name, "Mira");
+  await page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("button", { name: "Settings", exact: true })
+    .click();
+  const dataSection = page.getByRole("region", {
+    name: "Start over.",
+    exact: true,
+  });
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll("button")].some(
+      (b) => b.textContent?.trim() === "Delete companion" && !b.disabled,
+    ),
+  );
+  await page
+    .getByLabel("Ollama address", { exact: true })
+    .fill("http://127.0.0.1:11436");
+  assert.equal(
+    await dataSection
+      .getByRole("button", { name: "Delete companion", exact: true })
+      .isEnabled(),
+    false,
+  );
+  await dataSection
+    .getByText("Save your settings changes before deleting data.")
+    .waitFor();
+  await page
+    .getByLabel("Ollama address", { exact: true })
+    .fill("http://127.0.0.1:11435");
+  await dataSection
+    .getByRole("button", { name: "Delete companion", exact: true })
+    .click();
+  assert.equal(
+    await dataSection
+      .getByRole("button", { name: "Delete this companion", exact: true })
+      .isEnabled(),
+    false,
+  );
+  await dataSection
+    .getByLabel("Type DELETE Mira to confirm", { exact: true })
+    .fill("Mira");
+  await dataSection
+    .getByLabel("I understand what will be removed and what stays.")
+    .check();
+  assert.equal(
+    await dataSection
+      .getByRole("button", { name: "Delete this companion", exact: true })
+      .isEnabled(),
+    false,
+  );
+  await dataSection
+    .getByLabel("Type DELETE Mira to confirm", { exact: true })
+    .fill("DELETE Mira");
+  await capture("delete-confirm-mobile", 390, 844);
+  await capture("delete-confirm-desktop", 1440, 1024);
+  await capture("delete-confirm-user", 1280, 720);
+  await capture("delete-confirm-user-1934", 1934, 1216);
+  await dataSection
+    .getByRole("button", { name: "Cancel", exact: true })
+    .click();
+  assert.equal(
+    await page.evaluate(() => document.activeElement?.textContent?.trim()),
+    "Delete companion",
+  );
+  assert(app.store.companion(), "Cancel must preserve the companion");
+  await dataSection
+    .getByRole("button", { name: "Purge local data", exact: true })
+    .click();
+  await capture("purge-confirm-mobile", 390, 844);
+  await capture("purge-confirm-desktop", 1440, 1024);
+  await capture("purge-confirm-user", 1280, 720);
+  await capture("purge-confirm-user-1934", 1934, 1216);
+  await dataSection
+    .getByRole("button", { name: "Cancel", exact: true })
+    .click();
+  assert.equal(
+    await page.evaluate(() => document.activeElement?.textContent?.trim()),
+    "Purge local data",
+  );
+  await dataSection
+    .getByRole("button", { name: "Delete companion", exact: true })
+    .click();
+  await dataSection
+    .getByLabel("Type DELETE Mira to confirm", { exact: true })
+    .fill("DELETE Mira");
+  await dataSection
+    .getByLabel("I understand what will be removed and what stays.")
+    .check();
+  app.service.busy = 1;
+  await dataSection
+    .getByRole("button", { name: "Delete this companion", exact: true })
+    .click();
+  await dataSection
+    .getByRole("alert")
+    .filter({ hasText: "Let the current reply" })
+    .waitFor();
+  assert(app.store.companion());
+  app.service.busy = 0;
+  const originalShutdown = app.telegram.shutdown.bind(app.telegram);
+  let resumeCleanup!: () => void;
+  app.telegram.shutdown = async () => {
+    await new Promise<void>((resolve) => {
+      resumeCleanup = resolve;
+    });
+    await originalShutdown();
+  };
+  await dataSection
+    .getByRole("button", { name: "Delete this companion", exact: true })
+    .click();
+  await dataSection
+    .getByText("Clearing the selected data.", { exact: false })
+    .waitFor();
+  assert.equal(
+    await page.getByLabel("Ollama address", { exact: true }).isEnabled(),
+    false,
+  );
+  assert.equal(
+    await dataSection
+      .getByRole("button", { name: "Cancel", exact: true })
+      .isEnabled(),
+    false,
+  );
+  resumeCleanup();
+  app.telegram.shutdown = originalShutdown;
+  await page
+    .getByRole("heading", { name: "A beginning, not a template." })
+    .waitFor();
+  assert.equal(app.store.companion(), null);
+  assert.equal(app.store.turns().length, 0);
+  assert.equal(app.store.memories().length, 0);
+  assert.equal(app.store.reflections().length, 0);
+  assert.equal(app.store.settings().model, "test-model");
+  assert(app.store.settings().ollamaApiKey);
+  await page
+    .getByRole("button", { name: "Open settings", exact: true })
+    .click();
+  await dataSection
+    .getByRole("button", { name: "Purge local data", exact: true })
+    .click();
+  await dataSection
+    .getByLabel("Type PURGE ALL to confirm", { exact: true })
+    .fill("PURGE ALL");
+  await dataSection
+    .getByLabel("I understand what will be removed and what stays.")
+    .check();
+  await dataSection
+    .getByRole("button", { name: "Purge this home", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "A beginning, not a template." })
+    .waitFor();
+  assert.equal(app.store.settings().model, "");
+  assert.equal(app.store.settings().ollamaApiKey, "");
+  await capture("purge-complete-mobile", 390, 844);
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: first-run settings → research → review → relationship → preview → save → streaming chat → memory add/edit/forget → journal → reload. Desktop and mobile captures have no horizontal overflow or browser errors. Provider is a deterministic test double, not live Ollama.",
+    "PASS: setup, research, chat, memory, journal, updates, typed deletion/cancel/focus, save-first and pending guards, delete/recreate readiness, and full purge. Desktop and mobile captures have no horizontal overflow or browser errors. Provider is a deterministic test double, not live Ollama.",
   );
 } finally {
   await browser.close();

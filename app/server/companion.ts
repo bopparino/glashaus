@@ -71,6 +71,8 @@ export class CompanionService {
     this.provider = provider;
   }
   start() {
+    this.stopping = false;
+    if (this.timer) clearInterval(this.timer);
     this.timer = setInterval(() => {
       void this.tick();
     }, 5000);

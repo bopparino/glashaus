@@ -571,6 +571,15 @@ summary:hover {
 .update-backup {
   overflow-wrap: anywhere;
 }
+.data-controls {
+  overflow-wrap: anywhere;
+}
+.data-controls .notice p + p {
+  margin-top: 12px;
+}
+.data-controls .inline-actions {
+  margin-top: 20px;
+}
 .settings-fields {
   border: 0;
   margin: 0;

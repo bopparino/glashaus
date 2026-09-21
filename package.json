@@ -1,6 +1,6 @@
 {
   "name": "glashaus",
-  "version": "3.0.0-alpha.6",
+  "version": "3.0.0-alpha.7",
   "description": "An Ollama companion with persistent identity, source-backed character setup, inspectable memory, and a shared web and Telegram conversation.",
   "type": "module",
   "license": "MIT",

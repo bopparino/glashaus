@@ -1,6 +1,20 @@
-# GlasHaus v3.0.0-alpha.6
+# GlasHaus v3.0.0-alpha.7
 
-Updating now takes the same command as installing.
+## Start over, on your terms
+
+Settings now offers **Delete companion** and **Purge local data**. Each requires a typed phrase and a separate acknowledgement, with Cancel and an optional export before you commit.
+
+Delete clears the current companion's identity, all chats, memories/opinions, journal, research, imported originals and queued work, then returns to setup. It keeps saved connections and existing recovery copies. Purge also clears saved keys/settings/Telegram pairing and removes managed update recovery databases and background logs from that home. No backup is created by either action.
+
+Ollama, models, startup preference, Telegram's own messages, downloaded exports, other homes and outside backups remain untouched. Purge is not secure disk erasure. Linked data paths and unexpected files in managed recovery folders are refused before deletion; partial cleanup is reported as incomplete and can be retried.
+
+Active replies, research, memory work and updates block deletion. The Telegram poller is drained before clearing data; a new companion does not receive queued messages timestamped before its creation. Old browser tokens are invalidated. Unsaved settings edits block cleanup and controls are disabled while it runs.
+
+This release adds isolated database, filesystem, HTTP and Telegram tests, browser confirmation/cancel/retry coverage, and native background-service delete → replace → purge checks on Windows, macOS and Linux. No real companion is deleted while testing or installing this update.
+
+## Updating remains one command
+
+Updating takes the same command as installing.
 
 Rerun the one-line installer to download and verify the release, stop the existing background app, back up your companion, and restart on the new version. A running alpha.4 or alpha.5 background install can take this update directly. The old app folder is kept, and an already-current running app is left alone.
 

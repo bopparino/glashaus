@@ -148,6 +148,45 @@ export class Store {
       )
       .run(JSON.stringify(settings));
   }
+  resetData(purge: boolean): string[] {
+    // Clear dependent rows first. No archive is made by a destructive action.
+    // secure_delete + VACUUM/checkpoint limit remnants in SQLite itself; they
+    // cannot erase filesystem snapshots, SSD history or copies outside this DB.
+    this.db.exec("PRAGMA secure_delete=ON");
+    this.transaction(() => {
+      for (const table of [
+        "memory_replacements",
+        "memory_suppressions",
+        "blocked_turns",
+        "memories",
+        "reflections",
+        "jobs",
+        "outreach",
+        "research",
+        "imports",
+        "turns",
+        "revisions",
+        "companion",
+      ])
+        this.db.exec(`DELETE FROM ${table}`);
+      if (purge) {
+        this.db.exec("DELETE FROM settings; DELETE FROM meta");
+      } else {
+        // Do not replay already acknowledged Telegram messages into a new home.
+        this.db.exec("DELETE FROM meta WHERE key <> 'telegramOffset'");
+      }
+    });
+    try {
+      this.db.exec("VACUUM");
+      const result = this.db.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get();
+      if (Number(result?.busy ?? 0) !== 0) throw new Error("Checkpoint busy");
+      return [];
+    } catch {
+      return [
+        "The current data was cleared, but SQLite could not finish compacting its files. Close other copies of GlasHaus, then retry Purge local data.",
+      ];
+    }
+  }
   companion(): Companion | null {
     const row = this.db.prepare("SELECT data FROM companion WHERE id=1").get();
     return row ? JSON.parse(String(row.data)) : null;

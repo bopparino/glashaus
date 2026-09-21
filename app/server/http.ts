@@ -11,6 +11,7 @@ import { Telegram } from "./telegram.ts";
 import type { StartupControl } from "./startup.ts";
 import type { UpdateControl } from "./updates.ts";
 import { VERSION } from "../shared/version.ts";
+import { claimDataReset, prepareDataReset } from "./data-reset.ts";
 import {
   AppError,
   companionInput,
@@ -44,7 +45,7 @@ export function createApp(options: {
   const provider = options.provider ?? new Ollama(() => store.settings());
   const service = new CompanionService(store, provider);
   const telegram = new Telegram(store, service);
-  const csrfToken = randomBytes(32).toString("hex");
+  let csrfToken = randomBytes(32).toString("hex");
   let activating = !!options.activation && !options.activation.ready();
   const startBackground = () => {
     if (options.background !== false) {
@@ -64,6 +65,8 @@ export function createApp(options: {
     : undefined;
   const server = options.server ?? http.createServer();
   let handingOff = false;
+  let resetting = false;
+  let mutations = 0;
   server.on("request", async (req, res) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "no-referrer");
@@ -73,6 +76,7 @@ export function createApp(options: {
       "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'",
     );
     let streaming = false;
+    let mutating = false;
     const controller = new AbortController();
     res.on("close", () => {
       if (!res.writableEnded)
@@ -125,6 +129,15 @@ export function createApp(options: {
             );
         }
         const route = `${req.method} ${url.pathname}`;
+        if (resetting && route !== "GET /api/health")
+          throw new AppError(
+            "Data cleanup is in progress. Wait for it to finish, then refresh.",
+            409,
+          );
+        if (!["GET", "HEAD"].includes(req.method ?? "")) {
+          mutations++;
+          mutating = true;
+        }
         if (
           activating &&
           !["GET", "HEAD"].includes(req.method ?? "") &&
@@ -270,6 +283,67 @@ export function createApp(options: {
           });
         if (route === "GET /api/models")
           return json(await provider.models(controller.signal));
+        if (route === "POST /api/data/reset") {
+          const input = record(await body(req));
+          const current = store.companion();
+          if (!["companion", "purge"].includes(String(input.mode)))
+            throw new AppError("Choose Delete companion or Purge local data.");
+          if (input.companionId !== (current?.id ?? null))
+            throw new AppError(
+              "The companion changed. Refresh and review the deletion again.",
+              409,
+            );
+          const mode = input.mode === "purge" ? "purge" : "companion";
+          if (mode === "companion" && !current)
+            throw new AppError("There is no companion to delete.", 409);
+          const phrase =
+            mode === "purge" ? "PURGE ALL" : `DELETE ${current!.name}`;
+          if (input.confirmation !== phrase || input.confirmed !== true)
+            throw new AppError(
+              "Read the scope and type the exact confirmation before deleting.",
+            );
+          const ensureIdle = () => {
+            if (
+              mutations !== 1 ||
+              service.busy ||
+              service.background !== "Idle" ||
+              store.research().some((r) => r.status === "running")
+            )
+              throw new AppError(
+                "Let the current reply, research, memory work, or settings action finish before deleting data.",
+                409,
+              );
+          };
+          ensureIdle();
+          const release = claimDataReset(options.directory);
+          resetting = true;
+          let result:
+            ReturnType<ReturnType<typeof prepareDataReset>> | undefined;
+          try {
+            // Quiesce the poller before clearing anything it could write back.
+            // New HTTP mutations are blocked for the entire operation.
+            service.stop();
+            await telegram.shutdown();
+            ensureIdle();
+            const reset = prepareDataReset(store, mode);
+            result = reset();
+            csrfToken = randomBytes(32).toString("hex");
+          } finally {
+            try {
+              release();
+            } catch (error) {
+              if (!result) throw error;
+              result.complete = false;
+              result.warnings.push(
+                "Data was cleared, but its cleanup lock could not be released. Stop the app and run the recover command before trying another update or cleanup.",
+              );
+            } finally {
+              resetting = false;
+              startBackground();
+            }
+          }
+          return json(result);
+        }
         if (route === "GET /api/export") {
           res.setHeader(
             "Content-Disposition",
@@ -418,6 +492,8 @@ export function createApp(options: {
         res.end();
       } else if (!res.destroyed)
         json({ error: message }, e instanceof AppError ? e.status : 500);
+    } finally {
+      if (mutating) mutations--;
     }
   });
   server.headersTimeout = 15000;

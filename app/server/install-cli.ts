@@ -12,6 +12,7 @@ import {
 } from "./update-engine.ts";
 import { readUpdate, writeUpdate } from "./update-state.ts";
 import { Startup } from "./startup.ts";
+import { recoverDataResetLock } from "./data-reset.ts";
 
 export async function installCommand(command: "install" | "recover") {
   const directory = path.resolve(
@@ -22,6 +23,7 @@ export async function installCommand(command: "install" | "recover") {
   if (!Number.isInteger(port) || port < 1 || port > 65535)
     throw new Error("Choose a valid GLASHAUS_PORT.");
   if (command === "recover") {
+    if (recoverDataResetLock(directory)) return false;
     const record = readUpdate(directory);
     if (!record) throw new Error("No update recovery record was found.");
     if (alive(record.pid) && record.pid !== process.pid)

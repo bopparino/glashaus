@@ -88,6 +88,69 @@ function fixture(
   };
 }
 
+test("deleted companions do not regenerate queued messages; empty-home messages are acknowledged", async () => {
+  let sent = false;
+  const f = fixture((method) => {
+    if (method !== "getUpdates" || sent) return undefined as any;
+    sent = true;
+    return reply([
+      {
+        update_id: 55,
+        message: {
+          message_id: 55,
+          text: "Old message",
+          from: { id: 42 },
+          chat: { id: 42, type: "private" },
+        },
+      },
+    ]);
+  });
+  try {
+    f.store.saveSettings({ ...f.store.settings(), telegramOwnerId: "42" });
+    f.store.resetData(false);
+    f.telegram.start();
+    await until(() => f.store.meta("telegramOffset") === "56");
+    assert.equal(f.modelCalls, 0);
+    assert.equal(f.store.turns().length, 0);
+    assert(
+      f.calls.some(
+        (c) =>
+          c.method === "sendMessage" &&
+          c.body.text.includes("No companion lives here"),
+      ),
+    );
+  } finally {
+    await f.close();
+  }
+});
+test("a new companion ignores Telegram messages timestamped before its creation", async () => {
+  let sent = false;
+  const f = fixture((method) => {
+    if (method !== "getUpdates" || sent) return undefined as any;
+    sent = true;
+    return reply([
+      {
+        update_id: 56,
+        message: {
+          message_id: 56,
+          date: 1,
+          text: "Message to the previous companion",
+          from: { id: 42 },
+          chat: { id: 42, type: "private" },
+        },
+      },
+    ]);
+  });
+  try {
+    f.store.saveSettings({ ...f.store.settings(), telegramOwnerId: "42" });
+    f.telegram.start();
+    await until(() => f.store.meta("telegramOffset") === "57");
+    assert.equal(f.modelCalls, 0);
+    assert.equal(f.store.turns().length, 0);
+  } finally {
+    await f.close();
+  }
+});
 test("Telegram retries a failed initial connection, then starts polling", async () => {
   let attempts = 0;
   const delays: number[] = [];

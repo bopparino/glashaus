@@ -45,6 +45,7 @@ interface Update {
   update_id: number;
   message?: {
     message_id: number;
+    date?: number;
     text?: string;
     chat: { id: number; type: string };
     from?: { id: number };
@@ -336,6 +337,20 @@ export class Telegram {
       );
       return;
     }
+    const companion = this.store.companion();
+    if (!companion) {
+      await this.send(
+        message.chat.id,
+        "No companion lives here right now. Create or restore one in the web app before chatting.",
+        signal,
+      );
+      return;
+    }
+    if (
+      message.date &&
+      message.date < Math.floor(Date.parse(companion.createdAt) / 1000)
+    )
+      return; // Do not feed a new companion queued messages from before setup.
     const id = `telegram:${update.update_id}`;
     const existing = this.store.turn(id);
     if (existing?.delivered) return;

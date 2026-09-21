@@ -11,7 +11,7 @@ if (nodeMajor !== 24 || nodeMinor < 14) {
   process.exit(1);
 }
 if (command === "--version" || command === "version") {
-  console.log("3.0.0-alpha.6");
+  console.log("3.0.0-alpha.7");
   process.exit(0);
 }
 if (command === "--help" || command === "help") {
