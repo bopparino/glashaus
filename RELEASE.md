@@ -6,9 +6,9 @@ The owner approved replacing the repository's current app with v3 and publishing
 
 The new update engine is tested with isolated synthetic homes for successful handoff, sign-in preference preservation, busy refusal, backup failure, startup failure, health-check failure, database rollback, concurrency, mismatched ports, downgrade refusal, same-version reruns, process-exit safety, native updater job creation, CSRF, and the activation write barrier. No owner credentials or conversations are used.
 
-The native Windows/macOS/Linux CI lifecycle now runs two real background-service updates through the HTTP Settings API and a separately owned OS updater job: one successful candidate, then one intentionally broken candidate that must restore the previous app and database. Release discovery/download are replaced only inside disposable fixture app copies; service registration, worker launch, backup, restart, and rollback are real. The separate updater must survive the old service stopping.
+The native Windows/macOS/Linux CI lifecycle first downloads and verifies the published alpha.5 app, then upgrades its background service through the new installer command. It also runs two real background-service updates through the HTTP Settings API and a separately owned OS updater job: one successful candidate, then one intentionally broken candidate that must restore the previous app and database. Candidate release discovery/download are replaced only inside disposable fixture app copies; service registration, worker launch, backup, restart, and rollback are real. The separate updater must survive the old service stopping.
 
-Browser regression covers check failure/retry, inline confirmation/cancel, update progress and rollback feedback. Synthetic screenshots are retained as short-lived CI artifacts for review. Production releases remain gated on every platform passing. Native integration is never run on the owner's PC during development.
+Browser regression covers check failure/retry, inline confirmation/cancel and focus, unsaved-edit protection, disabled fields during restart, update progress and rollback feedback. Synthetic screenshots are retained as short-lived CI artifacts for review. Production releases remain gated on every platform passing. Native integration is never run on the owner's PC during development.
 
 ## Earlier verified baseline
 
