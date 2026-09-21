@@ -42,7 +42,10 @@ export class Updates implements UpdateControl {
         ? {
             id: current.id,
             version: current.version,
-            phase: current.phase,
+            phase:
+              isUpdating(current) && !alive(current.pid)
+                ? "recovery-needed"
+                : current.phase,
             message:
               isUpdating(current) && !alive(current.pid)
                 ? "The updater stopped before finishing. Run 'node bin/glashaus-v3.js recover' from the downloaded app. Your previous app and backup have been kept."

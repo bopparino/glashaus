@@ -1,6 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { mkdirSync, rmdirSync } from "node:fs";
 import { VERSION } from "../shared/version.ts";
 import {
   activate,
@@ -34,14 +35,29 @@ export async function installCommand(command: "install" | "recover") {
       );
       return false;
     }
-    if (record.stopped) await rollback(directory, record);
-    record.phase = "failed";
-    record.message = record.stopped
-      ? "Recovery finished. The previous app is running again."
-      : "The interrupted download was cancelled. Your previous app was not changed.";
-    writeUpdate(directory, record);
-    releaseUpdate(directory, record.id);
-    console.log(record.message);
+    const guard = path.join(directory, "updates", "recovery.lock");
+    try {
+      mkdirSync(guard, { mode: 0o700 });
+    } catch {
+      throw new Error(
+        `Another recovery owns ${guard}. If a recovery itself crashed, verify it has stopped before removing only this empty lock directory and retrying. No data was replaced.`,
+      );
+    }
+    try {
+      // A second recovery can read the old record, but cannot acquire this guard.
+      record.pid = process.pid;
+      writeUpdate(directory, record);
+      if (record.stopped) await rollback(directory, record);
+      record.phase = "failed";
+      record.message = record.stopped
+        ? "Recovery finished. The previous app is running again."
+        : "The interrupted download was cancelled. Your previous app was not changed.";
+      writeUpdate(directory, record);
+      releaseUpdate(directory, record.id);
+      console.log(record.message);
+    } finally {
+      rmdirSync(guard);
+    }
     return false;
   }
   const candidate = fileURLToPath(new URL("../../", import.meta.url));

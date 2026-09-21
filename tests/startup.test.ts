@@ -6,6 +6,7 @@ import {
   writeFileSync,
   existsSync,
   rmSync,
+  symlinkSync,
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -87,6 +88,25 @@ function fixture(
     cleanup: () => rmSync(root, { recursive: true, force: true }),
   };
 }
+
+test("executable aliases do not look like a different installation", async () => {
+  const f = fixture(process.platform);
+  try {
+    const alias = path.join(f.root, "alias");
+    symlinkSync(
+      f.root,
+      alias,
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    await f.control.enable();
+    const config = JSON.parse(readFileSync(f.control.configFile, "utf8"));
+    config.entry = path.join(alias, "background.js");
+    writeFileSync(f.control.configFile, JSON.stringify(config));
+    assert.equal((await f.control.status()).available, true);
+  } finally {
+    f.cleanup();
+  }
+});
 
 for (const platform of ["win32", "darwin", "linux"]) {
   test(`${platform}: opt-in startup registers, confirms a live launcher, and disables without stopping this session`, async () => {

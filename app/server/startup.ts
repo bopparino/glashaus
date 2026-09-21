@@ -1,6 +1,12 @@
 import { execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  realpathSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,6 +40,10 @@ const run: Runner = async (file, args) =>
     })
   ).stdout.trim();
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+// macOS can spell the same executable as /var/... or /private/var/....
+// Resolve executable aliases without changing the companion home's stable ID.
+const executablePath = (file: string) =>
+  existsSync(file) ? realpathSync(file) : path.resolve(file);
 export const psQuote = (s: string) => `'${s.replaceAll("'", "''")}'`;
 export const xmlQuote = (s: string) =>
   s.replace(
@@ -116,10 +126,11 @@ export class Startup implements StartupControl {
             "user",
             `${this.id}.service`,
           );
-    this.entry =
+    this.entry = executablePath(
       options.entry ??
-      fileURLToPath(new URL("./background.js", import.meta.url));
-    this.node = options.node ?? process.execPath;
+        fileURLToPath(new URL("./background.js", import.meta.url)),
+    );
+    this.node = executablePath(options.node ?? process.execPath);
     this.port = options.port;
     this.uid = options.uid ?? process.getuid?.() ?? 0;
     this.execute = options.execute ?? run;
@@ -149,7 +160,11 @@ export class Startup implements StartupControl {
   // or when rolling back a candidate that never reached its health endpoint.
   async stopNative() {
     const config = this.config();
-    if (!config || config.entry !== this.entry || config.node !== this.node)
+    if (
+      !config ||
+      executablePath(config.entry) !== this.entry ||
+      executablePath(config.node) !== this.node
+    )
       throw new AppError(
         "This installation does not own the background service.",
       );
@@ -259,8 +274,8 @@ export class Startup implements StartupControl {
       }
       if (
         result.enabled &&
-        (config.entry !== this.entry ||
-          config.node !== this.node ||
+        (executablePath(config.entry) !== this.entry ||
+          executablePath(config.node) !== this.node ||
           config.port !== this.port)
       ) {
         result.available = false;
