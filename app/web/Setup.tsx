@@ -3,6 +3,7 @@ import type { Character, Companion, State } from "../shared/types";
 import { api, stream } from "./api";
 import { Field, Notice, messageOf } from "./Forms";
 import { Icon } from "./Icon";
+import { StartupChoice, changeStartup } from "./Startup";
 type Draft = Character & Pick<Companion, "userName" | "relationship">;
 const empty: Draft = {
   name: "",
@@ -41,6 +42,8 @@ export function Setup({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [preview, setPreview] = useState("");
+  const [backgroundStartup, setBackgroundStartup] = useState(false);
+  const [identitySaved, setIdentitySaved] = useState(false);
   const controller = useRef<AbortController | null>(null);
   const researchId = useRef<string | undefined>(undefined);
   useEffect(() => () => controller.current?.abort(), []);
@@ -80,6 +83,44 @@ export function Setup({
     setStatus("Ready for your review. Make it feel right before you continue.");
   }
   const savedResearch = state.research.find((r) => r.draft || r.sources.length);
+  if (identitySaved && !editing)
+    return (
+      <section className="document setup-page">
+        <header className="page-heading">
+          <h1>Your companion is saved.</h1>
+          <p>Finishing how GlasHaus runs on this computer.</p>
+        </header>
+        {busy && (
+          <Notice>
+            Starting in the background. This page will reconnect in a moment…
+          </Notice>
+        )}
+        {error && <Notice error>{error}</Notice>}
+        {!busy && (
+          <div className="form-actions">
+            {backgroundStartup && (
+              <button
+                className="button primary"
+                onClick={() =>
+                  void run("save", async () => {
+                    await changeStartup(true);
+                    await complete();
+                  })
+                }
+              >
+                Retry background startup
+              </button>
+            )}
+            <button
+              className="button secondary"
+              onClick={() => void run("continue", complete)}
+            >
+              Continue with manual start
+            </button>
+          </div>
+        )}
+      </section>
+    );
   return (
     <section className="document setup-page">
       <header className="page-heading">
@@ -189,6 +230,11 @@ export function Setup({
           </fieldset>
           {restore ? (
             <div className="restore">
+              <StartupChoice
+                checked={backgroundStartup}
+                onChange={setBackgroundStartup}
+                disabled={!!busy}
+              />
               <Field
                 label="Choose your backup"
                 hint="v3 JSON restores conversation history. A v2 soul capsule carries identity, not full history. Existing v2 databases are never modified."
@@ -203,7 +249,11 @@ export function Setup({
                       void run("import", async () => {
                         if (file.size > 50_000_000)
                           throw new Error("Choose a JSON backup under 50 MB.");
-                        await api("/import", JSON.parse(await file.text()));
+                        if (!identitySaved) {
+                          await api("/import", JSON.parse(await file.text()));
+                          setIdentitySaved(true);
+                        }
+                        if (backgroundStartup) await changeStartup(true);
                         await complete();
                       });
                   }}
@@ -513,19 +563,32 @@ export function Setup({
               </small>
             </div>
           )}
+          {!editing && (
+            <StartupChoice
+              checked={backgroundStartup}
+              onChange={setBackgroundStartup}
+              disabled={!!busy}
+            />
+          )}
           <div className="form-actions">
             <button
               className="button primary"
               disabled={!!busy}
               onClick={() =>
                 void run("save", async () => {
-                  await api("/companion", draft, editing ? "PATCH" : "POST");
+                  if (!identitySaved || editing) {
+                    await api("/companion", draft, editing ? "PATCH" : "POST");
+                    setIdentitySaved(true);
+                  }
+                  if (!editing && backgroundStartup) await changeStartup(true);
                   await complete();
                 })
               }
             >
               {busy === "save"
-                ? "Saving…"
+                ? backgroundStartup
+                  ? "Saving and starting in background…"
+                  : "Saving…"
                 : editing
                   ? "Save their foundation"
                   : "Make a home together"}

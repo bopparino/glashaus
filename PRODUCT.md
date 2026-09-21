@@ -16,7 +16,7 @@ A continuing AI companion on Ollama, with portable identity, memories, opinions,
 
 ## Operating Context
 
-A fresh implementation in the existing bopparino/glashaus repository. Web and a BotFather-created Telegram bot share identity and history. The user approved replacing the old application; no remote replacement has been published. v2 code is preserved under legacy-v2 for migration reference and in Git history, not used by the v3 entry point.
+A fresh implementation in the existing bopparino/glashaus repository. Web and a BotFather-created Telegram bot share identity and history. The user approved replacing the old application; alpha.3 has been published. v2 code is preserved under legacy-v2 for migration reference and in Git history, not used by the v3 entry point.
 
 ## Capabilities and Constraints
 
@@ -25,7 +25,8 @@ A fresh implementation in the existing bopparino/glashaus repository. Web and a 
 - Ollama provides model inference; locally installed and cloud models must be distinguished accurately. SQLite state is stored locally. Telegram and public web research require network services.
 - Conversation, supported memories, stated opinions, and opt-in journal reflections persist. Model behavior and quality vary; persistence does not promise identical behavior across model changes.
 - The alpha implements inspect/edit/forget memory controls. Forgetting is not permanent erasure: original conversations and tombstones remain in backups, but the source exchange is excluded from future recall and extraction.
-- Windows, macOS, and Linux one-command installation remains a release requirement. Node 24.14+ in the 24.x line is required. Only Windows has been exercised locally; a cross-OS CI matrix is included, not claimed executed.
+- Windows, macOS, and Linux one-command installation remains a release requirement. Node 24.14+ in the 24.x line is required. Alpha.3 passed the cross-OS CI matrix and a real Windows network-install check.
+- Alpha.4 adds opt-in background startup in setup/restore and Settings: per-user Task Scheduler on Windows, LaunchAgent on macOS, and systemd user service on Linux. Manual mode stays the default. No automatic privilege elevation, Linux lingering changes, or Ollama service installation. Native service lifecycle tests are a publication gate; developer previews only simulate OS registration.
 - Full v2 SQLite migration, autonomous self-authorship, scheduled outreach, voice, and photos are outside the first alpha slice. Preserve old data; do not imply feature parity.
 
 ## Stack

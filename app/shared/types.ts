@@ -109,6 +109,14 @@ export interface State {
     error?: string;
   };
 }
+export interface StartupStatus {
+  id?: string;
+  available: boolean;
+  enabled: boolean;
+  managed: boolean;
+  platform: string;
+  message: string;
+}
 export interface StreamEvent {
   type: "status" | "token" | "sources" | "draft" | "done" | "error";
   text?: string;

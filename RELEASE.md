@@ -1,4 +1,4 @@
-# v3 alpha.3 release checks
+# v3 alpha.4 release checks
 
 The owner approved replacing the repository's current app with v3 and publishing an installable alpha. Git history and the v2 source are retained. Release status is recorded by GitHub Actions and the release page.
 
@@ -14,7 +14,13 @@ The owner approved replacing the repository's current app with v3 and publishing
 1. Review the branch diff and preserve the existing v2 tag/history. The historical source under `legacy-v2/` is not included in runtime archives.
 2. Run the included GitHub Actions Windows/macOS/Linux matrix. It covers installer execution, browser regression, build, and separate-process portable startup. Mac/Linux results are not verified locally.
 3. A push to `main` runs the release workflow. It publishes a **prerelease** only after the full matrix succeeds, the build completes, and the actual ZIP passes a separate-process startup/restart test.
-4. The package version selects the release tag. Existing release assets are never overwritten. Both installers default to `v3.0.0-alpha.3`, avoiding GitHub's stable-only latest-release lookup. `GLASHAUS_RELEASE_TAG` can select another v3 version.
+4. The package version selects the release tag. Existing release assets are never overwritten. Both installers default to `v3.0.0-alpha.4`, avoiding GitHub's stable-only latest-release lookup. `GLASHAUS_RELEASE_TAG` can select another v3 version.
+
+## Background-service checks
+
+Alpha.4 adds opt-in background startup in setup and Settings, with Windows Task Scheduler, macOS LaunchAgents, and Linux systemd user units. Unit tests use fake OS commands and isolated files, never a real login registration. Native service integration runs only on explicitly opted-in disposable CI machines: it exercises registration, a foreground-to-background handoff, persistence, duplicate-port refusal, disable-without-shutdown, stop, and restart. Publication is blocked if any platform fails.
+
+No background service is enabled on the owner's PC during development. Native CI passes are recorded in the linked release workflow, not inferred from unit tests. The default manual-start path and portable restart test remain release gates. Alpha.4 does not change the SQLite schema.
 
 ## Published-install regression
 
@@ -37,4 +43,4 @@ Set `GLASHAUS_ARCHIVE` to the portable ZIP with a sibling `.sha256` file, `GLASH
 - Memory correction is evidence-gated, not a guarantee that an LLM understands every change. Inspect the memory page when correctness matters.
 - Forgetting excludes stored memory and its source exchange from future recall/extraction. It does not erase the original private archive, and cannot prevent a future conversation from expressing similar information again.
 - Telegram resumes acknowledged message chunks without regeneration. An ambiguous network failure can still deliver twice; exactly-once delivery is not promised.
-- No voice, photos, scheduled outreach, OS background service, or full v2 migration yet.
+- No voice, photos, scheduled outreach, or full v2 migration yet. Background startup does not keep a sleeping computer online or start Ollama for you.

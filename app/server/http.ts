@@ -8,6 +8,7 @@ import { Store } from "./store.ts";
 import { Ollama } from "./ollama.ts";
 import type { ModelProvider } from "./ollama.ts";
 import { Telegram } from "./telegram.ts";
+import type { StartupControl } from "./startup.ts";
 import {
   AppError,
   companionInput,
@@ -31,6 +32,9 @@ export function createApp(options: {
   webRoot: string;
   provider?: ModelProvider;
   background?: boolean;
+  server?: http.Server;
+  startup?: StartupControl;
+  handoff?: () => void;
 }) {
   const store = new Store(options.directory);
   const provider = options.provider ?? new Ollama(() => store.settings());
@@ -41,7 +45,9 @@ export function createApp(options: {
     service.start();
     telegram.start();
   }
-  const server = http.createServer(async (req, res) => {
+  const server = options.server ?? http.createServer();
+  let handingOff = false;
+  server.on("request", async (req, res) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "no-referrer");
     res.setHeader("X-Frame-Options", "DENY");
@@ -102,6 +108,69 @@ export function createApp(options: {
             );
         }
         const route = `${req.method} ${url.pathname}`;
+        if (handingOff && !["GET", "HEAD"].includes(req.method ?? ""))
+          throw new AppError(
+            "GlasHaus is switching to background mode. Wait a moment before trying again.",
+            503,
+          );
+        if (route === "GET /api/startup")
+          return json(
+            options.startup
+              ? await options.startup.status()
+              : {
+                  available: false,
+                  enabled: false,
+                  managed: false,
+                  platform: "Preview",
+                  message:
+                    "Background startup is available in the installed app.",
+                },
+          );
+        if (
+          route === "POST /api/startup" ||
+          route === "POST /api/startup/stop"
+        ) {
+          if (!options.startup || !options.handoff)
+            throw new AppError(
+              "Background startup is unavailable in this preview.",
+            );
+          if (
+            service.busy ||
+            service.background !== "Idle" ||
+            store.research().some((r) => r.status === "running")
+          )
+            throw new AppError(
+              "Wait for the current conversation or research to finish before changing startup.",
+              409,
+            );
+          const input = record(await body(req));
+          const before = await options.startup.status();
+          const stopping = route.endsWith("/stop");
+          if (stopping && !before.managed)
+            throw new AppError(
+              "This is a manual session. Stop it with Ctrl+C in its terminal.",
+            );
+          if (!stopping && typeof input.enabled !== "boolean")
+            throw new AppError("Choose whether sign-in startup is enabled.");
+          if (!stopping) {
+            if (input.enabled) await options.startup.enable();
+            else await options.startup.disable();
+          }
+          if (input.enabled && service.busy)
+            throw new AppError(
+              "Startup is registered, but a new reply is in progress. Let it finish, then enable background startup again to finish switching.",
+              409,
+            );
+          const restarting =
+            !stopping && input.enabled === true && !before.managed;
+          if (restarting || stopping) {
+            handingOff = true;
+            res.once("finish", () => {
+              setTimeout(options.handoff!, 250);
+            });
+          }
+          return json({ restarting, stopped: stopping });
+        }
         if (route === "GET /api/state")
           return json({
             companion: store.companion(),
@@ -111,7 +180,7 @@ export function createApp(options: {
             reflections: store.reflections(),
             research: store.research(),
             csrfToken,
-            version: "3.0.0-alpha.3",
+            version: "3.0.0-alpha.4",
             background: service.background,
             telegram: telegram.status,
           });

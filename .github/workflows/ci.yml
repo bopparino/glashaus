@@ -25,6 +25,15 @@ jobs:
       - run: pnpm test:browser
       - run: node bin/glashaus-v3.js --version
       - run: node tests/portable-smoke.cjs .
+      - name: Prepare Linux user service session
+        if: runner.os == 'Linux'
+        run: |
+          sudo systemctl start "user@$(id -u).service"
+          echo "XDG_RUNTIME_DIR=/run/user/$(id -u)" >> "$GITHUB_ENV"
+      - name: Test native background service on disposable runner
+        env:
+          GLASHAUS_TEST_NATIVE_SERVICE: '1'
+        run: node tests/service-native.ts
       - name: Check POSIX installer syntax
         if: runner.os != 'Windows'
         run: sh -n install.sh

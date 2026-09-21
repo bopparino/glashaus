@@ -1,8 +1,8 @@
-# GlasHaus v3.0.0-alpha.3
+# GlasHaus v3.0.0-alpha.4
 
 A fresh Ollama companion app with a shared web and Telegram conversation, inspectable memory, and portable identity.
 
-Alpha.3 fixes Windows PowerShell 5 checksum handling for GitHub's binary download responses. The public alpha.2 app archive was intact, but its Windows network installer rejected a valid checksum. Use these current installers. There is no new database migration in alpha.3.
+Alpha.4 adds optional background startup during setup, restore, and in Settings. Windows uses a per-user scheduled task, macOS uses a LaunchAgent, and Linux uses a systemd user service. It switches the current session into the background without running two Telegram pollers. Manual start remains the default. There is no new database migration.
 
 ## Install
 
@@ -22,7 +22,9 @@ curl -fsSL https://raw.githubusercontent.com/bopparino/glashaus/main/install.sh 
 
 The installers check the ZIP's SHA-256 before running it. To inspect first, download and read the script instead of piping it. macOS/Linux also need curl and unzip.
 
-Open http://127.0.0.1:7777, set your Ollama model, and create or restore a companion. Keep the terminal open while using the app. Your companion's data lives separately in `~/.glashaus-v3`.
+Open http://127.0.0.1:7777, set your Ollama model, and create or restore a companion. Choose **Run in the background and start at sign-in** if you want to close the terminal. Leave it unchecked for manual start. Your companion's data lives separately in `~/.glashaus-v3`.
+
+Background startup runs as your own user, not as an administrator. Your PC must be awake and Ollama available. Linux needs a working systemd user session; running before sign-in needs separately configured lingering. Turn off sign-in startup in Settings, or use `node bin/glashaus-v3.js service disable` from the install folder. Use `service stop` to stop a background session, and `service status` to find its log. Before moving or replacing an installation, disable and stop its service first.
 
 You can also extract `glashaus-v3.zip` and run `node bin/glashaus-v3.js` without installing app dependencies.
 
@@ -40,6 +42,6 @@ This is an alpha, not feature parity with v2. The full Git history and `legacy-v
 
 Back up existing v3 data before upgrading. Alpha.2 adds schema-2 memory correction tables. Do not run alpha.1 against an upgraded database.
 
-Voice, photos, scheduled outreach, automatic startup, and full v2 conversation migration are not included. Forgetting excludes a memory and its source exchange from later recall, but does not securely erase the private archive. Memory extraction can be wrong. An ambiguous Telegram network failure can cause a duplicate delivery.
+Voice, photos, scheduled outreach, and full v2 conversation migration are not included. Forgetting excludes a memory and its source exchange from later recall, but does not securely erase the private archive. Memory extraction can be wrong. An ambiguous Telegram network failure can cause a duplicate delivery.
 
-The release workflow requires Windows, macOS, and Linux checks before publishing these assets. Live Kimi K2.6 cloud tests and a real Telegram pairing/reply were also verified during development.
+The release workflow requires Windows, macOS, and Linux checks, including a real background-service lifecycle on each disposable runner, before publishing these assets. Live Kimi K2.6 cloud tests and a real Telegram pairing/reply were also verified during development.

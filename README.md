@@ -12,15 +12,15 @@ Requires Node **24.14 or newer within the 24.x line**, and Ollama with a model a
 node bin/glashaus-v3.js
 ```
 
-Open **http://127.0.0.1:7777**. In Settings, check the Ollama address and choose a model. Then create a companion. Keep the terminal running; Ctrl+C stops the app. Data survives restarts.
+Open **http://127.0.0.1:7777**. In Settings, check the Ollama address and choose a model. Then create a companion. During setup you can choose **Run in the background and start at sign-in**. Leave it unchecked for manual start: keep the terminal running, and use Ctrl+C to stop. Data survives restarts.
 
 The default home is `~/.glashaus-v3` on every OS. `GLASHAUS_HOME` selects another home, and `GLASHAUS_PORT` selects another port. One companion per home. The server binds to localhost only; remote web access is not included. Use Telegram when away from the computer.
 
 ## One-command installation
 
-The included installers download the prebuilt `glashaus-v3.zip` asset from a GitHub release. They require Node 24 and do not install Ollama, download a model, change your PATH, start at login, or modify v2 data.
+The included installers download the prebuilt `glashaus-v3.zip` asset from a GitHub release. They require Node 24 and do not install Ollama, download a model, change your PATH, or modify v2 data. Sign-in startup is off unless you choose it in setup or Settings.
 
-The commands below install **v3.0.0-alpha.3**. They require its [published release assets](https://github.com/bopparino/glashaus/releases/tag/v3.0.0-alpha.3); a pending or failed release check will not publish an unverified app.
+The commands below install **v3.0.0-alpha.4**. They require its [published release assets](https://github.com/bopparino/glashaus/releases/tag/v3.0.0-alpha.4); a pending or failed release check will not publish an unverified app.
 
 Windows PowerShell:
 
@@ -35,6 +35,29 @@ curl -fsSL https://raw.githubusercontent.com/bopparino/glashaus/main/install.sh 
 ```
 
 For safer inspection, download the script, read it, then execute it. Set `GLASHAUS_RELEASE_TAG` to select a different v3 release. The default is pinned to the version above so GitHub's stable-release listing cannot accidentally select v2. Installs use separate unique directories under `~/.local/share/glashaus`; the companion data directory is separate. Retired app versions are not deleted automatically.
+
+## Background startup
+
+Choose the optional checkbox at the last setup step, or before selecting a restore file. Settings also has an **Enable background startup** button. GlasHaus registers a service under your own account, switches from the terminal to that service, and reconnects the page. Your companion is saved first; if registration fails, you can retry or continue manually.
+
+- **Windows:** a Task Scheduler task at sign-in, with a hidden process and your normal account permissions. No saved Windows password or administrator service.
+- **macOS:** a per-user LaunchAgent at sign-in. macOS may show it in Login Items; allow it there if your system blocks it.
+- **Linux:** a `systemd --user` service. A working systemd user session is required. On a headless server, an administrator can separately enable lingering for your account if you want it to run before sign-in or after logout. GlasHaus never changes that setting or runs `sudo` itself.
+
+The computer must stay awake, and Ollama must be available. This does not turn a cloud model into a local model or install an Ollama service. Keep the installed app folder and Node executable in place; the service uses their absolute paths. Each companion home gets its own service name.
+
+**Turn off sign-in startup** in Settings prevents future sign-in launches and leaves the current session open. From the installation folder you can also run:
+
+```sh
+node bin/glashaus-v3.js service status
+node bin/glashaus-v3.js service enable
+node bin/glashaus-v3.js service disable
+node bin/glashaus-v3.js service stop
+```
+
+`stop` ends the current background session without erasing data. `disable` turns off sign-in startup; use both to turn it off and stop it now. These commands respect `GLASHAUS_HOME` and `GLASHAUS_PORT`. `status` shows the native service name and log location. Logs live in `<companion-home>/startup/background.log`; startup records contain paths and port numbers, not API keys, and are excluded from JSON companion backups. Disabled service registrations are retained so they can be re-enabled.
+
+Before changing installed versions or moving Node, use `service disable` and `service stop` in the old installation. Start the new version manually, then enable background startup again in Settings. Do not run two different ports against the same companion home.
 
 ## What works in this alpha
 
@@ -54,7 +77,7 @@ Saved credentials and conversations are **not encrypted at rest**. They are in y
 
 Forgetting removes a memory from recall; it is not a secure wipe. Original chats, revisions, and forgotten records remain in exports. Imported archive extension fields are retained for recovery. Treat every backup as private.
 
-Not yet included: full v2 database migration, embeddings, automatic backup rotation, proactive outreach, voice/photos, autonomous self-authorship, remote web authentication, and a background OS service. A v2 soul capsule is identity transfer, not full conversation restoration. v2 commands are not available through the v3 CLI.
+Not yet included: full v2 database migration, embeddings, automatic backup rotation, proactive outreach, voice/photos, autonomous self-authorship, and remote web authentication. A v2 soul capsule is identity transfer, not full conversation restoration. v2 commands are not available through the v3 CLI.
 
 ## Develop
 

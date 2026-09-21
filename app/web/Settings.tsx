@@ -4,6 +4,7 @@ import { api } from "./api";
 import { Field, Notice, messageOf } from "./Forms";
 import { Icon } from "./Icon";
 import { modelLocation } from "./model-location";
+import { StartupSettings } from "./Startup";
 export function Settings({
   state,
   refresh,
@@ -321,6 +322,7 @@ export function Settings({
           </button>
         </div>
       </form>
+      <StartupSettings refresh={refresh} />
       {state.companion && (
         <>
           <section className="settings-section">

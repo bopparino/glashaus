@@ -10,6 +10,7 @@ import { modelLocation } from "./model-location";
 type Page = "chat" | "memory" | "becoming" | "settings" | "identity";
 export default function App() {
   const [state, setState] = useState<State | null>(null);
+  const [onboarding, setOnboarding] = useState<boolean | null>(null);
   const [page, setPage] = useState<Page>("chat");
   const [editingIdentity, setEditingIdentity] = useState(false);
   const [error, setError] = useState("");
@@ -23,7 +24,9 @@ export default function App() {
   const end = useRef<HTMLDivElement>(null);
   const shouldFollow = useRef(true);
   const refresh = useCallback(async () => {
-    setState(await api<State>("/state"));
+    const next = await api<State>("/state");
+    setState(next);
+    setOnboarding((current) => current ?? !next.companion);
   }, []);
   useEffect(() => {
     void refresh().catch((e) => setError(messageOf(e)));
@@ -111,13 +114,14 @@ export default function App() {
     }
   }
   const c = state?.companion;
-  const setup = !!state && !c && page !== "settings";
+  const setup = !!state && !!onboarding && page !== "settings";
   const reading = page !== "chat" || !home || setup;
   const turns = state
     ? [...state.turns.filter((t) => t.id !== live?.id), ...(live ? [live] : [])]
     : [];
   const finishSetup = async () => {
     await refresh();
+    setOnboarding(false);
     setEditingIdentity(false);
     setPage("chat");
     setHome(true);
@@ -219,7 +223,7 @@ export default function App() {
               Opening your shared space…
             </div>
           )}
-          {state && (!c || editingIdentity) && (
+          {state && (onboarding || !c || editingIdentity) && (
             <div hidden={!(setup || page === "identity")}>
               <Setup
                 key={editingIdentity ? "edit" : "new"}
@@ -244,13 +248,13 @@ export default function App() {
               }}
             />
           )}
-          {state && c && page === "memory" && (
+          {state && c && !onboarding && page === "memory" && (
             <Memory state={state} refresh={refresh} />
           )}
-          {state && c && page === "becoming" && (
+          {state && c && !onboarding && page === "becoming" && (
             <Becoming state={state} refresh={refresh} />
           )}
-          {state && c && page === "chat" && (
+          {state && c && !onboarding && page === "chat" && (
             <>
               {home ? (
                 <section className="welcome">

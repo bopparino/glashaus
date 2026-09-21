@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { chromium } from "playwright";
 import { createApp } from "../app/server/http.ts";
+import { AppError } from "../app/server/validation.ts";
 import type { ChatOptions, ModelProvider } from "../app/server/ollama.ts";
 
 class BrowserModel implements ModelProvider {
@@ -59,6 +60,26 @@ const app = createApp({
   webRoot: path.resolve("dist/web"),
   provider: new BrowserModel(),
   background: false,
+  startup: {
+    async status() {
+      return {
+        available: true,
+        enabled: false,
+        managed: false,
+        platform: "Synthetic service",
+        message: "",
+      };
+    },
+    async enable() {
+      throw new AppError(
+        "Test system refused background startup. Continue manually or retry.",
+      );
+    },
+    async disable() {},
+  },
+  handoff: () => {
+    throw new Error("The failure fixture must never hand off.");
+  },
 });
 await new Promise<void>((resolve) =>
   app.server.listen(0, "127.0.0.1", resolve),
@@ -167,8 +188,26 @@ try {
     .getByText("A preview only. This is not added to your conversation.")
     .waitFor();
   assert.equal(app.store.turns().length, 0);
+  const backgroundChoice = page.getByRole("checkbox", {
+    name: "Run in the background and start at sign-in",
+  });
+  assert.equal(await backgroundChoice.isChecked(), false);
+  await backgroundChoice.check();
   await page
     .getByRole("button", { name: "Make a home together", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "Your companion is saved." })
+    .waitFor();
+  await page
+    .getByText(
+      "Test system refused background startup. Continue manually or retry.",
+    )
+    .waitFor();
+  assert.equal(app.store.companion()?.name, "Mira");
+  await capture("startup-recovery-mobile", 390, 844);
+  await page
+    .getByRole("button", { name: "Continue with manual start", exact: true })
     .click();
   await page
     .getByRole("heading", { name: /Good (morning|afternoon|evening)\./ })
