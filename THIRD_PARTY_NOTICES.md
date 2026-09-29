@@ -87,3 +87,11 @@ The source installer fetches these dependencies through the lockfile. Their comp
 - pnpm — MIT, retained in the private package-manager installation
 
 The installer downloads pinned Node 24.21.0 and pnpm 11.19.0 archives from their official distribution endpoints and checks the committed SHA-256/SHA-512 values before extraction. Tailscale, Ollama, ElevenLabs, Apple SDKs and platform fonts are separate products, not redistributed here. Native background and icon assets are generated artwork; provenance is under `ios/Design`. User-supplied moodboards and video are private design references and are not distributed.
+
+## Hermes document utilities
+
+Glashaus reuses the MIT-licensed document helper code under `tool-runtime/vendor/hermes`, adapted through Glashaus's own renderer and isolated task execution. Upstream: https://github.com/NousResearch/hermes-agent, commit `5000e29936df69d5209f7cf2eea8e5776cb4cbb1`. The complete copyright and permission notice is retained in `tool-runtime/vendor/hermes/LICENSE`. Glashaus does not run a Hermes agent or daemon.
+
+The optional sandbox image installs Python, python-docx, pypdf, pypdfium2, LibreOffice and Liberation fonts. Their package license files remain in the image; Docker Desktop is installed separately under its own terms.
+
+The Mac bundle redistributes Node.js 24.21.0; its complete license and bundled third-party notices are retained as `runtime/NODE-LICENSE.txt`.

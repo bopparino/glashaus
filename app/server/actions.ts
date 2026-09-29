@@ -4,6 +4,7 @@ import { publicWebUrl } from "./ollama.ts";
 import { Reminders } from "./reminders.ts";
 import type { Store } from "./store.ts";
 import { AppError, record, text } from "./validation.ts";
+import type { Workspace } from "./workspace.ts";
 import { Integrations } from "./integrations.ts";
 
 const define = (
@@ -26,6 +27,9 @@ const define = (
 });
 const string = (description: string) => ({ type: "string", description });
 export const assistantTools: ToolDefinition[] = [
+  define("create_document", "Create PDF and DOCX files for an explicit user request. Enqueues a Glashaus task using this turn's images. Include the useful content and constraints in instruction. Returns a task ID; files are not ready until workspace_status reports complete.", { title: string("Short descriptive file title"), instruction: string("The complete document request and useful content, at most 3000 characters") }),
+  define("run_python_task", "Perform an explicitly requested calculation or file generation in an offline local container. No access to the Mac filesystem, connected accounts, credentials or network. Enqueues a task and saves results to Library. Do not use for external actions or computer control.", { title: string("Short task title"), instruction: string("The specific calculation, known input data and required outputs, at most 3000 characters") }),
+  define("workspace_status", "Read actual task progress and available file names. Do not infer success from a queued task.", {}),
   define(
     "web_search",
     "Search public web information. Use for current facts or when asked to look something up. Send only the minimum public search terms, never private conversation or credentials.",
@@ -67,11 +71,13 @@ export class Actions {
   private provider: ModelProvider;
   private reminders: Reminders;
   private integrations: Integrations;
-  constructor(store: Store, provider: ModelProvider, reminders: Reminders, integrations = new Integrations(store)) {
+  private workspace?: Workspace;
+  constructor(store: Store, provider: ModelProvider, reminders: Reminders, integrations = new Integrations(store), workspace?: Workspace) {
     this.store = store;
     this.provider = provider;
     this.reminders = reminders;
     this.integrations = integrations;
+    this.workspace = workspace;
   }
   async execute(
     turnId: string,
@@ -116,6 +122,14 @@ export class Actions {
       if (old) return JSON.parse(String(old.result));
     }
     let result: Record<string, unknown>;
+    if (["create_document", "run_python_task", "workspace_status"].includes(name)) {
+      if (!this.workspace) throw new AppError("The workspace is unavailable.");
+      if (name === "workspace_status") return { tasks: this.workspace.data.tasks().slice(0, 12), files: this.workspace.data.files().slice(0, 30) };
+      const task = await this.workspace.create({ title: args.title, instruction: args.instruction, kind: name === "create_document" ? "document" : "python" }, turnId, id);
+      const receipt = { task, note: "Task saved. Files will appear in Library when complete. Chat can continue." };
+      this.store.db.prepare("INSERT OR IGNORE INTO tool_runs VALUES (?,?,?,?,?,?)").run(id, turnId, name, serialized, JSON.stringify(receipt), new Date().toISOString());
+      return receipt;
+    }
     if (name === "web_search") {
       if (!this.provider.search)
         throw new AppError("Web search is unavailable with this provider.");

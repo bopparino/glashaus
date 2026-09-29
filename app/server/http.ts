@@ -170,6 +170,13 @@ export function createApp(options: {
             updateId: options.activation?.id ?? null,
             activating,
           });
+        if (url.pathname.startsWith("/api/workspace")) {
+          const result = await service.workspace.route(req.method ?? "GET", url.pathname.slice(4), ["POST", "PATCH"].includes(req.method ?? "") ? await body(req, url.pathname.endsWith("/images") ? 4_300_000 : 100_000) : undefined);
+          if (result) {
+            if ("file" in result && result.file) { res.writeHead(200, { "Content-Type": result.file.mime, "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(result.file.name)}`, "Cache-Control": "no-store" }); res.end(result.value); return; }
+            return json(result.value);
+          }
+        }
         if (route === "GET /api/diagnostics") return json(diagnostics(service));
         if (/^\/api\/(integrations|voice|mail|calendar|connectors|proposals)(?:\/|$)/.test(url.pathname)) {
           const result = await service.integrations.route(req.method ?? "GET", url.pathname.slice(4), ["POST", "PATCH"].includes(req.method ?? "") ? await body(req) : undefined, controller.signal);
@@ -221,7 +228,7 @@ export function createApp(options: {
           if (input.confirmed !== true)
             throw new AppError("Confirm Update and restart first.");
           if (
-            service.busy ||
+            service.busy || service.workspace.busy ||
             service.background !== "Idle" ||
             store.research().some((r) => r.status === "running")
           )
@@ -258,7 +265,7 @@ export function createApp(options: {
               "Background startup is unavailable in this preview.",
             );
           if (
-            service.busy ||
+            service.busy || service.workspace.busy ||
             service.background !== "Idle" ||
             store.research().some((r) => r.status === "running")
           )
@@ -269,7 +276,7 @@ export function createApp(options: {
           const input = record(await body(req));
           const before = await options.startup.status();
           if (
-            service.busy ||
+            service.busy || service.workspace.busy ||
             service.background !== "Idle" ||
             store.research().some((r) => r.status === "running")
           )
@@ -344,7 +351,7 @@ export function createApp(options: {
           const ensureIdle = () => {
             if (
               mutations !== 1 ||
-              service.busy ||
+              service.busy || service.workspace.busy ||
               service.background !== "Idle" ||
               store.research().some((r) => r.status === "running")
             )
@@ -454,7 +461,7 @@ export function createApp(options: {
           const id = text(input.id, "Message ID", 160, true);
           if (!/^[A-Za-z0-9:_-]+$/.test(id))
             throw new AppError("Invalid message ID.");
-          await service.chat(id, message, "web", controller.signal, emit);
+          await service.chat(id, message, "web", controller.signal, emit, input.attachmentIds);
           return res.end();
         }
         if (route === "POST /api/reminders")
@@ -571,6 +578,7 @@ export function createApp(options: {
     async close() {
       clearInterval(activationTimer);
       service.stop();
+      await service.workspace.shutdown();
       await telegram.shutdown();
       await mobile?.close();
       await new Promise<void>((resolve) => server.close(() => resolve()));

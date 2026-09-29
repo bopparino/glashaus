@@ -33,3 +33,7 @@ full-companion-install.json
 ios/Local.xcconfig
 # User-supplied moodboards and video are private references, not shipped assets.
 docs/visual-references/
+
+macos/build/
+.impeccable/questions/
+ios/build-device/

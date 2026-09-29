@@ -31,6 +31,21 @@ final class GlashausUITests: XCTestCase {
         app.buttons["connectMac"].tap()
         XCTAssertTrue(app.navigationBars["Home"].waitForExistence(timeout: 20), app.debugDescription)
     }
+    @MainActor func testWorkspaceLibraryAndPhotoEntry() async throws {
+        continueAfterFailure = false
+        let app = XCUIApplication(); try await pair(app)
+        let files = app.buttons["homeWorkspace"]
+        if !files.isHittable { app.swipeUp() }
+        XCTAssertTrue(files.waitForExistence(timeout: 10)); files.tap()
+        XCTAssertTrue(app.navigationBars["Files and tasks"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons.containing(.staticText, identifier: "Friday dinner plan.txt").firstMatch.waitForExistence(timeout: 10))
+        let library = XCTAttachment(screenshot: app.screenshot()); library.name = "workspace-library-phone"; library.lifetime = .keepAlways; add(library)
+        app.tabBars.buttons["Conversation"].tap()
+        app.buttons["conversationOptions"].tap()
+        XCTAssertTrue(app.buttons["Attach photos"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Files and tasks"].exists)
+        let menu = XCTAttachment(screenshot: app.screenshot()); menu.name = "workspace-menu-phone"; menu.lifetime = .keepAlways; add(menu)
+    }
     @MainActor func testPairConfirmChatMemoryAndReconnect() async throws {
         continueAfterFailure = false
         let app = XCUIApplication(); try await pair(app)

@@ -1,11 +1,17 @@
 import SwiftUI
+import PhotosUI
+import QuickLook
 
 struct ConversationView: View {
     @Bindable var model: CompanionModel
     @FocusState private var composing: Bool
     @State private var setAside = false
+    @State private var selectingPhotos = false
+    @State private var photos: [PhotosPickerItem] = []
+    @State private var showingLibrary = false
+    @State private var filePreview: URL?
     private var canSend: Bool {
-        model.canAct && !model.sending && model.pending == nil && !model.composer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        model.canAct && !model.uploadingImage && !model.sending && model.pending == nil && !model.composer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     var body: some View {
         NavigationStack {
@@ -23,6 +29,7 @@ struct ConversationView: View {
                             VStack(alignment: .leading, spacing: 16) {
                                 Text(turn.userText).textSelection(.enabled).padding(16).frame(maxWidth: .infinity, alignment: .leading).background(FieldStyle.surface).clipShape(RoundedRectangle(cornerRadius: 12))
                                     .accessibilityLabel("\(model.snapshot?.companion?.userName ?? "You"): \(turn.userText)")
+                                ForEach(turn.attachments ?? []) { file in Button { Task { do { filePreview = try await model.workspaceFile(file) } catch { model.error = error.localizedDescription } } } label: { Label(file.name, systemImage: "photo").frame(minHeight: 44) } }
                                 if !turn.reply.isEmpty { Text(.init(turn.reply)).textSelection(.enabled) }
                                 if let sources = turn.sources, !sources.isEmpty {
                                     VStack(alignment: .leading, spacing: 4) {
@@ -66,8 +73,16 @@ struct ConversationView: View {
                     .scrollDismissesKeyboard(.interactively)
                     .onChange(of: model.sending) { _, value in if value { scroll.scrollTo("bottom", anchor: .bottom) } }
                     .safeAreaInset(edge: .bottom, spacing: 0) {
+                        VStack(spacing: 0) {
+                        if model.uploadingImage { ProgressView("Preparing image…").font(.caption).padding(8) }
+                        if !model.attachments.isEmpty {
+                            ScrollView(.horizontal) { HStack { ForEach(model.attachments) { file in HStack { Label(file.name, systemImage: "photo"); Button { model.attachments.removeAll { $0.id == file.id } } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }.accessibilityLabel("Remove image") } } }.font(.caption).padding(.horizontal, 20) }
+                        }
                         HStack(alignment: .bottom, spacing: 0) {
                                 Menu {
+                                    Button("Attach photos", systemImage: "photo.badge.plus") { composing = false; selectingPhotos = true }.disabled(!model.canAct || model.sending || model.uploadingImage || model.attachments.count >= 3)
+                                    Button("Files and tasks", systemImage: "books.vertical") { showingLibrary = true }
+                                    Divider()
                                     Button("Clear chat view", systemImage: "text.bubble") { composing = false; model.clearChatView() }.disabled(model.timeline.isEmpty || model.sending)
                                     if model.hasHiddenChat { Button("Show earlier messages", systemImage: "clock.arrow.circlepath") { model.showHiddenChat() } }
                                 } label: { Image(systemName: "ellipsis").font(.body.weight(.medium)).frame(width: 44, height: 44) }
@@ -91,9 +106,14 @@ struct ConversationView: View {
                             .background(FieldStyle.surface, in: RoundedRectangle(cornerRadius: 12))
                             .padding(.horizontal, 16).padding(.vertical, 6)
                             .background(.bar)
+                        }
                     }
                     .refreshable { await model.refresh() }
             }.toolbar(.hidden, for: .navigationBar)
+                .photosPicker(isPresented: $selectingPhotos, selection: $photos, maxSelectionCount: max(1, 3 - model.attachments.count), matching: .images)
+                .onChange(of: photos) { _, selection in Task { for photo in selection { do { if let data = try await photo.loadTransferable(type: Data.self) { await model.uploadImage(data) } } catch { model.error = error.localizedDescription } }; photos = [] } }
+                .sheet(isPresented: $showingLibrary) { NavigationStack { WorkspaceLibraryView(model: model).toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showingLibrary = false } } } } }
+                .quickLookPreview($filePreview)
                 .confirmationDialog("Set aside this pending reply?", isPresented: $setAside, titleVisibility: .visible) {
                     Button("Set aside", role: .destructive) { model.setAside() }
                 } message: { Text("This removes the local retry. A message already received by the Mac remains in your conversation.") }

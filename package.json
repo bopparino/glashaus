@@ -37,7 +37,8 @@
     "README.md",
     "RELEASE.md",
     "THIRD_PARTY_NOTICES.md",
-    "LICENSE"
+    "LICENSE",
+    "tool-runtime/"
   ],
   "scripts": {
     "dev": "node --watch app/server/main.ts",
@@ -55,7 +56,10 @@
     "prepack": "npm run build",
     "calendar:install": "node scripts/calendar-install.ts",
     "assistant:backup": "node scripts/assistant-backup.ts",
-    "assistant:network": "node scripts/assistant-network.ts"
+    "assistant:network": "node scripts/assistant-network.ts",
+    "sandbox:setup": "node scripts/sandbox-setup.ts",
+    "desktop:build": "node scripts/desktop-build.ts",
+    "desktop:dmg": "node scripts/desktop-build.ts --dmg"
   },
   "dependencies": {
     "@js-temporal/polyfill": "^0.5.1",

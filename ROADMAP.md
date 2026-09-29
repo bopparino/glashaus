@@ -1,6 +1,10 @@
+Desktop/workspace implementation: [setup, capabilities, limits and remaining stages](docs/DESKTOP-WORKSPACE.md).
+
 # Glashaus delivery roadmap
 
 September 28, 2026 · Core non-notification scope implemented; hardware acceptance recorded · Architecture: [ARCHITECTURE.md](ARCHITECTURE.md)
+
+Next expansion, September 29: [desktop app, local execution, image input and artifacts](docs/DESKTOP-AGENT-ROADMAP.md). The owner selected a sandbox on this Mac and **photo → useful plan → PDF/DOCX** as the first proving workflow. This is a proposed new release beyond the implemented scope below.
 
 ## Current delivery scope
 

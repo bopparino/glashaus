@@ -52,6 +52,13 @@ final class PinnedSession: NSObject, URLSessionDelegate, URLSessionTaskDelegate,
         try check(response, data: data)
         return try JSONDecoder().decode(T.self, from: data)
     }
+    func file(_ id: String) async throws -> Data {
+        guard id.range(of: "^[A-Za-z0-9_-]+$", options: .regularExpression) != nil else { throw ClientError.message("Invalid file ID.") }
+        let (data, response) = try await session.data(for: request("/workspace/files/" + id), delegate: self)
+        try check(response, data: data)
+        guard data.count <= 8 * 1024 * 1024 else { throw ClientError.message("This file is too large.") }
+        return data
+    }
     func audio(body: [String: Any]) async throws -> Data {
         let (data, response) = try await session.data(for: request("/voice/speak", method: "POST", body: body), delegate: self)
         try check(response, data: data)
@@ -67,7 +74,7 @@ final class PinnedSession: NSObject, URLSessionDelegate, URLSessionTaskDelegate,
         }
     }
     func chat(_ pending: PendingMessage, receive: @MainActor (StreamEvent) -> Void) async throws {
-        let (bytes, response) = try await session.bytes(for: request("/chat", method: "POST", body: ["id": pending.id, "text": pending.text]), delegate: self)
+        let (bytes, response) = try await session.bytes(for: request("/chat", method: "POST", body: ["id": pending.id, "text": pending.text, "attachmentIds": pending.attachmentIds ?? []]), delegate: self)
         if (response as? HTTPURLResponse)?.statusCode != 200 {
             var data = Data(); for try await byte in bytes { if data.count < 24_000 { data.append(byte) } }
             try check(response, data: data)

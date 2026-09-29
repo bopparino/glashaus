@@ -21,6 +21,7 @@ struct Source: Codable, Identifiable { let id: String; let title: String; let ur
 struct Turn: Codable, Identifiable {
     let id: String; let userText: String; let reply: String; let status: String
     let error: String; let createdAt: String; let sources: [Source]?
+    var attachments: [WorkspaceFile]? = nil
 }
 struct Reminder: Codable, Identifiable {
     let id: String; let turnId: String?; let title: String; let dueAt: String; let timeZone: String
@@ -49,7 +50,7 @@ struct Snapshot: Codable {
 }
 struct History: Decodable { let turns: [Turn]; let olderCursor: String? }
 struct StreamEvent: Decodable { let type: String; let text: String?; let turn: Turn? }
-struct PendingMessage: Codable { let id: String; let text: String }
+struct PendingMessage: Codable { let id: String; let text: String; var attachmentIds: [String]? = nil }
 struct Pairing: Codable {
     let server: String; let pin: String; let token: String; let id: String
 }
@@ -78,4 +79,17 @@ enum ClientError: LocalizedError {
 func parseDate(_ value: String) -> Date? {
     let formatter = ISO8601DateFormatter(); formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     return formatter.date(from: value) ?? ISO8601DateFormatter().date(from: value)
+}
+
+struct WorkspaceFile: Codable, Identifiable {
+    let id: String; let name: String; let mime: String; let size: Int; let kind: String
+}
+struct WorkspaceTask: Decodable, Identifiable {
+    let id: String; let title: String; let status: String; let stage: String; let error: String
+    let outputIds: [String]; let turnId: String?
+    var active: Bool { status == "queued" || status == "running" }
+}
+struct WorkspaceSnapshot: Decodable {
+    struct Sandbox: Decodable { let ready: Bool; let message: String }
+    let files: [WorkspaceFile]; let tasks: [WorkspaceTask]; let sandbox: Sandbox
 }

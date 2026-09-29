@@ -22,6 +22,8 @@ import {
   text,
 } from "./validation.ts";
 
+import { WorkspaceData } from "./workspace-data.ts";
+
 const APP_ID = 1196179763;
 const iso = () => new Date().toISOString();
 const hash = (s: string) =>
@@ -65,7 +67,7 @@ export class Store {
     const version = Number(
       this.db.prepare("PRAGMA user_version").get()?.user_version ?? 0,
     );
-    if (version > 7) {
+    if (version > 8) {
       this.db.close();
       throw new AppError(
         "This companion was saved by a newer GlasHaus. Update the app before opening it.",
@@ -129,7 +131,10 @@ export class Store {
       if (!columns.some((column) => column.name === "recurrence")) {
         this.db.exec("ALTER TABLE reminders ADD COLUMN recurrence TEXT NOT NULL DEFAULT 'none'; ALTER TABLE reminders ADD COLUMN anchorAt TEXT NOT NULL DEFAULT ''; UPDATE reminders SET anchorAt=dueAt;");
       }
-      this.db.exec("CREATE TABLE IF NOT EXISTS integration_actions (id TEXT PRIMARY KEY, data TEXT NOT NULL, createdAt TEXT NOT NULL); PRAGMA user_version=7;");
+      this.db.exec(`CREATE TABLE IF NOT EXISTS integration_actions (id TEXT PRIMARY KEY, data TEXT NOT NULL, createdAt TEXT NOT NULL); PRAGMA user_version=8;
+        CREATE TABLE IF NOT EXISTS workspace_files (id TEXT PRIMARY KEY, metadata TEXT NOT NULL, bytes BLOB NOT NULL);
+        CREATE TABLE IF NOT EXISTS workspace_tasks (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS workspace_turns (turnId TEXT PRIMARY KEY REFERENCES turns(id), ids TEXT NOT NULL);`);
       this.db.exec(`UPDATE integration_actions SET data=json_set(data,'$.status','unknown','$.result','The Mac restarted during this action. Check the destination before creating another proposal.','$.revision',json_extract(data,'$.revision')+1) WHERE json_extract(data,'$.status')='executing';`);
     });
     this.db.exec(
@@ -191,6 +196,9 @@ export class Store {
     this.db.exec("PRAGMA secure_delete=ON");
     this.transaction(() => {
       for (const table of [
+        "workspace_turns",
+        "workspace_tasks",
+        "workspace_files",
         "mobile_devices",
         "integration_actions",
         "check_ins",
@@ -271,13 +279,13 @@ export class Store {
         .all(limit) as unknown as Turn[]
     )
       .reverse()
-      .map((turn) => ({ ...turn, sources: this.sourcesForTurn(turn.id) }));
+      .map((turn) => ({ ...turn, sources: this.sourcesForTurn(turn.id), attachments: new WorkspaceData(this.db).turnFiles(turn.id) }));
   }
   turn(id: string): Turn | null {
     const turn = this.db
       .prepare("SELECT * FROM turns WHERE id=?")
       .get(id) as unknown as Turn | undefined;
-    return turn ? { ...turn, sources: this.sourcesForTurn(id) } : null;
+    return turn ? { ...turn, sources: this.sourcesForTurn(id), attachments: new WorkspaceData(this.db).turnFiles(id) } : null;
   }
   sourcesForTurn(id: string): Source[] {
     const sources = new Map<string, Source>();
@@ -577,7 +585,8 @@ export class Store {
     return {
       format: "glashaus-archive",
       version: 3,
-      schemaVersion: 6,
+      schemaVersion: 7,
+      workspace: new WorkspaceData(this.db).archive(),
       reviewedActions: this.db.prepare("SELECT data FROM integration_actions ORDER BY createdAt,id").all().map(r => JSON.parse(String(r.data))),
       checkIns: this.db
         .prepare("SELECT * FROM check_ins ORDER BY createdAt,id")
@@ -644,7 +653,8 @@ export class Store {
       a.schemaVersion !== 3 &&
       a.schemaVersion !== 4 &&
       a.schemaVersion !== 5 &&
-      a.schemaVersion !== 6
+      a.schemaVersion !== 6 &&
+      a.schemaVersion !== 7
     )
       throw new AppError(
         "This archive needs a newer version of GlasHaus. Nothing was changed.",
@@ -688,6 +698,7 @@ export class Store {
       };
     });
     const ids = new Set(turns.map((t) => t.id));
+    const restoreWorkspace = Number(a.schemaVersion) >= 7 ? new WorkspaceData(this.db).validateArchive(a.workspace, ids) : () => {};
     if (ids.size !== turns.length)
       throw new AppError("The archive has duplicate conversation IDs.");
     const extensionRows = (key: string, max: number) =>
@@ -957,6 +968,7 @@ export class Store {
             t.error,
             t.createdAt,
           );
+      restoreWorkspace();
       for (const m of memories)
         this.db
           .prepare("INSERT INTO memories VALUES (?,?,?,?,?,?,?,?,?,?)")

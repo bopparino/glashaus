@@ -328,7 +328,7 @@ test("schema upgrade is additive and newer archives fail atomically", () => {
     assert.equal(store.companion()!.id, c.id);
     assert.equal(
       store.db.prepare("PRAGMA user_version").get()!.user_version,
-      7,
+      8,
     );
     const target = new Store(":memory:");
     try {

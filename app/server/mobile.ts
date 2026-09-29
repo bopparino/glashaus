@@ -229,13 +229,20 @@ export function createMobileServer(options: {
         const device = devices.authenticate(req.headers.authorization);
         unwatch = devices.watch(device, controller);
         const inputBody = ["POST", "PATCH"].includes(req.method ?? "")
-          ? await body(req)
+          ? await body(req, url.pathname === "/v1/workspace/images" ? 4_300_000 : 100_000)
           : undefined;
         // Reading a body yields; deletion/revocation may have happened meanwhile.
         devices.authenticate(req.headers.authorization);
         if (options.unavailable())
           throw new AppError("The Mac is busy restarting. Retry shortly.", 503);
         if (req.method === "GET" && url.pathname === "/v1/diagnostics") return json(diagnostics(service));
+        if (url.pathname.startsWith("/v1/workspace")) {
+          const result = await service.workspace.route(req.method ?? "GET", url.pathname.slice(3), inputBody);
+          if (result) {
+            if ("file" in result && result.file) { res.writeHead(200, { "Content-Type": result.file.mime, "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(result.file.name)}`, "Cache-Control": "no-store" }); res.end(result.value); return; }
+            return json(result.value);
+          }
+        }
         const integrationResult = await service.integrations.route(req.method ?? "GET", url.pathname.replace(/^\/v1/, ""), inputBody, controller.signal);
         if (integrationResult) {
           if (integrationResult.audio) { res.writeHead(200, { "Content-Type": "audio/mpeg" }); res.end(integrationResult.value); return; }
@@ -285,6 +292,7 @@ export function createMobileServer(options: {
             "web",
             controller.signal,
             emit,
+            input.attachmentIds,
           );
           return res.end();
         }
@@ -421,18 +429,19 @@ function history(store: Store, before?: string) {
     turns: page.reverse().map(({ cursor, ...turn }) => ({
       ...turn,
       sources: store.sourcesForTurn(turn.id),
+      attachments: store.turn(turn.id)?.attachments ?? [],
     })),
     olderCursor: rows.length > 100 ? String(rows[99].cursor) : null,
   };
 }
-async function body(req: http.IncomingMessage) {
+async function body(req: http.IncomingMessage, max = 100_000) {
   if (!req.headers["content-type"]?.includes("application/json"))
     throw new AppError("Send JSON.", 415);
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > 100_000) throw new AppError("This request is too large.", 413);
+    if (size > max) throw new AppError("This request is too large.", 413);
     chunks.push(Buffer.from(chunk));
   }
   try {

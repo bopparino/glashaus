@@ -56,6 +56,7 @@ export type PublicSettings = Omit<
   hasTelegramToken: boolean;
 };
 export interface Turn {
+  attachments?: import("./workspace.ts").WorkspaceFile[];
   id: string;
   userText: string;
   reply: string;

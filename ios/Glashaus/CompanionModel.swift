@@ -1,4 +1,6 @@
 import SwiftUI
+import ImageIO
+import UniformTypeIdentifiers
 
 @MainActor @Observable final class CompanionModel {
     var pairing = Credentials.load()
@@ -16,6 +18,8 @@ import SwiftUI
     var pairingLink = ""
     var showingPairing = false
     var composer = ""
+    var attachments: [WorkspaceFile] = []
+    var uploadingImage = false
     var selectedTab = 1
     var showingVoice = false
     private struct ChatViewState: Codable { let companionID: String; let hiddenThrough: Date; let preservedTurnID: String? }
@@ -56,6 +60,29 @@ import SwiftUI
     func fetch<T: Decodable>(_ path: String, method: String = "GET", body: [String: Any]? = nil) async throws -> T {
         guard let client else { throw ClientError.message("Connect to your Mac first.") }
         return try await client.fetch(path, method: method, body: body)
+    }
+    func uploadImage(_ original: Data) async {
+        guard connected, attachments.count < 3 else { error = "Connect to your Mac and attach up to three images."; return }
+        uploadingImage = true; defer { uploadingImage = false }
+        do {
+            guard original.count <= 30_000_000, let source = CGImageSourceCreateWithData(original as CFData, nil), let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true, kCGImageSourceThumbnailMaxPixelSize: 1600] as CFDictionary) else { throw ClientError.message("This image could not be prepared.") }
+            let output = NSMutableData()
+            guard let destination = CGImageDestinationCreateWithData(output, UTType.jpeg.identifier as CFString, 1, nil) else { throw ClientError.message("This image could not be converted.") }
+            CGImageDestinationAddImage(destination, image, [kCGImageDestinationLossyCompressionQuality: 0.85] as CFDictionary)
+            guard CGImageDestinationFinalize(destination) else { throw ClientError.message("This image could not be saved.") }
+            let file: WorkspaceFile = try await fetch("/workspace/images", method: "POST", body: ["name": "Photo.jpg", "data": (output as Data).base64EncodedString()])
+            attachments.append(file)
+        } catch { self.error = error.localizedDescription }
+    }
+    func workspaceFile(_ file: WorkspaceFile) async throws -> URL {
+        guard let client, connected else { throw ClientError.message("Reconnect to your Mac to open this file.") }
+        let bytes = try await client.file(file.id)
+        let folder = LocalFiles.folder.appendingPathComponent("files", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var root = folder; var values = URLResourceValues(); values.isExcludedFromBackup = true; try root.setResourceValues(values)
+        let name = file.name.replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "\\", with: "_")
+        let url = folder.appendingPathComponent(file.id + "-" + name)
+        try bytes.write(to: url, options: [.atomic, .completeFileProtection]); return url
     }
     func audio(body: [String: Any]) async throws -> Data {
         guard let client, connected else { throw ClientError.message("Reconnect to your Mac to use voice.") }
@@ -129,18 +156,18 @@ import SwiftUI
         } catch { self.error = error.localizedDescription }
     }
     func send() {
-        guard connected, !sending, pending == nil else { return }
+        guard connected, !sending, !uploadingImage, pending == nil else { return }
         let text = composer.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, text.count <= 16_000 else { error = "Enter a message of up to 16,000 characters."; return }
-        let value = PendingMessage(id: "ios:" + UUID().uuidString, text: text)
-        do { try LocalFiles.save(value, "pending.json"); pending = value; composer = ""; retry() }
+        let value = PendingMessage(id: "ios:" + UUID().uuidString, text: text, attachmentIds: attachments.map(\.id))
+        do { try LocalFiles.save(value, "pending.json"); pending = value; composer = ""; attachments = []; retry() }
         catch { self.error = "Your message could not be saved on this iPhone. Free some storage, then try again." }
     }
     func retry(_ turn: Turn? = nil) {
         guard let client, connected, !sending else { return }
         if let turn {
             guard pending == nil || pending?.id == turn.id else { error = "Finish or set aside the pending message first."; return }
-            let value = PendingMessage(id: turn.id, text: turn.userText)
+            let value = PendingMessage(id: turn.id, text: turn.userText, attachmentIds: turn.attachments?.map(\.id))
             do { try LocalFiles.save(value, "pending.json"); pending = value } catch { self.error = error.localizedDescription; return }
         }
         guard let pending else { return }
@@ -176,7 +203,7 @@ import SwiftUI
     }
     func forgetLocally() {
         connectionGeneration = UUID(); chatTask?.cancel(); client?.close(); client = nil
-        Credentials.clear(); LocalFiles.clear(); chatViewState = nil; pairing = nil; snapshot = nil; history = []; pending = nil; connected = false; reply = ""; showingPairing = false
+        Credentials.clear(); LocalFiles.clear(); attachments = []; chatViewState = nil; pairing = nil; snapshot = nil; history = []; pending = nil; connected = false; reply = ""; showingPairing = false
     }
     private struct Empty: Decodable {}
 }

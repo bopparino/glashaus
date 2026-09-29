@@ -46,6 +46,8 @@ app.store.saveCompanion(
     relationship: "Synthetic simulator evidence only.",
   }),
 );
+const fixtureFile = app.service.workspace.data.saveFile("Friday dinner plan.txt", "text/plain", Buffer.from("Synthetic interface fixture\n\nPick one dish, check the ingredients, and leave time to enjoy cooking."), "artifact");
+app.service.workspace.data.saveTask({ id: "design-document", title: "Friday dinner plan", instruction: "Synthetic interface fixture", kind: "document", status: "complete", stage: "Ready in Library", error: "", inputIds: [], outputIds: [fixtureFile.id], turnId: null, parentId: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
 // Review-only synthetic proposal. No mail account or send transport is connected.
 app.service.integrations.save({ id: "design-email", kind: "email", title: "Email to studio@example.test", payload: { from: "visitor@example.test", to: "studio@example.test", subject: "Friday dinner", body: "Would seven work for dinner on Friday? I’ll bring the ingredients." }, status: "draft", revision: 1, configRevision: 0, createdAt: new Date().toISOString(), result: "" });
 app.store.startTurn(

@@ -1,5 +1,7 @@
 # GlasHaus · Full Companion
 
+Mac desktop preview: [build the DMG and use the local workspace](docs/DESKTOP-WORKSPACE.md). Supports image attachments, isolated Python tasks and PDF/Word generation.
+
 A continuing AI companion with a practical life: shared conversation and memory, natural voice, web search, reminders, personal check-ins, and reviewed email and calendar actions. A Mac hosts the companion; a native iPhone app keeps everything together.
 
 This is the **`full-companion` branch**. The existing web alpha and its release installers remain separate. Your character, conversations, credentials and device pairings are private data, never part of this repository.
