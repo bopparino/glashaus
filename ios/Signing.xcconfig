@@ -1,0 +1,3 @@
+// Choose your Team in Xcode, or set DEVELOPMENT_TEAM in Local.xcconfig.
+// Local.xcconfig is ignored by Git and keeps private signing choices local.
+#include? "Local.xcconfig"

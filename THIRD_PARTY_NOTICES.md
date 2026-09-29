@@ -73,3 +73,17 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## Full-companion runtime additions
+
+The source installer fetches these dependencies through the lockfile. Their complete license files are retained in the installed packages:
+
+- `@js-temporal/polyfill` — ISC
+- `@modelcontextprotocol/sdk` — MIT
+- `imapflow` — MIT
+- `mailparser` — MIT
+- `nodemailer` — MIT-0
+- Node.js — MIT and bundled third-party licenses, retained in the private runtime's `LICENSE`
+- pnpm — MIT, retained in the private package-manager installation
+
+The installer downloads pinned Node 24.21.0 and pnpm 11.19.0 archives from their official distribution endpoints and checks the committed SHA-256/SHA-512 values before extraction. Tailscale, Ollama, ElevenLabs, Apple SDKs and platform fonts are separate products, not redistributed here. Native background and icon assets are generated artwork; provenance is under `ios/Design`. User-supplied moodboards and video are private design references and are not distributed.

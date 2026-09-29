@@ -1,0 +1,14 @@
+Use case: stylized-concept
+Asset type: single opaque, full-page portrait background artwork for a native iPhone companion app, requested size 1200 x 2608 pixels (approximately 0.46 width-to-height). Produce ONE finished artwork only, with no interface.
+
+Primary request: Create a NEW Terminal Pastoralism scene, freshly composed for a tall phone screen, guided by the supplied moodboard aesthetic: quiet human-scale rural life below vast obsolete utilitarian technology. This is the atmospheric background itself, not a UI mockup, screenshot, framed picture, poster, or collage.
+
+Reference grounding: The inspected Terminal Pastoralism interface and world moodboards establish weathered industrial spheres looming through mist above humble farm buildings, muted charcoal, olive and warm stone, tactile photographic grain, overcast rural calm, and a sense of everyday life continuing beside inexplicable infrastructure. Use this aesthetic and subject guidance only. Do not reproduce any moodboard panel, text, interface, frame or exact composition. Do not crop or extend the current wide panorama.
+
+Scene and subject: A monumental, weathered, nearly spherical industrial structure rises softly through layers of mist above a quiet field. Its panel seams and practical, ageing supports are subtle and believable. Place the sphere off-center toward the right, in the upper-right to middle portion of the tall composition. At the lower third, a very small farmhouse and a simple farm track establish everyday scale. The structure feels ancient and utilitarian rather than futuristic spectacle. Distant tree lines and low rural land softly recede into fog.
+
+Composition: Tall 1200 x 2608 portrait, edge-to-edge single image. Spacious upper sky and softly graded fog; generous quiet negative space especially across the center and upper-left, suitable for independently rendered app text and cards. Keep the focal structure softened by atmosphere rather than stark high-contrast edges. Keep the field and track low-detail and subdued, with no large busy foreground. The image should feel expansive even when partially covered by native interface surfaces.
+
+Style and light: Restrained cinematic photographic concept art with natural overcast light, finely textured film grain, muted desaturated colors, authentic worn materials, humane stillness, layered atmospheric depth. Dark evergreen and charcoal shadow tones, warm stone-gray mist and restrained olive farmland. Soft, beautiful, understated, with enough visible detail to remain a real place rather than an abstract gradient. No glowing sci-fi lights.
+
+Avoid: All text, letters, numbers, logos, watermarks, borders, symbols, clocks, interface elements, panels, buttons, device frames, close-up people, dramatic weapons, neon, saturated colors, apocalyptic action, lens flare, glossy science-fiction surfaces, busy foreground detail. Opaque background throughout.

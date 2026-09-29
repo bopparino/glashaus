@@ -1,0 +1,572 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-28T23:24:23.092Z",
+  "title": "Design System: GlasHaus iOS",
+  "extensions": {
+    "platform": {
+      "name": "ios",
+      "framework": "SwiftUI",
+      "scope": "ios/Glashaus",
+      "designDocument": "../DESIGN.md",
+      "unit": "pt",
+      "targetDeviceFamily": "iPhone",
+      "minimumDeploymentTarget": "26.0",
+      "sourceAuthority": "Current SwiftUI source and asset catalogs; the owner requested full-page replacement of the previously approved landscape band.",
+      "webSystem": "../../DESIGN.md and ../../.impeccable/design.json remain separate and unchanged."
+    },
+    "colorMeta": {
+      "ink-dark": {
+        "role": "primary",
+        "displayName": "Chalk Ink"
+      },
+      "ink-light": {
+        "role": "primary",
+        "displayName": "Charcoal Ink"
+      },
+      "ground-dark": {
+        "role": "neutral",
+        "displayName": "Charcoal Ground"
+      },
+      "ground-light": {
+        "role": "neutral",
+        "displayName": "Warm Light Ground"
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper Lettering"
+      },
+      "charcoal": {
+        "role": "neutral",
+        "displayName": "Paper Ink"
+      },
+      "rust": {
+        "role": "status",
+        "displayName": "Rust Attention"
+      },
+      "olive-dark": {
+        "role": "status",
+        "displayName": "Light Olive Connection"
+      },
+      "olive-light": {
+        "role": "status",
+        "displayName": "Deep Olive Connection"
+      },
+      "surface-dark": {
+        "role": "neutral",
+        "displayName": "Charcoal Reading Surface"
+      },
+      "surface-light": {
+        "role": "neutral",
+        "displayName": "Warm Reading Surface"
+      },
+      "secondary-ink-dark": {
+        "role": "neutral",
+        "displayName": "Chalk Supporting Ink"
+      },
+      "secondary-ink-light": {
+        "role": "neutral",
+        "displayName": "Charcoal Supporting Ink"
+      }
+    },
+    "adaptiveColors": {
+      "FieldStyle.ink": {
+        "light": "{colors.ink-light}",
+        "dark": "{colors.ink-dark}"
+      },
+      "FieldStyle.ground": {
+        "light": "{colors.ground-light}",
+        "dark": "{colors.ground-dark}"
+      },
+      "FieldStyle.olive": {
+        "light": "{colors.olive-light}",
+        "dark": "{colors.olive-dark}"
+      },
+      "FieldStyle.surface": {
+        "light": "{colors.surface-light}",
+        "dark": "{colors.surface-dark}"
+      },
+      "FieldStyle.secondaryInk": {
+        "light": "{colors.secondary-ink-light}",
+        "dark": "{colors.secondary-ink-dark}"
+      }
+    },
+    "fixedColorBindings": {
+      "FieldStyle.paper": "{colors.paper}",
+      "FieldStyle.charcoal": "{colors.charcoal}",
+      "FieldStyle.rust": "{colors.rust}"
+    },
+    "typographyMeta": {
+      "title2": {
+        "displayName": "State Title",
+        "nativeTextStyle": ".title2",
+        "purpose": "Conversation, Activity, and companion-setup states."
+      },
+      "title2-medium": {
+        "displayName": "Pairing Introduction",
+        "nativeTextStyle": ".title2",
+        "purpose": "Pairing introduction.",
+        "weightOverride": "medium"
+      },
+      "headline": {
+        "displayName": "Section Heading",
+        "nativeTextStyle": ".headline",
+        "purpose": "Pairing steps and offline heading."
+      },
+      "body": {
+        "displayName": "Reading",
+        "nativeTextStyle": ".body",
+        "purpose": "Conversation, memory, journal, date/time, and ordinary prose; explicitly set or inherited."
+      },
+      "subheadline": {
+        "displayName": "Supporting Text",
+        "nativeTextStyle": ".subheadline",
+        "purpose": "Time zone, sources, connection guidance, and supporting settings copy."
+      },
+      "footnote": {
+        "displayName": "Mac Address",
+        "nativeTextStyle": ".footnote",
+        "purpose": "Selectable paired Mac URL."
+      },
+      "caption": {
+        "displayName": "Metadata",
+        "nativeTextStyle": ".caption",
+        "purpose": "Sync, sources, journal dates, guidance, and ordinary status."
+      },
+      "status": {
+        "displayName": "Reminder State",
+        "nativeTextStyle": ".caption",
+        "purpose": "Text and SF Symbol label for reminder state.",
+        "weightOverride": "medium"
+      },
+      "reminder-title": {
+        "displayName": "Reminder Title",
+        "nativeTextStyle": ".title2",
+        "purpose": "ReminderCard title; full vertical growth.",
+        "weightOverride": "semibold"
+      }
+    },
+    "systemTypography": {
+      "navigation": "Native large titles for Activity, Settings, and pairing; inline detail and editor titles. Conversation hides its navigation bar; tabs and the named composer provide context.",
+      "symbols": "SF Symbols; send arrow uses .body semibold, capped at Dynamic Type xxxLarge for the icon only.",
+      "scaling": "System Dynamic Type; no custom fixed font sizes, line-height scale, or custom typeface.",
+      "fontSizeSerialization": "fontSize omitted from frontmatter so a web CSS size cannot replace semantic native text styles."
+    },
+    "shadows": [],
+    "motion": [],
+    "breakpoints": [],
+    "nativeLayout": {
+      "screenInsets": "{spacing.page}",
+      "composer": {
+        "placement": "safeAreaInset(edge: .bottom, spacing: 0)",
+        "horizontalPaddingPt": 16,
+        "verticalPaddingPt": 6,
+        "gapPt": 0,
+        "minimumRowHeightPt": 44,
+        "inputLeadingPaddingPt": 12,
+        "inputVerticalPaddingPt": 8,
+        "trailingPaddingPt": 4
+      },
+      "minimumCustomIconFramePt": [
+        44,
+        44
+      ],
+      "screenModel": "Scrolling iPhone layouts; no breakpoint or fixed canvas model.",
+      "listAndForm": "System default styling; no custom list row geometry or sheet detents.",
+      "background": "PastoralBackground fills the viewport and ignores safe areas and hit testing; controls retain native safe areas."
+    },
+    "nativeComponents": [
+      {
+        "name": "Root Navigation",
+        "kind": "nav",
+        "source": "Glashaus/GlashausApp.swift#RootView",
+        "nativeType": "TabView + NavigationStack",
+        "behavior": [
+          "Conversation tag 0, Activity tag 1, Settings tag 2; initial selection is 1.",
+          "Activity badge counts needsConfirmation or due reminders and available check-ins.",
+          "No pairing presents PairingView instead of tabs.",
+          "Conversation has no duplicate navigation header. Memories and Journal remain under Settings."
+        ],
+        "symbols": [
+          "bubble.left",
+          "calendar",
+          "gearshape"
+        ]
+      },
+      {
+        "name": "Pastoral Background",
+        "kind": "custom",
+        "source": "Glashaus/GlashausApp.swift#PastoralBackground",
+        "nativeType": "Image + adaptive ground overlay",
+        "asset": "PastoralBackdrop",
+        "modifiers": [
+          "resizable()",
+          "scaledToFill()",
+          "frame to GeometryReader size",
+          "clipped()",
+          "ignoresSafeArea()",
+          "allowsHitTesting(false)",
+          "accessibilityHidden(true)"
+        ],
+        "wash": {
+          "immersiveDark": 0.58,
+          "immersiveLight": 0.78,
+          "readingDark": 0.86,
+          "readingLight": 0.9,
+          "increasedContrastOrReducedTransparency": 0.97
+        }
+      },
+      {
+        "name": "Connection Status",
+        "kind": "button",
+        "source": "Glashaus/GlashausApp.swift#ConnectionStatus",
+        "nativeType": "Button + Label",
+        "style": ".plain",
+        "minimumContentHeightPt": 44,
+        "behavior": [
+          "Refreshes the model when tapped.",
+          "Connected uses a FieldStyle.olive circle.fill icon and ordinary ink text.",
+          "Offline uses FieldStyle.ink text and wifi.slash."
+        ],
+        "accessibilityHint": "Checks your connection to the Mac",
+        "location": "Settings → Mac connection; offline notices remain in Activity and Conversation."
+      },
+      {
+        "name": "Pairing Field",
+        "kind": "input",
+        "refersTo": "pairing-field",
+        "source": "Glashaus/GlashausApp.swift#PairingView",
+        "nativeType": "TextField(axis: .vertical) + PasteButton",
+        "fill": {
+          "binding": "FieldStyle.ink",
+          "opacity": 0.07
+        },
+        "lineLimits": [
+          2,
+          5
+        ],
+        "behavior": [
+          "Autocapitalization and autocorrection disabled.",
+          "Connect to Mac disabled while working or when the link is empty."
+        ],
+        "accessibilityIdentifier": "pairingLink"
+      },
+      {
+        "name": "Prominent Action",
+        "kind": "button",
+        "refersTo": [
+          "primary-dark",
+          "primary-light"
+        ],
+        "source": [
+          "Glashaus/GlashausApp.swift#PairingView"
+        ],
+        "nativeType": "Button",
+        "style": ".borderedProminent",
+        "tint": "FieldStyle.ink",
+        "foreground": "FieldStyle.ground",
+        "shape": "Native default unless a view explicitly sets buttonBorderShape.",
+        "behavior": [
+          "Connect to Mac uses full width and minHeight 44.",
+          "Native disabled and focus behavior."
+        ]
+      },
+      {
+        "name": "Reminder Card",
+        "kind": "card",
+        "refersTo": "reminder-card",
+        "source": "Glashaus/GlashausApp.swift#ReminderCard",
+        "nativeType": "VStack + Label + Menu + Button",
+        "backgroundAsset": "ReminderPaper",
+        "backgroundModifiers": [
+          "resizable()",
+          "scaledToFill()"
+        ],
+        "stackSpacingPt": 16,
+        "detailSpacingPt": 8,
+        "behavior": [
+          "Draft and paused show Not scheduled yet, Confirm reminder, and Edit.",
+          "Due shows Mark done; closed reminders do not show the actions menu.",
+          "Date, time, UTC offset, and stored time-zone identifier are live model content.",
+          "Text and controls remain native, not part of the image."
+        ],
+        "statusTint": {
+          "attention": "FieldStyle.rust",
+          "other": "FieldStyle.charcoal"
+        },
+        "secondaryText": {
+          "binding": "FieldStyle.charcoal",
+          "opacity": 0.75
+        }
+      },
+      {
+        "name": "Reminder Confirmation",
+        "kind": "button",
+        "refersTo": "reminder-confirm",
+        "source": "Glashaus/GlashausApp.swift#ReminderCard",
+        "nativeType": "Button",
+        "style": ".borderedProminent",
+        "minimumContentHeightPt": 44,
+        "width": "maxWidth: .infinity",
+        "behavior": [
+          "Confirm action sends the current reminder revision.",
+          "Disabled when model.canAct is false.",
+          "Confirm uses the explicit control radius; Mark done retains the system shape."
+        ]
+      },
+      {
+        "name": "Conversation Composer",
+        "kind": "input",
+        "refersTo": "message-field",
+        "source": "Glashaus/ConversationView.swift#ConversationView",
+        "nativeType": "TextField(axis: .vertical) and plain Button sharing one surface in safeAreaInset(edge: .bottom, spacing: 0)",
+        "fill": {
+          "binding": "FieldStyle.surface",
+          "opacity": 1
+        },
+        "prompt": {
+          "text": "Message <current companion name>",
+          "binding": "FieldStyle.ink",
+          "opacity": 0.72
+        },
+        "lineLimits": [
+          1,
+          5
+        ],
+        "barMaterial": ".bar",
+        "behavior": [
+          "Native keyboard avoidance through safeAreaInset.",
+          "Interactive scroll dismisses the keyboard.",
+          "Send disabled when offline/unavailable, sending, pending, or empty.",
+          "Source identifier messageComposer; send has explicit Send message accessibility label."
+        ],
+        "send": {
+          "symbol": "arrow.up",
+          "nativeTextStyle": ".body",
+          "weight": "semibold",
+          "visibleDiameterPt": 32,
+          "touchTargetPt": [
+            44,
+            44
+          ],
+          "disabledFill": {
+            "binding": "FieldStyle.ink",
+            "opacity": 0.08
+          },
+          "disabledForeground": "FieldStyle.secondaryInk",
+          "dynamicTypeUpperBound": "xxxLarge (symbol only; text remains fully scalable)"
+        }
+      },
+      {
+        "name": "User Message",
+        "kind": "card",
+        "refersTo": "user-message",
+        "source": "Glashaus/ConversationView.swift#ConversationView",
+        "nativeType": "Text",
+        "fill": {
+          "binding": "FieldStyle.surface",
+          "opacity": 1
+        },
+        "behavior": [
+          "Full available width, leading alignment.",
+          "Saved text is selectable; companion replies stay on the open page ground."
+        ]
+      },
+      {
+        "name": "Native Editing and Settings",
+        "kind": "custom",
+        "source": [
+          "Glashaus/GlashausApp.swift#ReminderEditor",
+          "Glashaus/ConversationView.swift#SettingsView",
+          "Glashaus/ConversationView.swift#MemoryEditor"
+        ],
+        "nativeType": "List + Form + sheet + confirmationDialog",
+        "behavior": [
+          "Reminder and memory editors use NavigationStack and inline titles.",
+          "Cancel dismisses; native confirmation toolbar actions save.",
+          "Reminder edits preserve the stored time zone and require a fresh confirmation.",
+          "Destructive actions use role .destructive and separate confirmation dialogs."
+        ]
+      }
+    ],
+    "assets": [
+      {
+        "name": "PastoralBackdrop",
+        "path": "Glashaus/Assets.xcassets/PastoralBackdrop.imageset/backdrop.png",
+        "type": "opaque raster PNG",
+        "pixels": [
+          851,
+          1849
+        ],
+        "purpose": "Full-page native artwork behind live app content.",
+        "provenance": "Design/backdrop-provenance.md",
+        "accessibility": "Decorative; accessibilityHidden(true)."
+      },
+      {
+        "name": "ReminderPaper",
+        "path": "Glashaus/Assets.xcassets/ReminderPaper.imageset/paper.png",
+        "type": "opaque raster PNG",
+        "pixels": [
+          1254,
+          1254
+        ],
+        "purpose": "Subtle warm paper background behind live reminder controls.",
+        "provenance": "Design/paper-provenance.md"
+      },
+      {
+        "name": "AppIcon",
+        "path": "Glashaus/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
+        "purpose": "Native home-screen app icon.",
+        "provenance": "Design/app-icon-provenance.md"
+      },
+      {
+        "name": "Approved Activity composition",
+        "path": "Design/approved-activity.png",
+        "purpose": "Selected design reference; not an interface asset."
+      }
+    ],
+    "accessibility": {
+      "implemented": [
+        "Native Dynamic Type text styles and SF Symbols.",
+        "Adaptive light/dark ink, ground, and olive.",
+        "Explicit labels for icon-only Send, Memories, and reminder menu.",
+        "Text plus symbols accompany status colors.",
+        "Decorative landscape hidden from accessibility.",
+        "Selectable conversation, journal, and Mac-address text.",
+        "Native keyboard, focus, forms, dialogs, and navigation behavior.",
+        "Reminder title and time zone can grow vertically.",
+        "Background wash strengthens for Increased Contrast and Reduce Transparency."
+      ],
+      "limits": [
+        "No custom Reduce Motion branch; no custom app animations are defined.",
+        "44-point frames are present on explicit custom icon actions and many text actions; this is not a claim of universal audited target coverage.",
+        "This extraction is documentation, not a new VoiceOver or physical-device verification pass."
+      ]
+    },
+    "notes": [
+      "Frontmatter owns primitive values. RGB percentages preserve the SwiftUI normalized component values without 8-bit rounding.",
+      "No synthetic tonal ramps: none are implemented in the native app.",
+      "No HTML/CSS component previews: nativeComponents preserves the real SwiftUI system and avoids asserting a web recreation as authority.",
+      "No custom shadows, motion tokens, or breakpoints exist; the empty extension arrays are intentional.",
+      "System chrome appearance varies with iOS; do not copy a screenshot silhouette into custom controls.",
+      "The paper color token is foreground on charcoal reminder buttons; the reminder surface is the ReminderPaper raster.",
+      "September 28 full-page update: Settings → Mac connection contains maintenance and destructive pairing controls; native action behavior is unchanged.",
+      "Mobile-first refinement: connection status is in Settings; the chat header/book shortcut and routine roadmap footers are removed. Current-action reminder guidance remains in the editor."
+    ],
+    "evidence": {
+      "sourceFiles": [
+        {
+          "path": "Glashaus/GlashausApp.swift",
+          "sha256": "c21cb049ae45ae83a8f67688a4675e9d9e68a947b8c27ba631d70de4afc818e7"
+        },
+        {
+          "path": "Glashaus/ConversationView.swift",
+          "sha256": "5da3d66ad75796fd1fc497d600d2ad8f010ce3d88108533a90fff0189375ac49"
+        },
+        {
+          "path": "Glashaus/CompanionModel.swift",
+          "sha256": "da99904fbf2aae290e1199f4582e8d5bd33f49e3574156cca1ef7a8b38ffcfac"
+        },
+        {
+          "path": "Glashaus/Models.swift",
+          "sha256": "af7964e0989ccc206aa1684397728596cf152f93423771232d637825eb1c6e81"
+        },
+        {
+          "path": "Glashaus/Connection.swift",
+          "sha256": "2f3083143a9a9cf801c2bdfdf183ad70d9149a57b8446247691690494e64564a"
+        },
+        {
+          "path": "Glashaus.xcodeproj/project.pbxproj",
+          "sha256": "01cc2734b68f66d9e739fd1ebdcb0ae845dfc4446600bc793ee84611eede95cd"
+        },
+        {
+          "path": "Design/direction.md",
+          "sha256": "a9561703a5083d38412462c2d736cafbff5e3b3d718b1544196d2e8664e0c70c"
+        },
+        {
+          "path": "Design/landscape-provenance.md",
+          "sha256": "143fcbe797191bafdf117308e519e681639b09eda630c26a81bc1b20e09cb64f"
+        },
+        {
+          "path": "Design/paper-provenance.md",
+          "sha256": "aa63eb96a3f26408093c1e6f450c4ffa602d47dcd51f8b7b8a6536dd1e016065"
+        },
+        {
+          "path": "Design/backdrop-provenance.md",
+          "sha256": "175465c6c8bad9fcf06572d3a14fdf77886a93db0fea20177a6672170a0c5688"
+        },
+        {
+          "path": "Glashaus/Assets.xcassets/PastoralBackdrop.imageset/backdrop.png",
+          "sha256": "ba86c3bfa7cc8c64b5c0ff67f888382910188f28c337d8244f7e011137c44b40"
+        }
+      ],
+      "visualReferencesInspected": [
+        "../.impeccable/review/compact-mobile/before/activity-dark.png",
+        "../.impeccable/review/compact-mobile/before/conversation-dark.png",
+        "../.impeccable/review/compact-mobile/dark/screens/activity-dark.png",
+        "../.impeccable/review/compact-mobile/dark-final/conversation-dark.png",
+        "../.impeccable/review/compact-mobile/dark/screens/composer-keyboard.png",
+        "../.impeccable/review/compact-mobile/light-large/screens/composer-multiline.png",
+        "../.impeccable/review/compact-mobile/light-final/composer-multiline.png",
+        "../.impeccable/review/compact-mobile/light-final/conversation-landscape.png"
+      ],
+      "freshness": "Current compact mobile refinement. Fresh native screenshots were opened with the prior implementation in dark and light appearances, including keyboard, multiline input, large Dynamic Type, and landscape. One icon-scaling correction was visually confirmed. See ../design-qa.md for evidence and limits."
+    }
+  },
+  "components": [],
+  "narrative": {
+    "northStar": "Terminal Pastoralism",
+    "overview": "The native app pairs a subdued rural landscape and weathered infrastructure with warm paper and a quiet charcoal field. The contrast gives reminders a tangible place for review while conversation remains open and readable. The selected first expression is the Activity-led Field Ledger recorded in [the native direction contract](Design/direction.md) and [approved composition](Design/approved-activity.png).\n\nNative iOS structure carries navigation, controls, typography, and transitions. Brand is expressed through the palette, imagery, spacing, and restrained metadata. The dark appearance has a warm light counterpart; the reminder paper remains light in both. The configurable companion name and saved conversation supply the content.",
+    "keyCharacteristics": [
+      "Full-page artwork with adaptive charcoal or warm-light washes.",
+      "Real paper texture behind actionable reminder content.",
+      "System typography with Dynamic Type and SF Symbols.",
+      "Native tabs, navigation stacks, forms, sheets, and confirmation dialogs.",
+      "Honest connection, saved-copy, pending-message, and reminder states."
+    ],
+    "rules": [
+      {
+        "name": "The Adaptive Ground Rule",
+        "body": "Bind main text and tint to FieldStyle.ink, supporting text to FieldStyle.secondaryInk, reading surfaces to FieldStyle.surface, and page washes to FieldStyle.ground. Reserve FieldStyle.olive for connection indicators; each binding selects its light or dark variant at runtime.",
+        "section": "colors"
+      },
+      {
+        "name": "The System Reading Rule",
+        "body": "Use SwiftUI text styles and their native Dynamic Type behavior; preserve system metrics instead of substituting fixed point sizes, custom fonts, or web type tokens.",
+        "section": "typography"
+      },
+      {
+        "name": "The Native Frame Rule",
+        "body": "Let `TabView`, `NavigationStack`, system safe areas, and sheet presentation own the application frame; compose content within that frame.",
+        "section": "layout"
+      },
+      {
+        "name": "The Material Restraint Rule",
+        "body": "Keep app content flat and let the landscape, real paper grain, tonal fills, and system materials establish depth.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Explicit State Rule",
+        "body": "Every action uses current model state; status text and symbols explain whether the Mac is reachable and whether a reminder is actually scheduled.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do use the adaptive native palette and semantic system text styles.",
+      "Do retain real landscape and paper assets with their provenance.",
+      "Do preserve native tabs, navigation stacks, forms, menus, sheets, and safe-area behavior.",
+      "Do allow reminder titles and stored time zones to grow with Dynamic Type.",
+      "Do pair status color with readable text and native symbols.",
+      "Do keep reminder confirmation explicit and edits subject to fresh approval.",
+      "Do distinguish a saved offline copy from current Mac state.",
+      "Do keep the native design documentation scoped to `ios` while Prism remains the web system."
+    ],
+    "donts": [
+      "Don't replace native typography or navigation with the web app's fonts or controls.",
+      "Don't rasterize text, controls, system chrome, or decorative slogans from the approved mock.",
+      "Don't replace `ReminderPaper` with a flat color and describe it as the same material.",
+      "Don't freeze text to a screenshot's point sizes or shrink it to retain a fixed card height.",
+      "Don't add voice, phone notifications, Apple Reminders sync, or other capability controls before they exist.",
+      "Don't present illustrative conversation, dates, or connection telemetry as saved user data."
+    ]
+  }
+}

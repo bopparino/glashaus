@@ -24,6 +24,7 @@ export interface Registration {
   enabled: boolean;
   directory: string;
   port: number;
+  mobilePort?: number;
   node: string;
   entry: string;
   nonce: string;
@@ -80,6 +81,7 @@ export class Startup implements StartupControl {
   readonly entry: string;
   readonly node: string;
   readonly port: number;
+  readonly mobilePort?: number;
   readonly uid: number;
   readonly execute: Runner;
   readonly managed: boolean;
@@ -90,6 +92,7 @@ export class Startup implements StartupControl {
   constructor(options: {
     directory: string;
     port: number;
+    mobilePort?: number;
     platform?: string;
     userHome?: string;
     configHome?: string;
@@ -128,10 +131,11 @@ export class Startup implements StartupControl {
           );
     this.entry = executablePath(
       options.entry ??
-        fileURLToPath(new URL("./background.js", import.meta.url)),
+        fileURLToPath(new URL(import.meta.url.endsWith(".ts") ? "./background.ts" : "./background.js", import.meta.url)),
     );
     this.node = executablePath(options.node ?? process.execPath);
     this.port = options.port;
+    this.mobilePort = options.mobilePort;
     this.uid = options.uid ?? process.getuid?.() ?? 0;
     this.execute = options.execute ?? run;
     this.managed = options.managed ?? process.env.GLASHAUS_MANAGED === "1";
@@ -435,6 +439,7 @@ export class Startup implements StartupControl {
         enabled: true,
         directory: this.directory,
         port: this.port,
+        ...(this.mobilePort ? { mobilePort: this.mobilePort } : {}),
         node: this.node,
         entry: this.entry,
         nonce: previous?.enabled ? previous.nonce : randomUUID(),

@@ -34,8 +34,8 @@ export class Updates implements UpdateControl {
       current: VERSION,
       latest: this.release,
       checkedAt: this.checkedAt,
-      available: startup.managed && startup.available && existsSync(worker),
-      message: startup.managed
+      available: !this.branchInstall && startup.managed && startup.available && existsSync(worker),
+      message: this.branchInstall ? "This full-companion installation updates from its dedicated Git branch. Follow docs/SETUP.md and rerun Setup Glashaus.command; published alpha updates do not apply." : startup.managed
         ? startup.message
         : "To update from here, enable background startup above. For a manual session, stop it with Ctrl+C and rerun the installer.",
       operation: current
@@ -55,7 +55,9 @@ export class Updates implements UpdateControl {
         : null,
     };
   }
+  private get branchInstall() { return existsSync(fileURLToPath(new URL("../../full-companion-install.json", import.meta.url))); }
   async check() {
+    if (this.branchInstall) return this.status();
     this.release = await latestRelease(VERSION);
     this.checkedAt = Date.now();
     return this.status();

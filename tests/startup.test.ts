@@ -33,6 +33,7 @@ function fixture(
   const control = new Startup({
     directory,
     port: 7788,
+    mobilePort: 7789,
     platform,
     userHome: root,
     configHome: path.join(root, "config"),
@@ -121,12 +122,14 @@ for (const platform of ["win32", "darwin", "linux"]) {
       await f.control.enable();
       assert.equal((await f.control.status()).enabled, true);
       const config = JSON.parse(readFileSync(f.control.configFile, "utf8"));
+      assert.equal(config.mobilePort, 7789);
       assert.deepEqual(
         Object.keys(config).sort(),
         [
           "directory",
           "enabled",
           "entry",
+          "mobilePort",
           "node",
           "nonce",
           "owner",

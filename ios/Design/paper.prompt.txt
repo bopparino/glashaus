@@ -1,0 +1,6 @@
+Use case: photorealistic-natural
+Asset type: seamless-looking background material texture for a native SwiftUI reminder card.
+Primary request: a single square 1024 by 1024 pixel flat warm off-white paper texture, matching the selected Glashaus Terminal Pastoralism Activity reference card. Base color close to hex #e7e2d7: pale warm cream-gray paper. Uniform, nearly solid tone.
+Style/medium: macro material scan of fine uncoated archival paper, flat front-facing orthographic view with even diffuse illumination across the entire square. Extremely faint tiny natural paper fibers and delicate grain, visible only when looking closely. The surface must remain very quiet for dark body text and small metadata to be comfortably readable over it.
+Composition: full-bleed continuous paper material with no paper edges or surrounding scene. Uniform color and brightness from corner to corner. Very low texture contrast; never distressed.
+Constraints: no stains, no spots, no creases, no folds, no tears, no large visible fibers, no speckles, no scratches, no mottling, no lighting gradient, no vignette, no shadows, no border, no frame, no objects, no text, no letters, no numbers, no logo, no watermark. The image is only a subtle off-white paper material. Opaque background.

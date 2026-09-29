@@ -1,67 +1,72 @@
-# Prism interface verification
+# Glashaus mobile density QA — September 28, 2026
 
-final result: passed for the reviewed fixes and owner-approved visual direction
+final result: passed
 
-## Visual truth and scope
+disposition: ship
 
-Source: the owner's two-phone reference, copied as a content-only normalized home target at `.impeccable/mocks/prism-home-reference.png` (390×826). Its source crop was 498×1055, excluding the phone bezel, status bar, and home indicator. The full original reference remains a user attachment, not a shipping app asset.
+Scope: the owner's mobile-first refinement of connection status, the conversation header, composer, send button, and everyday roadmap copy. The full-page artwork and native tab structure remain the visual foundation. The Mac web interface is outside this pass.
 
-The owner explicitly selected **Keep the working-app adaptations (Recommended)** when asked whether to use visual direction or pixel-for-pixel recreation. Journal/Settings, a working send button, local-time greeting, Continue conversation, and omission of unavailable music/voice controls are accepted product translations. Rendering defects are not waived.
+## Findings
 
-Implementation: synthetic in-memory previews at `http://127.0.0.1:7781/` and `:7782/`, with no real credentials or companion history. Real app runs separately at `:7777/`.
+- **[P2] Send symbol overflow at accessibility text sizes — resolved.** Initial light/accessibility-extra-large evidence showed the arrow extending beyond its 32-point circle. Dynamic Type is now capped at `xxxLarge` for that symbol only. Message text retains the full range and the send target remains 44 × 44 points. The initial and corrected multiline captures were opened together; the final arrow fits with visible inset, and the enabled/disabled variants retain their meaning. No blocking regression was observed in the bounded confirmation pass.
+- The requested simplifications are visible: Activity has no healthy-connection pill; Conversation has no duplicate title/book bar; one compact surface contains text input and send; routine upcoming-feature text is removed. Connection status remains under Settings → Mac connection, Memories remains under Settings, and offline recovery stays in context.
 
-## Evidence
+## Source and rendered evidence
 
-Native in-app browser viewport exports, inspected after capture:
+Source visual truth: `.impeccable/review/compact-mobile/before/activity-dark.png` and `before/conversation-dark.png`, together with the owner's explicit critique. These are the previous installed design, not a new mock to clone. The requested changes intentionally reduce its chrome while preserving palette, materials, and native interaction structure. `ios/Design/direction.md` records the updated authority.
 
-- `.impeccable/review/mobile.png` and `desktop.png`: home, CSS 390×826 and 1440×1000.
-- `.impeccable/review/user-1934.png`: home, CSS 1934×1216.
-- `.impeccable/review/conversation-mobile.png` and `conversation-desktop.png`: two synthetic exchanges.
-- `.impeccable/review/setup-mobile.png` and `setup-desktop.png`: first setup step.
-- `.impeccable/review/settings-mobile.png` and `settings-desktop.png`: first settings viewport; form continues below the fold.
+Implementation evidence is under `.impeccable/review/compact-mobile/`:
 
-The native export is sometimes 380×805 for CSS 390×826, or 1430×993 for CSS 1440×1000. This is the browser capture scale, not horizontal overflow. The mobile image was normalized to 390×826 in `hero-repro.png` for comparison. Raw screenshots are retained. Full-page exports from this browser distorted responsive styling and were rejected; the final evidence uses native viewport captures only.
+- `dark/screens/`: initial Activity, Conversation, Settings, editor, landscape, and actual keyboard-open single/multiline states.
+- `light-large/screens/`: initial light/accessibility-extra-large states; `composer-multiline.png` records the icon overflow.
+- `light-final/`: corrected light/accessibility-extra-large states. The multiline keyboard capture and landscape capture were opened for the final check.
+- `dark-final/`: corrected standard-text dark states. Conversation and focused input with enabled send were reopened. The final file named `composer-keyboard.png` shows focus with the software keyboard absent; keyboard-open dark evidence is the initial `dark/screens/composer-keyboard.png`.
 
-Full-view and focused paired comparisons: `.impeccable/review/diff/prism-cleanup/side-by-side.png` and `regions/` (greeting, masthead, annotation, composer, action rows, navigation, prism). These put source and implementation in the same image. The clock-dependent greeting differs from the source's evening wording; it is not a literal-content comparison. An earlier 380×214 capture was invalid and is not acceptance evidence. All nine screenshots above were refreshed for the final cleanup and opened by both the main agent and the independent reviewer.
+Before/after Conversation and before/after Activity were each opened in the same comparison input. Initial/corrected large-type multiline captures were likewise opened together. The final Conversation was again compared with the original screenshot. Control details are legible in those full-resolution inputs, so additional cropped images were not necessary.
+
+Viewport: iPhone 17 / iOS 27 Simulator, 402 × 874 points, density 3×. Portrait captures are 1206 × 2622 pixels. Landscape is 874 × 402 points; the captured PNGs retain a 1206 × 2622 raster with orientation metadata, rendered as landscape by the image viewer. No web/CSS viewport applies, and no resampling was used. Both comparisons use the same device/density. Fixture history and scroll position differ between runs because functional tests add sample turns; those differences are not design drift or evidence of duplicate delivery. All capture content is synthetic.
 
 ## Required fidelity surfaces
 
-- **Typography:** thin, rounded Roboto Mono 200 display replaces the squared Saira trial. Archivo remains the human conversation/form face; compact mono annotations and self-hosted fonts retain the reference's early-digital character. The reviewer resolved the greeting lettering and masthead alignment findings.
-- **Spacing:** 20px mobile margins, two-line greeting, pill composer, four rule-separated home rows, and bottom navigation. Desktop uses a wide optical field and readable central conversation column. No horizontal overflow at 390, 1440, or 1934 CSS pixels. Long forms scroll with bottom clearance.
-- **Colors:** carbon `#090a09`, bone `#e9e8e2`, graphite `#222321`, muted `#a5a6a0`. The optical spectrum is raster imagery, not a control accent. Final unboxed desktop navigation has at least 8.56:1 calculated contrast across the underlying source-image region at both tested desktop widths.
-- **Images:** one generated 1024×1536 grainy optical arc, with exact prompt embedded. No mockup pixels or device chrome ship. The final `prism-soft.png` edit fades its perimeter below the carbon background; all four outer edge maxima are at most 2/255. The independent reviewer confirmed no exposed rectangular boundary in the nine final captures.
-- **Copy:** real companion name, local-time greeting, truthful model-routing label, actual destinations and controls. Home actions prefill editable drafts. No invented integrations or fake music/voice player.
+| Surface | Result |
+| --- | --- |
+| Fonts and typography | Native SF semantic body styles remain. The composer text scales through accessibility sizes, wraps, and scrolls after five lines. Only the send symbol has a size ceiling to fit its compact control. |
+| Spacing and layout | The navigation bar is hidden only in Conversation. Input and send share a 44-point minimum row with 6-point outer vertical padding. The visible send circle is 32 points with a 44-point target. Keyboard-open and landscape views retain accessible input; native tabs and other navigation stacks remain. |
+| Colors and tokens | Existing adaptive charcoal, warm light, ink, and olive remain. The composer uses the opaque reading surface. Enabled send uses ink/ground contrast; disabled send uses secondary ink with a low-opacity fill. This was a visual review, not a new measured contrast-ratio audit. |
+| Image quality | The accepted full-page artwork, reading washes, and paper asset are unchanged. Native clipping and safe areas remain; no rasterized controls or replacement illustration were introduced. |
+| Copy and app content | The exact quoted roadmap sentence was absent from current source and built web assets. Equivalent upcoming-feature text was removed from Activity and simplified in check-in preferences. Action-specific draft/confirmation and calendar-scope guidance remains in the reminder editor. Settings still provides memory and connection access. |
 
-## Interaction checks
+## Interaction verification
 
-The in-app browser verified home navigation, editable Plan prefill, opening/backing out of a continuing chat, streamed synthetic reply, memory empty state, setup entry, settings connection state, and desktop/mobile layouts. Browser error/warning logs were empty. Static code and core tests cover focus, loading, disabled controls, stop/retry, reduced motion, persistence, and errors. This is not a full accessibility audit.
+- `ios/build/CompactMobileDark.xcresult`: three selected scenarios passed, zero failures. They exercise pairing, one-tap confirmation, sending, relaunch, memory editing through Settings, interrupted-message recovery without duplicate submission, revocation, and visual states.
+- `ios/build/CompactMobileLightLarge.xcresult`: visual scenario passed at accessibility-extra-large text in light appearance, including multiline input and sending.
+- `ios/build/CompactMobileLightFinal.xcresult` and `CompactMobileDarkFinal.xcresult`: visual scenarios passed after the symbol-only correction. Rendered evidence was opened; compilation alone was not used as visual proof.
+- The final signed build succeeded and was installed on the owner's iPhone 17. Existing pairing and companion data were preserved. Hardware launch status is recorded separately in the delivery note below.
 
-The separate headless setup-to-journal regression was not rerun in this pass while its explicit browser permission remained unanswered. Its fixtures are isolated from the owner's data, and its captures use a separate directory.
+No backend or browser logic changed. The live Mac service and personal development home were left running; native tests use a disposable fixture. Full physical VoiceOver/gesture verification is outside this refinement.
 
-## Comparison history
+## Comparison history and checklist
 
-1. Initial build inspection corrected arc shape, responsive height, and capture failures. A fresh reviewer identified P1 squared greeting lettering and P2 raster boundaries, desktop navigation contrast, and masthead alignment.
-2. Correction round one switched to the thin rounded face, aligned the masthead, and applied image blending. Greeting/masthead resolved; home seams improved, but desktop reading screens retained a hard image top. Navigation contrast resolved but introduced visible per-label black boxes.
-3. Correction round two removed the boxes and positioned the image from its top. Open navigation and contrast resolved. The cropped bright horizontal edge was replaced by a visible left perimeter/corner. Reviewer scored optical boundaries partial. Two correction rounds are complete; the owner was asked to choose one bounded image cleanup or retain the known defect.
-4. The owner requested **one final cleanup pass**. A built-in image edit softened only the optical plate's perimeter, preserving the C-shaped arc, position, spectrum and grain. The new asset replaced the old image path; no CSS, layout or behavior changed in this pass. A single fresh capture batch covered all nine views. The independent reviewer marked the remaining perimeter finding resolved and returned `disposition: ship` in `.impeccable/review/prism-finish-review.md`.
+1. The first batched round confirmed the requested density changes and identified one P2 icon-scaling defect.
+2. One correction batch capped the symbol's Dynamic Type range. The final dark and light/large-text comparisons confirmed the correction without changing text scaling or the touch target. No further polish loop was performed.
 
-## Resolved final finding
+- [x] Remove the healthy-connection toolbar pill and duplicate chat header/book shortcut.
+- [x] Keep Memories and Mac connection reachable through Settings.
+- [x] Compact the composer and send control without shrinking its hit target.
+- [x] Review normal, large-text, keyboard, multiline, and landscape evidence.
+- [x] Remove routine roadmap copy while keeping current-action guidance.
+- [x] Install the signed build on the owner's phone.
 
-**P2 — Exposed optical raster perimeter: resolved.** The former straight left edge and corners are absent from desktop home, conversation, setup and settings, including the wide viewport. Mobile retains the arc and its grain. No listed material finding remains. This is a bounded confirmation of the reviewed fixes, not a new whole-app audit.
+No additional P3 polish is requested. Owner review of the new density remains the final subjective assessment.
 
-## Measured workflow
+Delivery note: `devicectl` confirmed successful launch of `net.glashaus.companion` on the physical iPhone after installation. This proves startup, not a new owner interaction or VoiceOver review.
 
-The stale gate input was replaced with valid evidence (72.71% at the earlier hero comparison). Its navigation classifier incorrectly reported a visibly present navigation region as missing. Hero and responsive phases were advanced with a recorded override quoting the owner's explicit acceptance of visual-direction adaptations. The final direct comparison is 71.40%, categorized as drift, with no missing regions. These are **not numerical fidelity passes**. Acceptance rests on the approved visual-direction scope and the independent resolved-fix verdict, not pixel parity.
+## Native completion extension — September 28, 2026
 
-`DESIGN.md` and `.impeccable/design.json` now record the shipping fonts, colors, components, responsive behavior and image provenance. Earlier design documents and the old plate were preserved outside the shipping app in `work/retired-assets/`.
+The later completion pass retains the compact Terminal Pastoralism system and extends it with Home, three artwork presets plus Plain, voice, account connections and exact proposals, and reversible iPhone-only chat-view clearing. Authority and scope are recorded in `.impeccable/review/completion/brief.md`; its Home change supersedes historical Activity tab naming.
 
-The frontend build, both TypeScript checks and all 30 automated tests passed after the asset change. The actual exported alpha.2 runtime ZIP was extracted into a new directory and passed startup, UI serving, identity save and separate-process restart checks without dependencies or external API calls. Mac/Linux execution and the GitHub release remain pending.
+The fresh finish reviewer identified three material issues: Home/Voice reading contrast and Voice tint, an unconfigured Voice state that still claimed Ready, and discretionary hyphens in exact email addresses at large text sizes. The recapture verdict in `.impeccable/review/completion/verdict.md` marks all three resolved and gives a bounded **ship** disposition. It also checked the additional clear-view menu and cleared-state captures. That verdict is for the scored fixes, not a new full-surface or live-account review.
 
-## Acceptance checklist
+The fresh documenter compared the native source, incumbent system files, current dark/default and light/accessibility-extra-large evidence, and accepted compact-mobile Conversation/Settings references. Palette primitives, native semantic type, reading washes, paper, surface geometry, and compact composer metrics remain consistent. `ios/DESIGN.md` and `ios/.impeccable/design.json` were preserved. The precise source and screenshot sample, system summary, authorized extensions, and unrefreshed historical documentation are recorded in `.impeccable/review/completion/documenter.md`.
 
-- [x] Valid source and live browser screenshots, inspected and paired.
-- [x] Required typography, layout, color, image, and copy checks.
-- [x] Functional product adaptations explicitly accepted by owner.
-- [x] Greeting, masthead, navigation contrast, and unboxed navigation resolved by fresh reviewer.
-- [x] Optical perimeter resolved by the owner-authorized final image cleanup.
-- [x] Independent final correction verdict and updated design-system documentation.
+Evidence limits remain explicit: no web detector ran, this documentation pass added no automated or hardware tests, and final composer captures prove focus with the simulator hardware keyboard rather than current software-keyboard avoidance. The user confirmed installed chat clearing, two voice turns plus interruption, a real Calendar write, and an email send in the parent task; these are owner acceptance reports, separate from the screenshot review. No additional design-system rewrite or polish loop was performed.

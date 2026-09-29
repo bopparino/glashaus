@@ -4,7 +4,7 @@
 
 ## Platform
 
-web
+ios
 
 ## Users
 
@@ -51,3 +51,19 @@ The user's new two-phone reference replaces the previous stone-and-coral design:
 ## Evidence and Open Questions
 
 Source baseline: v2.15.1, commit 0c5dbe1. Core and real-browser tests use deterministic test providers; live Kimi K2.6 cloud research, streaming, concise preview, memory correction and long-history recall passed on 2026-09-20. The owner confirmed Telegram pairing and a reply. Primary hardware capacity and preferred local model are not established. Native iOS and scratchpad privacy behavior remain undecided.
+
+## Companion assistant expansion — September 28, 2026
+
+The owner approved the architecture and staged roadmap in ARCHITECTURE.md and ROADMAP.md and authorized starting implementation. Develop on the MacBook; a private native iPhone app and an optional later Mac mini host are planned. The Apple account is currently free; paid membership may be considered for native push, with no App Store release.
+
+Terminal Pastoralism is the selected finished visual direction, based on the user-supplied moodboards and MP4. docs/VISUAL-HORIZON.md records their interpretation and saved paths. It supersedes Prism as the future direction; DESIGN.md describes the current web implementation. Current web functional additions inherit that implementation. The owner selected native option 1: an Activity-first field ledger with a landscape band, paper reminder approval, and Conversation / Activity / Settings tabs. The approved composition is ios/Design/approved-activity.png. Native UI uses SwiftUI, SF Symbols, Dynamic Type and system navigation.
+
+Phone connectivity starts on the same Wi-Fi; remote access is deferred. The Xcode 27.0 toolchain and iPhone 17 / iOS 27 simulator are installed. The native deployment minimum is iOS 26.0. Personal Team signing, private hardware installation, pairing, reminder confirmation, and chat have been verified on the owner's iPhone 17.
+
+The target phone is iPhone 17 running the latest public iOS. Kimi K2.6 is selected for initial live tests. Conversational reminders must show one-tap confirmation before scheduling; edits invalidate the previous approval. The first development slice adds opt-in conversation tools, cited web search/fetch, and a Reminders view with drafts, confirmation, edit, cancel, completion, and durable in-app due states. This is not yet native push or Apple Reminders synchronization. Scheduled reminders imported from an archive pause for review. See docs/IMPLEMENTATION.md for current evidence and startup.
+
+The separate test companion now uses the owner's authored Elle foundation. The profile stays editable and private; no persona is built into the product. The owner selected personal outreach from 9 am to 9 pm, at most twice daily depending on conversation cadence. The foreground implementation uses fresh conversation evidence, a two-hour conversation gap, a four-hour check-in gap, dismissal, and pause. It may choose silence. Profile language never bypasses explicit reminder confirmation or claims a connector exists. Synthesized voice, iCloud, and lock-screen delivery remain upcoming capabilities.
+
+For the native UI pass the owner requested a full-page image in place of the banner, with new artwork from the original moodboards. The updated iPhone treatment uses a single portrait landscape behind live native controls, stronger reading overlays, compact paper commitments, and a Settings hierarchy that moves Mac maintenance into its own destination. This replaces the native banner composition while preserving its Terminal Pastoralism direction.
+
+The owner explicitly reaffirmed mobile-first product design: the native iPhone app is the primary daily experience; the Mac hosts the companion and its existing web administration. Keep persistent chrome compact. Conversation has no duplicate title or memory shortcut above the history; Memories remains in Settings. Use a single compact composer with a smaller visible send control and a full touch target. Healthy connection status belongs in Settings, while an offline notice appears where it affects use. Development-roadmap copy belongs in documentation, not in the everyday interface; keep only action-specific capability guidance.

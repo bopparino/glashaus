@@ -1,9 +1,22 @@
 import type { Settings, Source } from "../shared/types.ts";
-import { AppError } from "./validation.ts";
+import { AppError, record, text } from "./validation.ts";
+export interface ToolCall {
+  function: { name: string; arguments: Record<string, unknown> };
+}
+export interface ToolDefinition {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+}
 export interface Message {
-  role: "system" | "user" | "assistant";
+  role: "system" | "user" | "assistant" | "tool";
   content: string;
   images?: string[];
+  tool_calls?: ToolCall[];
+  tool_name?: string;
 }
 export interface ChatOptions {
   messages: Message[];
@@ -12,8 +25,13 @@ export interface ChatOptions {
   json?: boolean;
   utility?: boolean;
   maxTokens?: number;
+  tools?: ToolDefinition[];
+  onToolCalls?: (calls: ToolCall[]) => void;
 }
 export interface ModelProvider {
+  supportsTools?: boolean;
+  search?(query: string, signal: AbortSignal): Promise<Source[]>;
+  readPage?(url: string, signal: AbortSignal): Promise<Source[]>;
   models(signal?: AbortSignal): Promise<{ name: string; size: number }[]>;
   chat(options: ChatOptions): Promise<string>;
   research(
@@ -25,6 +43,7 @@ export interface ModelProvider {
   ): Promise<Source[]>;
 }
 export class Ollama implements ModelProvider {
+  supportsTools = true;
   settings: () => Settings;
   fetcher: typeof fetch;
   constructor(settings: () => Settings, fetcher = fetch) {
@@ -57,6 +76,8 @@ export class Ollama implements ModelProvider {
     json,
     utility,
     maxTokens = 1400,
+    tools,
+    onToolCalls,
   }: ChatOptions): Promise<string> {
     const s = this.settings();
     const model = utility ? s.utilityModel || s.model : s.model;
@@ -72,6 +93,7 @@ export class Ollama implements ModelProvider {
           messages,
           stream: true,
           think: false,
+          ...(tools?.length ? { tools } : {}),
           ...(json ? { format: "json" } : {}),
           options: {
             num_ctx: s.contextSize,
@@ -104,11 +126,12 @@ export class Ollama implements ModelProvider {
       buffer = "",
       completed = false;
     const decoder = new TextDecoder();
+    const toolCalls: ToolCall[] = [];
     const consume = (line: string) => {
       if (!line.trim()) return;
       let event: {
         error?: string;
-        message?: { content?: string };
+        message?: { content?: string; tool_calls?: unknown[] };
         done?: boolean;
       };
       try {
@@ -129,6 +152,21 @@ export class Ollama implements ModelProvider {
         result += token;
         onToken?.(token);
       }
+      if (event.message?.tool_calls) {
+        if (!tools?.length || !Array.isArray(event.message.tool_calls))
+          throw new AppError("The model returned unexpected tool calls.", 502);
+        for (const raw of event.message.tool_calls) {
+          const fn = record(record(raw).function);
+          toolCalls.push({
+            function: {
+              name: text(fn.name, "Tool name", 100, true),
+              arguments: record(fn.arguments),
+            },
+          });
+        }
+        if (toolCalls.length > 6 || JSON.stringify(toolCalls).length > 16000)
+          throw new AppError("The model requested too many actions.", 502);
+      }
       if (event.done) completed = true;
     };
     for await (const chunk of response.body) {
@@ -148,12 +186,102 @@ export class Ollama implements ModelProvider {
         "The model connection ended before the reply finished. Retry to continue.",
         502,
       );
-    if (!result.trim())
+    if (!result.trim() && !toolCalls.length)
       throw new AppError(
         "The model returned no reply. Try another model or retry.",
         502,
       );
+    if (toolCalls.length) onToolCalls?.(toolCalls);
     return result.trim();
+  }
+  private async webCall(
+    route: string,
+    body: unknown,
+    signal: AbortSignal,
+  ): Promise<Record<string, unknown>> {
+    const key = this.settings().ollamaApiKey;
+    if (!key)
+      throw new AppError(
+        "Add your Ollama web search key in Settings to search the web.",
+      );
+    let response: Response;
+    try {
+      response = await this.fetcher(`https://ollama.com/api/${route}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify(body),
+        signal: combine(signal, 25000),
+      });
+    } catch {
+      signal.throwIfAborted();
+      throw new AppError(
+        "Web search could not connect. Try again shortly.",
+        502,
+      );
+    }
+    if ([401, 403].includes(response.status))
+      throw new AppError(
+        "Ollama rejected the search key. Check Settings.",
+        400,
+      );
+    if (response.status === 429)
+      throw new AppError(
+        "Ollama search is rate limited. Try again later.",
+        429,
+      );
+    if (!response.ok)
+      throw new AppError("Web search is unavailable. Try again later.", 502);
+    try {
+      return record(await response.json());
+    } catch {
+      throw new AppError("Web search returned an unreadable result.", 502);
+    }
+  }
+  async search(query: string, signal: AbortSignal): Promise<Source[]> {
+    const data = await this.webCall(
+      "web_search",
+      { query: text(query, "Search query", 500, true), max_results: 5 },
+      signal,
+    );
+    const sources: Source[] = [];
+    for (const item of (Array.isArray(data.results) ? data.results : []).slice(
+      0,
+      5,
+    )) {
+      if (!item || typeof item !== "object") continue;
+      const raw = record(item);
+      try {
+        const url = publicWebUrl(raw.url);
+        sources.push({
+          id: `source-${sources.length + 1}`,
+          title: String(raw.title ?? new URL(url).hostname).slice(0, 300),
+          url,
+          excerpt: String(raw.content ?? "").slice(0, 2500),
+          fetchedAt: new Date().toISOString(),
+        });
+      } catch {
+        /* Ignore unsafe or malformed URLs. */
+      }
+    }
+    return sources;
+  }
+  async readPage(rawUrl: string, signal: AbortSignal): Promise<Source[]> {
+    const url = publicWebUrl(rawUrl);
+    const page = await this.webCall("web_fetch", { url }, signal);
+    if (typeof page.content !== "string" || !page.content.trim())
+      throw new AppError("This page contained no readable text.", 502);
+    return [
+      {
+        id: "page-1",
+        title: String(page.title ?? new URL(url).hostname).slice(0, 300),
+        url,
+        excerpt: page.content.slice(0, 6000),
+        fetchedAt: new Date().toISOString(),
+      },
+    ];
   }
   async research(
     name: string,
@@ -276,6 +404,32 @@ export class Ollama implements ModelProvider {
       );
     return pages;
   }
+}
+export function publicWebUrl(value: unknown): string {
+  let url: URL;
+  try {
+    url = new URL(text(value, "Page URL", 2000, true));
+  } catch {
+    throw new AppError("Choose a public HTTP or HTTPS page.");
+  }
+  const host = url.hostname.toLowerCase();
+  if (
+    !["https:", "http:"].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.port ||
+    !host.includes(".") ||
+    host.endsWith(".localhost") ||
+    host.endsWith(".local") ||
+    host.endsWith(".internal") ||
+    host.startsWith("[") ||
+    /^\d+(?:\.\d+){3}$/.test(host)
+  )
+    throw new AppError(
+      "Choose a public website without credentials or a custom port.",
+    );
+  url.hash = "";
+  return url.href;
 }
 export function combine(signal: AbortSignal | undefined, timeout: number) {
   return signal

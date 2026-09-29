@@ -45,6 +45,8 @@ export interface Settings {
   quietStart: number;
   quietEnd: number;
   maxOutreachPerDay: number;
+  assistantToolsEnabled: boolean;
+  timeZone: string;
 }
 export type PublicSettings = Omit<
   Settings,
@@ -62,6 +64,38 @@ export interface Turn {
   delivered: number;
   error: string;
   createdAt: string;
+  sources?: Source[];
+}
+export interface Reminder {
+  id: string;
+  turnId: string | null;
+  title: string;
+  dueAt: string;
+  timeZone: string;
+  status: "draft" | "scheduled" | "due" | "completed" | "cancelled" | "paused";
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+  firedAt: string | null;
+  recurrence: "none" | "daily" | "weekdays" | "weekly" | "monthly";
+  anchorAt: string;
+}
+export interface CheckIn {
+  id: string;
+  sourceTurnId: string;
+  content: string;
+  reason: string;
+  evidence: string;
+  status:
+    | "available"
+    | "seen"
+    | "dismissed"
+    | "expired"
+    | "skipped"
+    | "failed"
+    | "withdrawn";
+  createdAt: string;
+  expiresAt: string;
 }
 export interface Memory {
   id: string;
@@ -99,6 +133,8 @@ export interface State {
   memories: Memory[];
   reflections: Reflection[];
   research: Research[];
+  reminders: Reminder[];
+  checkIns: CheckIn[];
   csrfToken: string;
   version: string;
   background: string;
@@ -159,4 +195,6 @@ export const DEFAULT_SETTINGS: Settings = {
   quietStart: 23,
   quietEnd: 8,
   maxOutreachPerDay: 2,
+  assistantToolsEnabled: false,
+  timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 };

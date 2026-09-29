@@ -12,6 +12,19 @@ const directory = path.resolve(
   process.env.GLASHAUS_HOME ?? path.join(os.homedir(), ".glashaus-v3"),
 );
 const port = Number(process.env.GLASHAUS_PORT ?? 7777);
+const mobilePort = process.env.GLASHAUS_MOBILE_PORT
+  ? Number(process.env.GLASHAUS_MOBILE_PORT)
+  : undefined;
+if (
+  mobilePort !== undefined &&
+  (!Number.isInteger(mobilePort) ||
+    mobilePort < 1 ||
+    mobilePort > 65535 ||
+    mobilePort === port)
+)
+  throw new Error(
+    "GLASHAUS_MOBILE_PORT must be a separate port between 1 and 65535.",
+  );
 if (!Number.isInteger(port) || port < 1 || port > 65535)
   throw new Error("GLASHAUS_PORT must be a port between 1 and 65535.");
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -58,7 +71,7 @@ while (true) {
     await new Promise((resolve) => setTimeout(resolve, 300));
   }
 }
-const startup = new Startup({ directory, port });
+const startup = new Startup({ directory, port, mobilePort });
 const updateId = process.env.GLASHAUS_UPDATE_ID;
 const activation = updateId
   ? {
@@ -84,7 +97,18 @@ const app = createApp({
   updates: new Updates(startup),
   activation,
   handoff: () => close(),
+  mobile: mobilePort !== undefined,
 });
+if (mobilePort) {
+  try {
+    await app.mobile!.listen(mobilePort);
+  } catch {
+    await app.close();
+    throw new Error(
+      `Could not open phone port ${mobilePort}. Stop the other copy or choose a different GLASHAUS_MOBILE_PORT.`,
+    );
+  }
+}
 console.log(
   `\nGlasHaus v3 · http://127.0.0.1:${port}\nCompanion home: ${directory}\n${managed ? "Running in the background." : "Press Ctrl+C to stop."}\n`,
 );

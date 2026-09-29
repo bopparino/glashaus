@@ -119,7 +119,22 @@ export function settingsInput(value: unknown, current: Settings): Settings {
       throw new AppError("Use the Ollama server address without a path.");
     next.ollamaUrl = url.origin;
   }
-  for (const key of ["reflectionEnabled", "outreachEnabled"] as const) {
+  if ("timeZone" in v) {
+    const zone = text(v.timeZone, "Time zone", 100, true);
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: zone }).format();
+    } catch {
+      throw new AppError(
+        "Choose a valid IANA time zone, such as America/New_York.",
+      );
+    }
+    next.timeZone = zone;
+  }
+  for (const key of [
+    "reflectionEnabled",
+    "outreachEnabled",
+    "assistantToolsEnabled",
+  ] as const) {
     if (key in v) {
       if (typeof v[key] !== "boolean")
         throw new AppError(`${key} must be true or false.`);

@@ -12,6 +12,8 @@ import type { StartupControl } from "./startup.ts";
 import type { UpdateControl } from "./updates.ts";
 import { VERSION } from "../shared/version.ts";
 import { claimDataReset, prepareDataReset } from "./data-reset.ts";
+import { createMobileServer, mobileIdentity } from "./mobile.ts";
+import { diagnostics } from "./diagnostics.ts";
 import {
   AppError,
   companionInput,
@@ -40,6 +42,7 @@ export function createApp(options: {
   handoff?: () => void;
   updates?: UpdateControl;
   activation?: { id: string; ready: () => boolean };
+  mobile?: boolean;
 }) {
   const store = new Store(options.directory);
   const provider = options.provider ?? new Ollama(() => store.settings());
@@ -67,6 +70,14 @@ export function createApp(options: {
   let handingOff = false;
   let resetting = false;
   let mutations = 0;
+  const mobile = options.mobile
+    ? createMobileServer({
+        store,
+        service,
+        identity: mobileIdentity(options.directory),
+        unavailable: () => resetting || activating || handingOff,
+      })
+    : undefined;
   server.on("request", async (req, res) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "no-referrer");
@@ -159,6 +170,32 @@ export function createApp(options: {
             updateId: options.activation?.id ?? null,
             activating,
           });
+        if (route === "GET /api/diagnostics") return json(diagnostics(service));
+        if (/^\/api\/(integrations|voice|mail|calendar|connectors|proposals)(?:\/|$)/.test(url.pathname)) {
+          const result = await service.integrations.route(req.method ?? "GET", url.pathname.slice(4), ["POST", "PATCH"].includes(req.method ?? "") ? await body(req) : undefined, controller.signal);
+          if (result) {
+            if (result.audio) { res.writeHead(200, { "Content-Type": "audio/mpeg" }); res.end(result.value); return; }
+            return json(result.value);
+          }
+        }
+        if (route === "GET /api/mobile")
+          return json(
+            mobile?.status() ?? { enabled: false, addresses: [], devices: [] },
+          );
+        if (route === "POST /api/mobile/pair") {
+          if (!mobile)
+            throw new AppError(
+              "Start the service with GLASHAUS_MOBILE_PORT to pair an iPhone.",
+            );
+          return json(mobile.enroll(record(await body(req)).address));
+        }
+        if (
+          req.method === "DELETE" &&
+          /^\/api\/mobile\/devices\/[\w-]+$/.test(url.pathname)
+        ) {
+          mobile?.devices.revoke(url.pathname.split("/").at(-1)!);
+          return json({ ok: true });
+        }
         if (route === "GET /api/updates")
           return json(
             options.updates
@@ -276,6 +313,8 @@ export function createApp(options: {
             memories: store.memories(),
             reflections: store.reflections(),
             research: store.research(),
+            reminders: service.reminders.list(),
+            checkIns: service.checkIns.list(),
             csrfToken,
             version: VERSION,
             background: service.background,
@@ -326,6 +365,7 @@ export function createApp(options: {
             await telegram.shutdown();
             ensureIdle();
             const reset = prepareDataReset(store, mode);
+            mobile?.devices.stop();
             result = reset();
             csrfToken = randomBytes(32).toString("hex");
           } finally {
@@ -365,6 +405,18 @@ export function createApp(options: {
           }
           return json(store.publicSettings());
         }
+        if (route === "PATCH /api/check-ins/preferences")
+          return json(service.checkIns.configure(await body(req)));
+        if (
+          req.method === "PATCH" &&
+          /^\/api\/check-ins\/[\w-]+$/.test(url.pathname)
+        )
+          return json(
+            service.checkIns.update(
+              url.pathname.split("/").at(-1)!,
+              await body(req),
+            ),
+          );
         if (route === "POST /api/telegram/pair") {
           if (!store.settings().telegramToken)
             throw new AppError("Add your BotFather token first.");
@@ -405,6 +457,18 @@ export function createApp(options: {
           await service.chat(id, message, "web", controller.signal, emit);
           return res.end();
         }
+        if (route === "POST /api/reminders")
+          return json(service.reminders.draft(await body(req)), 201);
+        if (
+          req.method === "PATCH" &&
+          /^\/api\/reminders\/[\w-]+$/.test(url.pathname)
+        )
+          return json(
+            service.reminders.update(
+              url.pathname.split("/").at(-1)!,
+              await body(req),
+            ),
+          );
         if (route === "POST /api/memories") {
           if (!store.companion())
             throw new AppError("Create a companion first.");
@@ -503,10 +567,12 @@ export function createApp(options: {
     store,
     service,
     telegram,
+    mobile,
     async close() {
       clearInterval(activationTimer);
       service.stop();
       await telegram.shutdown();
+      await mobile?.close();
       await new Promise<void>((resolve) => server.close(() => resolve()));
       store.close();
     },

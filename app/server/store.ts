@@ -3,6 +3,7 @@ import { mkdirSync, chmodSync } from "node:fs";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { DEFAULT_SETTINGS } from "../shared/types.ts";
+import { repeatRule } from "./recurrence.ts";
 import type {
   Companion,
   Memory,
@@ -11,6 +12,7 @@ import type {
   Research,
   Settings,
   Turn,
+  Source,
 } from "../shared/types.ts";
 import {
   AppError,
@@ -63,7 +65,7 @@ export class Store {
     const version = Number(
       this.db.prepare("PRAGMA user_version").get()?.user_version ?? 0,
     );
-    if (version > 2) {
+    if (version > 7) {
       this.db.close();
       throw new AppError(
         "This companion was saved by a newer GlasHaus. Update the app before opening it.",
@@ -95,7 +97,41 @@ export class Store {
       CREATE TABLE IF NOT EXISTS outreach (id TEXT PRIMARY KEY, content TEXT NOT NULL, status TEXT NOT NULL, createdAt TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS turns_time ON turns(createdAt);
       CREATE INDEX IF NOT EXISTS memories_active ON memories(active, kind);
-      PRAGMA application_id=${APP_ID}; PRAGMA user_version=2;`);
+      PRAGMA application_id=${APP_ID};`);
+    this.transaction(() =>
+      this.db.exec(`
+      CREATE TABLE IF NOT EXISTS reminders (
+        id TEXT PRIMARY KEY, turnId TEXT UNIQUE REFERENCES turns(id), title TEXT NOT NULL,
+        dueAt TEXT NOT NULL, timeZone TEXT NOT NULL, status TEXT NOT NULL,
+        revision INTEGER NOT NULL, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL, firedAt TEXT
+      );
+      CREATE INDEX IF NOT EXISTS reminders_due ON reminders(status,dueAt);
+      CREATE TABLE IF NOT EXISTS reminder_events (
+        id TEXT PRIMARY KEY, reminderId TEXT NOT NULL REFERENCES reminders(id), dueAt TEXT NOT NULL, createdAt TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS tool_runs (
+        id TEXT PRIMARY KEY, turnId TEXT NOT NULL REFERENCES turns(id), name TEXT NOT NULL,
+        arguments TEXT NOT NULL, result TEXT NOT NULL, createdAt TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS mobile_devices (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, tokenHash TEXT NOT NULL UNIQUE,
+        createdAt TEXT NOT NULL, lastSeenAt TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS check_ins (
+        id TEXT PRIMARY KEY, sourceTurnId TEXT NOT NULL UNIQUE REFERENCES turns(id),
+        content TEXT NOT NULL, reason TEXT NOT NULL, evidence TEXT NOT NULL,
+        status TEXT NOT NULL, createdAt TEXT NOT NULL, expiresAt TEXT NOT NULL
+      );
+    `),
+    );
+    this.transaction(() => {
+      const columns = this.db.prepare("PRAGMA table_info(reminders)").all();
+      if (!columns.some((column) => column.name === "recurrence")) {
+        this.db.exec("ALTER TABLE reminders ADD COLUMN recurrence TEXT NOT NULL DEFAULT 'none'; ALTER TABLE reminders ADD COLUMN anchorAt TEXT NOT NULL DEFAULT ''; UPDATE reminders SET anchorAt=dueAt;");
+      }
+      this.db.exec("CREATE TABLE IF NOT EXISTS integration_actions (id TEXT PRIMARY KEY, data TEXT NOT NULL, createdAt TEXT NOT NULL); PRAGMA user_version=7;");
+      this.db.exec(`UPDATE integration_actions SET data=json_set(data,'$.status','unknown','$.result','The Mac restarted during this action. Check the destination before creating another proposal.','$.revision',json_extract(data,'$.revision')+1) WHERE json_extract(data,'$.status')='executing';`);
+    });
     this.db.exec(
       "UPDATE turns SET status='interrupted', error='The app restarted before this reply finished.' WHERE status='running'; UPDATE jobs SET status='pending' WHERE status='running';",
     );
@@ -155,6 +191,12 @@ export class Store {
     this.db.exec("PRAGMA secure_delete=ON");
     this.transaction(() => {
       for (const table of [
+        "mobile_devices",
+        "integration_actions",
+        "check_ins",
+        "reminder_events",
+        "reminders",
+        "tool_runs",
         "memory_replacements",
         "memory_suppressions",
         "blocked_turns",
@@ -227,14 +269,54 @@ export class Store {
           "SELECT * FROM turns ORDER BY createdAt DESC, rowid DESC LIMIT ?",
         )
         .all(limit) as unknown as Turn[]
-    ).reverse();
+    )
+      .reverse()
+      .map((turn) => ({ ...turn, sources: this.sourcesForTurn(turn.id) }));
   }
   turn(id: string): Turn | null {
-    return (
-      (this.db
-        .prepare("SELECT * FROM turns WHERE id=?")
-        .get(id) as unknown as Turn) ?? null
-    );
+    const turn = this.db
+      .prepare("SELECT * FROM turns WHERE id=?")
+      .get(id) as unknown as Turn | undefined;
+    return turn ? { ...turn, sources: this.sourcesForTurn(id) } : null;
+  }
+  sourcesForTurn(id: string): Source[] {
+    const sources = new Map<string, Source>();
+    for (const row of this.db
+      .prepare(
+        "SELECT result FROM tool_runs WHERE turnId=? AND name IN ('web_search','web_fetch') ORDER BY rowid",
+      )
+      .all(id)) {
+      const result = JSON.parse(String(row.result));
+      for (const source of Array.isArray(result.sources)
+        ? result.sources
+        : []) {
+        if (
+          !source ||
+          typeof source !== "object" ||
+          typeof source.url !== "string"
+        )
+          continue;
+        try {
+          const url = new URL(source.url);
+          if (
+            !["https:", "http:"].includes(url.protocol) ||
+            url.username ||
+            url.password
+          )
+            continue;
+          sources.set(url.href, {
+            id: String(source.id ?? ""),
+            title: String(source.title ?? url.hostname).slice(0, 300),
+            url: url.href,
+            excerpt: String(source.excerpt ?? "").slice(0, 6000),
+            fetchedAt: String(source.fetchedAt ?? ""),
+          });
+        } catch {
+          /* Invalid imported citations are never made clickable. */
+        }
+      }
+    }
+    return [...sources.values()].slice(0, 10);
   }
   startTurn(id: string, userText: string, channel: Turn["channel"]): Turn {
     const old = this.turn(id);
@@ -495,7 +577,20 @@ export class Store {
     return {
       format: "glashaus-archive",
       version: 3,
-      schemaVersion: 2,
+      schemaVersion: 6,
+      reviewedActions: this.db.prepare("SELECT data FROM integration_actions ORDER BY createdAt,id").all().map(r => JSON.parse(String(r.data))),
+      checkIns: this.db
+        .prepare("SELECT * FROM check_ins ORDER BY createdAt,id")
+        .all(),
+      reminders: this.db
+        .prepare("SELECT * FROM reminders ORDER BY createdAt,id")
+        .all(),
+      reminderEvents: this.db
+        .prepare("SELECT * FROM reminder_events ORDER BY createdAt,id")
+        .all(),
+      toolRuns: this.db
+        .prepare("SELECT * FROM tool_runs ORDER BY createdAt,id")
+        .all(),
       exportedAt: iso(),
       companion: this.companion(),
       turns: this.db.prepare("SELECT * FROM turns ORDER BY rowid").all(),
@@ -545,12 +640,27 @@ export class Store {
     if (
       a.schemaVersion !== undefined &&
       a.schemaVersion !== 1 &&
-      a.schemaVersion !== 2
+      a.schemaVersion !== 2 &&
+      a.schemaVersion !== 3 &&
+      a.schemaVersion !== 4 &&
+      a.schemaVersion !== 5 &&
+      a.schemaVersion !== 6
     )
       throw new AppError(
         "This archive needs a newer version of GlasHaus. Nothing was changed.",
       );
     const c = companionInput(a.companion);
+    const reviewedActions = Number(a.schemaVersion) >= 6 ? a.reviewedActions : [];
+    if (!Array.isArray(reviewedActions) || reviewedActions.length > 100000) throw new AppError("Invalid reviewed action history.");
+    const safeActions = reviewedActions.map(raw => {
+      const r = record(raw);
+      const id = text(r.id, "Action ID", 160, true), createdAt = text(r.createdAt, "Action date", 60, true);
+      if (!/^[\w-]+$/.test(id) || !Number.isFinite(Date.parse(createdAt)) || !["email", "calendar", "connector"].includes(String(r.kind)) || !["draft", "executing", "complete", "cancelled", "unknown"].includes(String(r.status)) || !Number.isInteger(r.revision) || Number(r.revision) < 1) throw new AppError("Invalid reviewed action in archive.");
+      const payload = record(r.payload);
+      if (JSON.stringify(payload).length > 24000) throw new AppError("An archived proposal is too large.");
+      return { id, kind: r.kind, title: text(r.title, "Proposal title", 300, true), payload, status: r.status === "draft" ? "cancelled" : r.status === "executing" ? "unknown" : r.status, revision: Number(r.revision) + 1, configRevision: 0, createdAt, result: r.status === "draft" ? "Cancelled during restore. Connected accounts require fresh setup and a new proposal." : text(r.result, "Action outcome", 30000) };
+    });
+    if (new Set(safeActions.map(r => r.id)).size !== safeActions.length) throw new AppError("Duplicate reviewed action IDs in archive.");
     const rawC = record(a.companion);
     const rows = (key: string, max: number) => {
       if (!Array.isArray(a[key]) || a[key].length > max)
@@ -580,6 +690,140 @@ export class Store {
     const ids = new Set(turns.map((t) => t.id));
     if (ids.size !== turns.length)
       throw new AppError("The archive has duplicate conversation IDs.");
+    const extensionRows = (key: string, max: number) =>
+      Number(a.schemaVersion) >= 3 ? rows(key, max) : [];
+    const checkIns = (
+      Number(a.schemaVersion) >= 4 ? rows("checkIns", 100000) : []
+    ).map((raw) => {
+      const r = record(raw);
+      if (
+        !ids.has(String(r.sourceTurnId)) ||
+        ![
+          "available",
+          "seen",
+          "dismissed",
+          "expired",
+          "skipped",
+          "failed",
+          "withdrawn",
+        ].includes(String(r.status))
+      )
+        throw new AppError("Invalid check-in history in archive.");
+      const createdAt = text(r.createdAt, "Check-in date", 60, true);
+      const expiresAt = text(r.expiresAt, "Check-in expiry", 60, true);
+      if (
+        ![createdAt, expiresAt].every(
+          (v) =>
+            Number.isFinite(Date.parse(v)) && new Date(v).toISOString() === v,
+        )
+      )
+        throw new AppError("Invalid check-in date in archive.");
+      return {
+        id: text(r.id, "Check-in ID", 200, true),
+        sourceTurnId: String(r.sourceTurnId),
+        content: text(r.content, "Check-in", 1500),
+        reason: text(r.reason, "Check-in reason", 500),
+        evidence: text(r.evidence, "Check-in evidence", 1000),
+        // An import cannot cause old, unseen outreach to appear as new.
+        status: r.status === "available" ? "expired" : String(r.status),
+        createdAt,
+        expiresAt,
+      };
+    });
+    const reminders = extensionRows("reminders", 100000).map((raw) => {
+      const r = record(raw);
+      if (
+        ![
+          "draft",
+          "scheduled",
+          "due",
+          "completed",
+          "cancelled",
+          "paused",
+        ].includes(String(r.status)) ||
+        !Number.isInteger(r.revision) ||
+        Number(r.revision) < 1
+      )
+        throw new AppError("The archive contains an invalid reminder.");
+      if (r.turnId && !ids.has(String(r.turnId)))
+        throw new AppError("A reminder refers to missing history.");
+      const dueAt = text(r.dueAt, "Reminder time", 60, true);
+      if (
+        !Number.isFinite(Date.parse(dueAt)) ||
+        new Date(dueAt).toISOString() !== dueAt
+      )
+        throw new AppError("Invalid reminder time in archive.");
+      const zone = text(r.timeZone, "Time zone", 100, true);
+      const recurrence = repeatRule(r.recurrence);
+      const anchorAt = r.anchorAt === undefined ? dueAt : text(r.anchorAt, "Repeat start", 60, true);
+      if (!Number.isFinite(Date.parse(anchorAt)) || new Date(anchorAt).toISOString() !== anchorAt)
+        throw new AppError("Invalid repeat start in archive.");
+      try {
+        new Intl.DateTimeFormat("en-US", { timeZone: zone }).format();
+      } catch {
+        throw new AppError("Invalid reminder time zone in archive.");
+      }
+      return {
+        id: text(r.id, "Reminder ID", 160, true),
+        turnId: r.turnId ? String(r.turnId) : null,
+        title: text(r.title, "Reminder", 500, true),
+        dueAt,
+        timeZone: zone,
+        recurrence,
+        anchorAt,
+        status: r.status === "scheduled" ? "paused" : String(r.status),
+        revision: Number(r.revision),
+        createdAt: text(r.createdAt, "Date", 60, true),
+        updatedAt: text(r.updatedAt, "Date", 60, true),
+        firedAt: r.firedAt ? text(r.firedAt, "Date", 60, true) : null,
+      };
+    });
+    const reminderIds = new Set(reminders.map((r) => r.id));
+    if (reminderIds.size !== reminders.length)
+      throw new AppError("Duplicate reminder IDs in archive.");
+    const reminderEvents = extensionRows("reminderEvents", 100000).map(
+      (raw) => {
+        const r = record(raw);
+        if (!reminderIds.has(String(r.reminderId)))
+          throw new AppError("A reminder event refers to a missing reminder.");
+        return {
+          id: text(r.id, "Event ID", 200, true),
+          reminderId: String(r.reminderId),
+          dueAt: text(r.dueAt, "Date", 60, true),
+          createdAt: text(r.createdAt, "Date", 60, true),
+        };
+      },
+    );
+    const toolRuns = extensionRows("toolRuns", 100000).map((raw) => {
+      const r = record(raw);
+      if (
+        !ids.has(String(r.turnId)) ||
+        ![
+          "web_search",
+          "web_fetch",
+          "prepare_reminder",
+          "list_reminders",
+          "read_inbox", "read_email", "list_calendar_events", "list_connected_tools", "read_connected_tool", "prepare_external_action",
+        ].includes(String(r.name))
+      )
+        throw new AppError("Invalid tool history in archive.");
+      const args = text(r.arguments, "Tool arguments", 4000, true),
+        result = text(r.result, "Tool result", 40000, true);
+      try {
+        record(JSON.parse(args));
+        record(JSON.parse(result));
+      } catch {
+        throw new AppError("Invalid tool result in archive.");
+      }
+      return {
+        id: text(r.id, "Tool ID", 200, true),
+        turnId: String(r.turnId),
+        name: String(r.name),
+        arguments: args,
+        result,
+        createdAt: text(r.createdAt, "Date", 60, true),
+      };
+    });
     const memories = rows("memories", 100000).map((raw) => {
       const m = record(raw);
       if (
@@ -728,6 +972,48 @@ export class Store {
             m.createdAt,
             m.updatedAt,
           );
+      for (const r of checkIns)
+        this.db
+          .prepare("INSERT INTO check_ins VALUES (?,?,?,?,?,?,?,?)")
+          .run(
+            r.id,
+            r.sourceTurnId,
+            r.content,
+            r.reason,
+            r.evidence,
+            r.status,
+            r.createdAt,
+            r.expiresAt,
+          );
+      // Outreach is an explicit host preference, never inherited from a backup.
+      this.saveSettings({ ...this.settings(), outreachEnabled: false });
+      this.db.prepare("DELETE FROM settings WHERE key='integrations'").run();
+      for (const r of safeActions) this.db.prepare("INSERT INTO integration_actions VALUES (?,?,?)").run(r.id, JSON.stringify(r), r.createdAt);
+      for (const r of reminders)
+        this.db
+          .prepare("INSERT INTO reminders VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
+          .run(
+            r.id,
+            r.turnId,
+            r.title,
+            r.dueAt,
+            r.timeZone,
+            r.status,
+            r.revision,
+            r.createdAt,
+            r.updatedAt,
+            r.firedAt,
+            r.recurrence,
+            r.anchorAt,
+          );
+      for (const r of reminderEvents)
+        this.db
+          .prepare("INSERT INTO reminder_events VALUES (?,?,?,?)")
+          .run(r.id, r.reminderId, r.dueAt, r.createdAt);
+      for (const r of toolRuns)
+        this.db
+          .prepare("INSERT INTO tool_runs VALUES (?,?,?,?,?,?)")
+          .run(r.id, r.turnId, r.name, r.arguments, r.result, r.createdAt);
       for (const r of reflections)
         this.db
           .prepare("INSERT INTO reflections VALUES (?,?,?,?)")

@@ -24,3 +24,12 @@ dist/
 .impeccable/mocks/
 !.impeccable/config.json
 .impeccable/references/
+ios/build/
+ios/**/*.xcuserstate
+ios/**/xcuserdata/
+
+.glashaus-backups/
+full-companion-install.json
+ios/Local.xcconfig
+# User-supplied moodboards and video are private references, not shipped assets.
+docs/visual-references/

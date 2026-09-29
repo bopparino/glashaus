@@ -36,6 +36,8 @@ for (const level of ["log", "warn", "error"] as const) {
 }
 process.env.GLASHAUS_HOME = config.directory;
 process.env.GLASHAUS_PORT = String(config.port);
+if (config.mobilePort) process.env.GLASHAUS_MOBILE_PORT = String(config.mobilePort);
+else delete process.env.GLASHAUS_MOBILE_PORT;
 process.env.GLASHAUS_MANAGED = "1";
 process.env.GLASHAUS_STARTUP_FILE = file;
 if (config.updateId) process.env.GLASHAUS_UPDATE_ID = config.updateId;

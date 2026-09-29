@@ -10,7 +10,9 @@ export async function serviceCommand(command: string) {
   const port = Number(process.env.GLASHAUS_PORT ?? 7777);
   if (!Number.isInteger(port) || port < 1 || port > 65535)
     throw new Error("Choose a valid GLASHAUS_PORT.");
-  const startup = new Startup({ directory, port });
+  const mobilePort = process.env.GLASHAUS_MOBILE_PORT ? Number(process.env.GLASHAUS_MOBILE_PORT) : undefined;
+  if (mobilePort !== undefined && (!Number.isInteger(mobilePort) || mobilePort < 1 || mobilePort > 65535 || mobilePort === port)) throw new Error("Choose a separate valid GLASHAUS_MOBILE_PORT.");
+  const startup = new Startup({ directory, port, mobilePort });
   const base = `http://127.0.0.1:${port}`;
   if (command === "status") {
     const status = await startup.status();

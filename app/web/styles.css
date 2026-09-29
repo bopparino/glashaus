@@ -513,10 +513,10 @@ h2 {
     left: 0;
     width: 100%;
     min-height: 70px;
-    padding: 8px 28px max(12px, env(safe-area-inset-bottom));
+    padding: 8px 16px max(12px, env(safe-area-inset-bottom));
     background: #090a09f5;
     justify-content: space-between;
-    gap: 12px;
+    gap: 6px;
   }
   .nav-item {
     font-size: 10px;

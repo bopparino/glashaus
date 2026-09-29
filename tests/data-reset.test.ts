@@ -67,6 +67,18 @@ function seed(store: Store) {
   store.db
     .prepare("INSERT INTO outreach VALUES (?,?,?,?)")
     .run("o1", privateText, "pending", new Date().toISOString());
+  store.db
+    .prepare("INSERT INTO check_ins VALUES (?,?,?,?,?,?,?,?)")
+    .run(
+      "checkin-1",
+      "turn-1",
+      privateText,
+      privateText,
+      privateText,
+      "seen",
+      new Date().toISOString(),
+      new Date().toISOString(),
+    );
   store.enqueue("j1", "capture", { turnId: "turn-1", test: privateText });
   store.setMeta("telegramOffset", "123");
   store.setMeta("delivery:old", privateText);
@@ -84,6 +96,7 @@ const contentTables = [
   "jobs",
   "imports",
   "outreach",
+  "check_ins",
 ];
 function assertEmpty(store: Store) {
   for (const table of contentTables)

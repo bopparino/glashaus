@@ -2,6 +2,83 @@
   max-width: 760px;
   margin: 32px auto 0;
 }
+.assistant-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+.assistant-toggle input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--ink);
+}
+.reminder-list {
+  list-style: none;
+  padding: 0;
+  margin: 32px 0;
+}
+.reminder-row {
+  padding: 28px 0;
+  border-top: 1px solid var(--rule);
+  overflow-wrap: anywhere;
+}
+.reminder-row h2 {
+  font-size: 22px;
+  margin: 8px 0 12px;
+}
+.reminder-status {
+  font-size: 14px;
+  color: var(--muted);
+}
+.reminder-time {
+  font-size: 16px;
+  line-height: 1.7;
+  margin-bottom: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.reminder-time span {
+  display: block;
+  font-size: 14px;
+  color: var(--muted);
+}
+.reminder-row .text-button {
+  min-height: 44px;
+}
+.reminder-editor {
+  margin: 32px 0;
+  padding: 28px 0;
+  border-block: 1px solid var(--rule);
+}
+.reply-sources {
+  margin-top: 18px;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.reply-sources li {
+  margin: 12px 0;
+  line-height: 1.6;
+}
+.reply-reminder {
+  margin-top: 20px;
+  padding: 18px 0;
+  border-block: 1px solid var(--rule);
+}
+.reply-reminder p {
+  font-size: 15px;
+  line-height: 1.7;
+  margin-bottom: 12px;
+}
+.reminder-dot {
+  display: inline-block;
+  position: absolute;
+  top: 4px;
+  right: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink);
+}
 .page-heading {
   margin-bottom: 42px;
 }

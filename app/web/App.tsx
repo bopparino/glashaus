@@ -7,7 +7,10 @@ import { Setup } from "./Setup";
 import { Memory, Becoming } from "./Memory";
 import { Notice, date, messageOf } from "./Forms";
 import { modelLocation } from "./model-location";
-type Page = "chat" | "memory" | "becoming" | "settings" | "identity";
+import { Reminders, reminderTime } from "./Reminders";
+import { CheckInMessage } from "./CheckIns";
+type Page =
+  "chat" | "memory" | "becoming" | "settings" | "identity" | "reminders";
 export default function App() {
   const [state, setState] = useState<State | null>(null);
   const [onboarding, setOnboarding] = useState<boolean | null>(null);
@@ -127,6 +130,22 @@ export default function App() {
   const turns = state
     ? [...state.turns.filter((t) => t.id !== live?.id), ...(live ? [live] : [])]
     : [];
+  const timeline = [
+    ...turns.map((turn) => ({
+      kind: "turn" as const,
+      turn,
+      id: turn.id,
+      createdAt: turn.createdAt,
+    })),
+    ...(state?.checkIns ?? [])
+      .filter((item) => item.status === "seen")
+      .map((item) => ({
+        kind: "checkIn" as const,
+        item,
+        id: item.id,
+        createdAt: item.createdAt,
+      })),
+  ].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   const finishSetup = async () => {
     await refresh();
     setOnboarding(false);
@@ -188,6 +207,7 @@ export default function App() {
                 ["chat", "Home"],
                 ["memory", "Memory"],
                 ["becoming", "Journal"],
+                ["reminders", "Reminders"],
                 ["settings", "Settings"],
               ] as [Page, string][]
             ).map(([id, label]) => (
@@ -199,6 +219,15 @@ export default function App() {
                 aria-current={page === id ? "page" : undefined}
               >
                 {label}
+                {id === "reminders" &&
+                  !!state?.reminders.some((r) =>
+                    ["draft", "due", "paused"].includes(r.status),
+                  ) && (
+                    <span
+                      className="reminder-dot"
+                      aria-label="Needs attention"
+                    />
+                  )}
               </button>
             ))}
           </nav>
@@ -262,21 +291,41 @@ export default function App() {
           {state && c && !onboarding && page === "becoming" && (
             <Becoming state={state} refresh={refresh} />
           )}
+          {state && c && !onboarding && page === "reminders" && (
+            <Reminders state={state} refresh={refresh} />
+          )}
           {state && c && !onboarding && page === "chat" && (
             <>
+              {(state.checkIns ?? [])
+                .filter((item) => item.status === "available")
+                .map((item) => (
+                  <CheckInMessage
+                    key={item.id}
+                    item={item}
+                    name={c.name}
+                    refresh={refresh}
+                    continueChat={() => setHome(false)}
+                  />
+                ))}
               {home ? (
-                <section className="welcome">
-                  <h1>
-                    Good
-                    <br />
-                    {greeting}
-                  </h1>
-                  <p>
-                    Same mind.
-                    <br />
-                    Brighter days.
-                  </p>
-                </section>
+                (state.checkIns ?? []).some(
+                  (item) => item.status === "available",
+                ) ? (
+                  <h1 className="sr-only">A check-in from {c.name}</h1>
+                ) : (
+                  <section className="welcome">
+                    <h1>
+                      Good
+                      <br />
+                      {greeting}
+                    </h1>
+                    <p>
+                      Same mind.
+                      <br />
+                      Brighter days.
+                    </p>
+                  </section>
+                )
               ) : (
                 <section
                   className="conversation"
@@ -294,58 +343,104 @@ export default function App() {
                       <p>Say what’s on your mind.</p>
                     </div>
                   )}
-                  {turns.map((t) => (
-                    <article key={t.id} className="exchange">
-                      <div className="message user-message">
-                        <p>{t.userText}</p>
-                        <div className="message-meta">
-                          <span className="sr-only">{c.userName}</span>
-                          <time dateTime={t.createdAt}>
-                            {date(t.createdAt)}
-                            {t.channel === "telegram" ? " · Telegram" : ""}
-                          </time>
-                        </div>
-                      </div>
-                      <div className="message companion-message">
-                        <p>
-                          {t.reply ||
-                            (t.status === "running"
-                              ? status || "Thinking…"
-                              : "No reply saved.")}
-                        </p>
-                        <div className="message-meta">
-                          <span>{c.name}</span>
-                          {t.status === "running" ? (
-                            <span role="status">Thinking…</span>
-                          ) : (
+                  {timeline.map((entry) => {
+                    if (entry.kind === "checkIn")
+                      return (
+                        <CheckInMessage
+                          key={entry.id}
+                          item={entry.item}
+                          name={c.name}
+                          refresh={refresh}
+                        />
+                      );
+                    const t = entry.turn;
+                    return (
+                      <article key={t.id} className="exchange">
+                        <div className="message user-message">
+                          <p>{t.userText}</p>
+                          <div className="message-meta">
+                            <span className="sr-only">{c.userName}</span>
                             <time dateTime={t.createdAt}>
                               {date(t.createdAt)}
+                              {t.channel === "telegram" ? " · Telegram" : ""}
                             </time>
+                          </div>
+                        </div>
+                        <div className="message companion-message">
+                          <p>
+                            {t.reply ||
+                              (t.status === "running"
+                                ? status || "Thinking…"
+                                : "No reply saved.")}
+                          </p>
+                          <div className="message-meta">
+                            <span>{c.name}</span>
+                            {t.status === "running" ? (
+                              <span role="status">Thinking…</span>
+                            ) : (
+                              <time dateTime={t.createdAt}>
+                                {date(t.createdAt)}
+                              </time>
+                            )}
+                          </div>
+                          {!!t.sources?.length && (
+                            <details className="reply-sources">
+                              <summary>Sources ({t.sources.length})</summary>
+                              <ul>
+                                {t.sources.map((source) => (
+                                  <li key={source.url}>
+                                    <a
+                                      href={source.url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                    >
+                                      {source.title || source.url}
+                                    </a>
+                                  </li>
+                                ))}
+                              </ul>
+                            </details>
+                          )}
+                          {state.reminders
+                            .filter((r) => r.turnId === t.id)
+                            .map((reminder) => (
+                              <div key={reminder.id} className="reply-reminder">
+                                <p>{reminder.title}</p>
+                                <p>{reminderTime(reminder)}</p>
+                                <button
+                                  className="button secondary"
+                                  onClick={() => navigate("reminders")}
+                                >
+                                  {["draft", "paused"].includes(reminder.status)
+                                    ? "Review & confirm reminder"
+                                    : "View reminder"}
+                                </button>
+                              </div>
+                            ))}
+                          {(t.status === "failed" ||
+                            t.status === "interrupted") && (
+                            <div className="retry">
+                              <span>
+                                {t.error || "This reply was interrupted."}
+                              </span>
+                              <button
+                                className="button secondary"
+                                disabled={busy}
+                                onClick={() =>
+                                  void send(
+                                    t.userText,
+                                    t.channel === "web" ? t.id : undefined,
+                                  )
+                                }
+                              >
+                                Retry reply
+                              </button>
+                            </div>
                           )}
                         </div>
-                        {(t.status === "failed" ||
-                          t.status === "interrupted") && (
-                          <div className="retry">
-                            <span>
-                              {t.error || "This reply was interrupted."}
-                            </span>
-                            <button
-                              className="button secondary"
-                              disabled={busy}
-                              onClick={() =>
-                                void send(
-                                  t.userText,
-                                  t.channel === "web" ? t.id : undefined,
-                                )
-                              }
-                            >
-                              Retry reply
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </article>
-                  ))}
+                      </article>
+                    );
+                  })}
                   <div ref={end} />
                 </section>
               )}

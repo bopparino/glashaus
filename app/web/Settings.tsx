@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { CheckInPreferences } from "./CheckIns";
 import type { State } from "../shared/types";
 import { api } from "./api";
 import { Field, Notice, messageOf } from "./Forms";
@@ -7,6 +8,7 @@ import { modelLocation } from "./model-location";
 import { StartupSettings } from "./Startup";
 import { UpdateSettings } from "./Updates";
 import { DataControls } from "./DataControls";
+import { PhoneConnection } from "./PhoneConnection";
 export function Settings({
   state,
   refresh,
@@ -22,6 +24,10 @@ export function Settings({
   const [model, setModel] = useState(state.settings.model);
   const [utility, setUtility] = useState(state.settings.utilityModel);
   const [context, setContext] = useState(state.settings.contextSize);
+  const [assistantTools, setAssistantTools] = useState(
+    state.settings.assistantToolsEnabled,
+  );
+  const [timeZone, setTimeZone] = useState(state.settings.timeZone);
   const [searchKey, setSearchKey] = useState("");
   const [botToken, setBotToken] = useState("");
   const [models, setModels] = useState<{ name: string }[]>([]);
@@ -36,6 +42,8 @@ export function Settings({
     model !== state.settings.model ||
     utility !== state.settings.utilityModel ||
     context !== state.settings.contextSize ||
+    assistantTools !== state.settings.assistantToolsEnabled ||
+    timeZone !== state.settings.timeZone ||
     !!searchKey ||
     !!botToken;
   useEffect(() => {
@@ -80,6 +88,8 @@ export function Settings({
     setModel(next.settings.model);
     setUtility(next.settings.utilityModel);
     setContext(next.settings.contextSize);
+    setAssistantTools(next.settings.assistantToolsEnabled);
+    setTimeZone(next.settings.timeZone);
     setSearchKey("");
     setBotToken("");
     setSaved("");
@@ -103,6 +113,8 @@ export function Settings({
                 model,
                 utilityModel: utility,
                 contextSize: context,
+                assistantToolsEnabled: assistantTools,
+                timeZone,
                 ...(searchKey ? { ollamaApiKey: searchKey } : {}),
                 ...(botToken ? { telegramToken: botToken } : {}),
               });
@@ -201,12 +213,36 @@ export function Settings({
               </details>
             </section>
             <section className="settings-section">
-              <h2>Character research</h2>
+              <h2>Search & reminders</h2>
               <p className="section-description">
-                Search and fetch public sources through Ollama. Only the
-                character name, source work, and story scope are sent for
-                research—not your chats or relationship.
+                Let your companion look things up and prepare reminders during
+                conversation. Search queries and page URLs are sent to Ollama’s
+                web service. Reminders always wait for your confirmation.
               </p>
+              <label className="assistant-toggle">
+                <input
+                  type="checkbox"
+                  checked={assistantTools}
+                  onChange={(e) => setAssistantTools(e.target.checked)}
+                />
+                Enable assistant tools
+              </label>
+              <p className="helper">
+                Requires an Ollama model that supports tool calling. If your
+                model rejects tools, turn this off to continue chatting. Manual
+                reminders remain available.
+              </p>
+              <Field
+                label="Your time zone"
+                hint="Used when interpreting conversational reminders. For example, America/New_York."
+              >
+                <input
+                  value={timeZone}
+                  required
+                  maxLength={100}
+                  onChange={(e) => setTimeZone(e.target.value)}
+                />
+              </Field>
               <Field
                 label="Ollama API key"
                 hint={
@@ -352,6 +388,7 @@ export function Settings({
           </fieldset>
         </form>
         <StartupSettings refresh={refresh} />
+        <PhoneConnection />
         <UpdateSettings
           blockedReason={
             busy
@@ -364,6 +401,7 @@ export function Settings({
         />
         {state.companion && (
           <>
+            <CheckInPreferences state={state} refresh={refresh} />
             <section className="settings-section">
               <h2>Their foundation</h2>
               <p className="section-description">
@@ -420,9 +458,9 @@ export function Settings({
         }
       />
       <p className="helper">
-        GlasHaus {state.version} · Served on localhost only. Anyone with access
-        to this computer and your data folder may be able to read your
-        conversations and saved credentials.
+        GlasHaus {state.version} · This browser interface is local to the Mac.
+        Anyone with access to this computer and your data folder may be able to
+        read your conversations and saved credentials.
       </p>
     </section>
   );
