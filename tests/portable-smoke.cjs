@@ -21,6 +21,6 @@ async function stop() { if (!child || child.exitCode !== null) return; const clo
     const draft={name:'Portable test',userName:'Test user',mode:'grow',relationship:'Friendly testing context.',sources:[],claims:[],uncertainties:[]};
     const response=await fetch('http://127.0.0.1:7793/api/companion',{method:'POST',headers:{'Content-Type':'application/json','x-glashaus-token':state.csrfToken},body:JSON.stringify(draft)});assert.equal(response.status,200);const saved=await response.json();
     await stop(); state=await start();assert.equal(state.companion.id,saved.id);assert.equal(state.companion.name,'Portable test');
-    console.log('PASS: dependency-free portable build serves UI, saves identity, and restores it after a separate-process restart. No model inference or external API called.');
+    console.log('PASS: built app serves UI, saves identity, and restores it after a separate-process restart. No model inference or external API called.');
   }finally{await stop();rmSync(data,{recursive:true,force:true});}
 })().catch(error=>{console.error(error);process.exitCode=1;});

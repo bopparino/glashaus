@@ -10,6 +10,7 @@ import {
   cpSync,
   mkdirSync,
   writeFileSync,
+  symlinkSync,
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -36,6 +37,14 @@ function copyApp(name: string, version: string) {
   mkdirSync(folder);
   cpSync(path.resolve("dist"), path.join(folder, "dist"), { recursive: true });
   cpSync(path.resolve("bin"), path.join(folder, "bin"), { recursive: true });
+  // The full-companion source installer installs locked runtime dependencies.
+  // Keep these synthetic upgrade copies isolated while providing that same
+  // dependency set; the earlier web-only app did not need node_modules.
+  symlinkSync(
+    path.resolve("node_modules"),
+    path.join(folder, "node_modules"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
   const pkg = JSON.parse(readFileSync("package.json", "utf8"));
   writeFileSync(
     path.join(folder, "package.json"),
