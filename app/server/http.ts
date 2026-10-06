@@ -8,6 +8,7 @@ import { Store } from "./store.ts";
 import { Ollama } from "./ollama.ts";
 import type { ModelProvider } from "./ollama.ts";
 import { Telegram } from "./telegram.ts";
+import { createMobileApi } from "./mobile.ts";
 import type { StartupControl } from "./startup.ts";
 import type { UpdateControl } from "./updates.ts";
 import { VERSION } from "../shared/version.ts";
@@ -36,6 +37,7 @@ export function createApp(options: {
   provider?: ModelProvider;
   background?: boolean;
   server?: http.Server;
+  mobileServer?: http.Server;
   startup?: StartupControl;
   handoff?: () => void;
   updates?: UpdateControl;
@@ -67,6 +69,12 @@ export function createApp(options: {
   let handingOff = false;
   let resetting = false;
   let mutations = 0;
+  const mobile = createMobileApi(
+    store,
+    service,
+    () => resetting || handingOff || activating,
+    options.mobileServer,
+  );
   server.on("request", async (req, res) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "no-referrer");
@@ -159,6 +167,29 @@ export function createApp(options: {
             updateId: options.activation?.id ?? null,
             activating,
           });
+        if (route === "GET /api/mobile") {
+          const address = mobile.server.address();
+          return json({
+            port: address && typeof address === "object" ? address.port : null,
+            devices: mobile.devices.list(),
+          });
+        }
+        if (route === "POST /api/mobile/code") {
+          await body(req);
+          if (!mobile.server.listening)
+            throw new AppError(
+              "Start the host with its mobile listener before pairing.",
+              409,
+            );
+          return json(mobile.devices.createCode());
+        }
+        if (
+          req.method === "DELETE" &&
+          /^\/api\/mobile\/devices\/[\w-]+$/.test(url.pathname)
+        ) {
+          mobile.devices.revoke(url.pathname.split("/").at(-1)!);
+          return json({ ok: true });
+        }
         if (route === "GET /api/updates")
           return json(
             options.updates
@@ -305,6 +336,7 @@ export function createApp(options: {
           const ensureIdle = () => {
             if (
               mutations !== 1 ||
+              mobile.active !== 0 ||
               service.busy ||
               service.background !== "Idle" ||
               store.research().some((r) => r.status === "running")
@@ -327,6 +359,7 @@ export function createApp(options: {
             ensureIdle();
             const reset = prepareDataReset(store, mode);
             result = reset();
+            mobile.devices.stop();
             csrfToken = randomBytes(32).toString("hex");
           } finally {
             try {
@@ -503,9 +536,11 @@ export function createApp(options: {
     store,
     service,
     telegram,
+    mobile,
     async close() {
       clearInterval(activationTimer);
       service.stop();
+      await mobile.close();
       await telegram.shutdown();
       await new Promise<void>((resolve) => server.close(() => resolve()));
       store.close();

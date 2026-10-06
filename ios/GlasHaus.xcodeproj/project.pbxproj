@@ -1,0 +1,251 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		E6A3AB34A20411932D6EAA90 /* Shared/MessageFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76E4CF113D3720E79D322827 /* Shared/MessageFormatting.swift */; };
+		02F01F06F12D0DD7597E92EF /* GlasHaus/GlasHausApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 611DE26198059478A1D40F36 /* GlasHaus/GlasHausApp.swift */; };
+		0419FE8B220C5BB7CD1A8F2F /* GlasHaus/SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EE3B281809C0B596786E3DE /* GlasHaus/SettingsView.swift */; };
+		04200CFFD12D083534B07BB1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4FB5962ADE3FED0012F31D5D /* Assets.xcassets */; };
+		07B760A8663938679E1BD8F1 /* GlasHaus/PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 31924BA9657C091C7605B762 /* GlasHaus/PrivacyInfo.xcprivacy */; };
+		105826DE04576D20B729C73D /* GlasHaus/MemoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7F3A6895759BCC70A5DD9D7 /* GlasHaus/MemoryView.swift */; };
+		34E633517F704E6C86FA6CB6 /* GlasHaus/Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = E971F24F3FE100D42A00A9F6 /* GlasHaus/Session.swift */; };
+		43C35FDA6DB389B6127A3BC3 /* Shared/Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6FEBA00D30C5500EF9AB49F /* Shared/Keychain.swift */; };
+		69CA86CC02BFEE4E3B95DC63 /* GlasHaus/ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C5CF0E899953A4F81DA5FA3 /* GlasHaus/ChatView.swift */; };
+		85B0F7DA7343A4475C0CA24F /* Shared/APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8594B58AC48662517B3DDA17 /* Shared/APIClient.swift */; };
+		9B459E738C6046648C6CFE8E /* Shared/Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 487029ABA0C58EE21B5F45AD /* Shared/Models.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		76E4CF113D3720E79D322827 /* Shared/MessageFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/MessageFormatting.swift; sourceTree = "<group>"; };
+		D80D89559587B3C0AEB48121 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		1EE3B281809C0B596786E3DE /* GlasHaus/SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlasHaus/SettingsView.swift; sourceTree = "<group>"; };
+		31924BA9657C091C7605B762 /* GlasHaus/PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = GlasHaus/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		38A007151ABE87CC01A5B6E9 /* GlasHaus.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = GlasHaus.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		487029ABA0C58EE21B5F45AD /* Shared/Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/Models.swift; sourceTree = "<group>"; };
+		4C5CF0E899953A4F81DA5FA3 /* GlasHaus/ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlasHaus/ChatView.swift; sourceTree = "<group>"; };
+		4FB5962ADE3FED0012F31D5D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		611DE26198059478A1D40F36 /* GlasHaus/GlasHausApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlasHaus/GlasHausApp.swift; sourceTree = "<group>"; };
+		8594B58AC48662517B3DDA17 /* Shared/APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/APIClient.swift; sourceTree = "<group>"; };
+		A7F3A6895759BCC70A5DD9D7 /* GlasHaus/MemoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlasHaus/MemoryView.swift; sourceTree = "<group>"; };
+		E971F24F3FE100D42A00A9F6 /* GlasHaus/Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlasHaus/Session.swift; sourceTree = "<group>"; };
+		F6FEBA00D30C5500EF9AB49F /* Shared/Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/Keychain.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		7561BFB015D8F536760CB671 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		DC76E9F0C0006E8F919E0C51 = {
+			isa = PBXGroup;
+			children = (
+				D80D89559587B3C0AEB48121 /* Config.xcconfig */,
+				4C5CF0E899953A4F81DA5FA3 /* GlasHaus/ChatView.swift */,
+				611DE26198059478A1D40F36 /* GlasHaus/GlasHausApp.swift */,
+				A7F3A6895759BCC70A5DD9D7 /* GlasHaus/MemoryView.swift */,
+				E971F24F3FE100D42A00A9F6 /* GlasHaus/Session.swift */,
+				1EE3B281809C0B596786E3DE /* GlasHaus/SettingsView.swift */,
+				8594B58AC48662517B3DDA17 /* Shared/APIClient.swift */,
+				F6FEBA00D30C5500EF9AB49F /* Shared/Keychain.swift */,
+				76E4CF113D3720E79D322827 /* Shared/MessageFormatting.swift */,
+				487029ABA0C58EE21B5F45AD /* Shared/Models.swift */,
+				FBDC4F23F93125BBEEAE800C /* Products */,
+				31924BA9657C091C7605B762 /* GlasHaus/PrivacyInfo.xcprivacy */,
+				4FB5962ADE3FED0012F31D5D /* Assets.xcassets */,
+			);
+			sourceTree = "<group>";
+		};
+		FBDC4F23F93125BBEEAE800C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				38A007151ABE87CC01A5B6E9 /* GlasHaus.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0E8A3AD980EC179856012B7E /* GlasHaus */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C57128001CE614BF8549D6BB /* Build configuration list for PBXNativeTarget "GlasHaus" */;
+			buildPhases = (
+				BCE16DD0260827ECF338C787 /* Sources */,
+				7561BFB015D8F536760CB671 /* Frameworks */,
+				0189424A5A60FED329FA868E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GlasHaus;
+			productName = GlasHaus;
+			productReference = 38A007151ABE87CC01A5B6E9 /* GlasHaus.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		98F54143AB4E86B28C3AFEE0 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 1600;
+			};
+			buildConfigurationList = 862894B703A6DEDF96A9DD6C /* Build configuration list for PBXProject "GlasHaus" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = DC76E9F0C0006E8F919E0C51;
+			productRefGroup = FBDC4F23F93125BBEEAE800C /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				0E8A3AD980EC179856012B7E /* GlasHaus */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		0189424A5A60FED329FA868E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				07B760A8663938679E1BD8F1 /* GlasHaus/PrivacyInfo.xcprivacy in Resources */,
+				04200CFFD12D083534B07BB1 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		BCE16DD0260827ECF338C787 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				69CA86CC02BFEE4E3B95DC63 /* GlasHaus/ChatView.swift in Sources */,
+				02F01F06F12D0DD7597E92EF /* GlasHaus/GlasHausApp.swift in Sources */,
+				105826DE04576D20B729C73D /* GlasHaus/MemoryView.swift in Sources */,
+				34E633517F704E6C86FA6CB6 /* GlasHaus/Session.swift in Sources */,
+				0419FE8B220C5BB7CD1A8F2F /* GlasHaus/SettingsView.swift in Sources */,
+				85B0F7DA7343A4475C0CA24F /* Shared/APIClient.swift in Sources */,
+				43C35FDA6DB389B6127A3BC3 /* Shared/Keychain.swift in Sources */,
+				E6A3AB34A20411932D6EAA90 /* Shared/MessageFormatting.swift in Sources */,
+				9B459E738C6046648C6CFE8E /* Shared/Models.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		639A7CA24D39909E713B47F7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = D80D89559587B3C0AEB48121 /* Config.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = GlasHaus;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your GlasHaus computer to continue your conversation.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = haus.glashaus.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		7082CC0B6FC1282FCEABD07A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = D80D89559587B3C0AEB48121 /* Config.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = GlasHaus;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your GlasHaus computer to continue your conversation.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = haus.glashaus.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		89E1FD6268CC0F221A2BE178 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+			};
+			name = Debug;
+		};
+		E6DE6C99132752C914FEF632 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		862894B703A6DEDF96A9DD6C /* Build configuration list for PBXProject "GlasHaus" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				89E1FD6268CC0F221A2BE178 /* Debug */,
+				E6DE6C99132752C914FEF632 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C57128001CE614BF8549D6BB /* Build configuration list for PBXNativeTarget "GlasHaus" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7082CC0B6FC1282FCEABD07A /* Debug */,
+				639A7CA24D39909E713B47F7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 98F54143AB4E86B28C3AFEE0 /* Project object */;
+}

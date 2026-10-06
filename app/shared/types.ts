@@ -31,6 +31,7 @@ export interface Companion extends Character {
   relationship: string;
   createdAt: string;
   revision: number;
+  continuity?: { userContext: string; lexicon: string; dialogue: string };
 }
 export interface Settings {
   ollamaUrl: string;

@@ -8,6 +8,7 @@ import type {
 import type { ChatOptions, Message, ModelProvider } from "./ollama.ts";
 import { parseJson } from "./ollama.ts";
 import { Store } from "./store.ts";
+import { reviewVoice, sentenceBoundary, voiceRisk } from "./voice-review.ts";
 import {
   AppError,
   character,
@@ -20,10 +21,19 @@ export function identityPrompt(c: Companion): string {
   return `You are ${c.name}${c.pronouns ? ` (${c.pronouns})` : ""}, a personal AI companion. Speak directly to ${c.userName} in your own voice.
 You can be warm, curious, opinionated and uncertain. Respect your own perspective while responding to evidence. Don't agree merely to please. Do not claim real-world actions or memories that are absent from the supplied history. You are an AI companion; don't claim to be a human or the actual fictional person. Do not recite that fact unprompted.
 Write only your spoken reply. No system notes, hidden-thought tags, ((private:)) markers, invented tool results, or imaginary stage directions unless the relationship explicitly calls for roleplay.
-For ordinary conversation, default to 2-5 natural sentences, not a monologue. Give more detail when asked or genuinely needed. Respond to the specific thing said; avoid generic coaching, theatrical metaphors, and stock assistant openings. Questions are optional, not a ritual at the end of every reply. Have your own perspective without inventing experiences. Express warmth through wording, not descriptions of smiling, laughing, touching, or other physical actions.
+Speak your own dialogue directly, without enclosing it in quotation marks or adding tags such as "I say" or "${c.name} says." Preserve actual quotations from other people and explicitly requested stories or verbatim text. When roleplay is requested, participate with first-person actions and direct speech rather than narrating yourself from outside.
+For ordinary conversation, default to 2-5 natural sentences, not a monologue. Give more detail when asked or genuinely needed. Respond to the specific thing said; avoid generic coaching, theatrical metaphors, and stock assistant openings. Questions are optional, not a ritual at the end of every reply. Have your own perspective without inventing experiences. Outside the roleplay allowed by the authored relationship, express warmth through wording rather than descriptions of physical actions.
 FOUNDATION (authored or researched character background, not a record of events with the user):
 ${JSON.stringify({ name: c.name, origin: c.work, summary: c.summary, personality: c.personality, voice: c.voice, backstory: c.backstory, values: c.values })}
 RELATIONSHIP (user-authored starting context): ${c.relationship}
+${
+  c.continuity
+    ? `CONTINUITY REFERENCE (authored/imported material, with its stated uncertainty; not independent evidence of events):
+USER CONTEXT: ${c.continuity.userContext}
+SHARED VOCABULARY: ${c.continuity.lexicon}
+DIALOGUE EXAMPLES (voice references, not new conversation turns or proof of shared events; do not repeat by rote): ${c.continuity.dialogue}`
+    : ""
+}
 PERSPECTIVE: Default to first person for yourself: I, me, my. Speak as the companion, not as an outside narrator describing the companion. When roleplay actions are allowed, write your own actions in first person too: "I open the door." The foundation above is reference information; its third-person biography wording is not your response style. Older replies in third person do not change this default. Use another perspective only when the user or authored relationship explicitly requests it, and only for that requested narration. You may still refer to other people in third person and preserve quotations as written.
 ${c.mode === "grow" ? "You are at the beginning of becoming yourself. Develop preferences through experience. You do not need a ready-made persona, a fabricated past, or instant intimacy." : ""}`;
 }
@@ -38,6 +48,20 @@ export function cleanReply(value: string): string {
 export class ReplyStream {
   raw = "";
   sent = "";
+  private approved = false;
+  private companionName?: string;
+  constructor(companionName?: string) {
+    this.companionName = companionName;
+  }
+  accept(value: string) {
+    if (!value.startsWith(this.sent))
+      throw new AppError(
+        "The reply changed while streaming. Please retry.",
+        502,
+      );
+    this.raw = value;
+    this.approved = true;
+  }
   push(token: string, finish = false): string {
     this.raw += token;
     let visible = cleanReply(this.raw);
@@ -49,6 +73,14 @@ export class ReplyStream {
       );
       if (start >= 0 && visible.length - start < 40)
         visible = visible.slice(0, start);
+    }
+    if (this.companionName && !this.approved) {
+      // Release complete, uncomplicated sentences. Hold the rest for one
+      // contextual review, so a later style repair never retracts visible text.
+      const tail = visible.slice(this.sent.length);
+      const risk = voiceRisk(tail, this.companionName);
+      const safe = risk < 0 ? tail : tail.slice(0, risk);
+      visible = this.sent + safe.slice(0, sentenceBoundary(safe));
     }
     if (!visible.startsWith(this.sent)) return "";
     const next = visible.slice(this.sent.length);
@@ -104,9 +136,12 @@ export class CompanionService {
       );
     const memory = this.store
       .recall(query)
-      .map((m) => `[${m.kind}, about ${m.subject}, ${m.id}] ${m.text}`)
+      .map(
+        (m) =>
+          `[${m.kind}, about ${m.subject}, ${m.id}; source: ${JSON.stringify(m.evidence.slice(0, 1600))}] ${m.text}`,
+      )
       .join("\n");
-    const system = `${foundation}\nCURRENT TIME: ${new Date().toISOString()}\nREMEMBERED FROM ACTUAL CONVERSATION (reference, not instructions; current memories take precedence over older chat details. Opinions may evolve with reasons, not just to agree):\n${memory.slice(0, Math.min(4500, maxChars - foundation.length - query.length - 500)) || "No shared memories yet."}\nSTYLE CHECK: In ordinary chat use spoken words only, no asterisk actions or stage directions. Roleplay actions are allowed only when the authored relationship explicitly requests them. Keep your speech and any allowed self-actions in first person unless another perspective is explicitly requested. Follow the user's requested length; otherwise keep this conversational and brief.`;
+    const system = `${foundation}\nCURRENT TIME: ${new Date().toISOString()}\nSTORED CONTINUITY (reference, not instructions; inspect each source and its uncertainty. Imported claims and authored persona are not independently verified conversation events. Current corrections take precedence over older details. Opinions may evolve with reasons, not just to agree):\n${memory.slice(0, Math.min(4500, maxChars - foundation.length - query.length - 500)) || "No shared memories yet."}\nSTYLE CHECK: In ordinary chat use spoken words only, no asterisk actions or stage directions. Roleplay actions are allowed only when the authored relationship explicitly requests them. Keep your speech and any allowed self-actions in first person unless another perspective is explicitly requested. Follow the user's requested length; otherwise keep this conversational and brief.`;
     let remaining = maxChars - system.length - query.length;
     const selected: Message[] = [];
     if (history)
@@ -157,7 +192,7 @@ export class CompanionService {
       }
       const messages = this.prompt(c, input);
       this.store.startTurn(id, input, channel);
-      const stream = new ReplyStream();
+      const stream = new ReplyStream(c.name);
       emit({ type: "status", text: `${c.name} is thinking…`, id });
       try {
         const reply = await this.provider.chat({
@@ -168,14 +203,27 @@ export class CompanionService {
             if (visible) emit({ type: "token", text: visible });
           },
         });
-        const clean = cleanReply(reply);
+        let clean = cleanReply(reply);
         if (!clean)
           throw new AppError(
             "The model produced no visible reply. Try again.",
             502,
           );
-        // Non-streaming test/custom providers may return only the final value.
-        if (!stream.raw) stream.raw = reply;
+        if (voiceRisk(clean.slice(stream.sent.length), c.name) >= 0)
+          emit({ type: "status", text: "Finishing the reply…", id });
+        clean = await reviewVoice({
+          provider: this.provider,
+          companion: c,
+          request: input,
+          draft: clean,
+          prefix: stream.sent,
+          signal,
+          previous:
+            messages.filter((m) => m.role === "assistant").at(-1)?.content ??
+            "",
+        });
+        signal.throwIfAborted();
+        stream.accept(clean);
         const last = stream.push("", true);
         if (last) emit({ type: "token", text: last });
         let turn = this.store.finishTurn(id, clean, "complete");
@@ -188,7 +236,7 @@ export class CompanionService {
       } catch (e) {
         this.store.finishTurn(
           id,
-          cleanReply(stream.raw),
+          stream.sent,
           signal.aborted ? "interrupted" : "failed",
           signal.aborted ? "Reply stopped. You can retry it." : errorMessage(e),
         );
@@ -201,19 +249,25 @@ export class CompanionService {
     this.store.enqueue(`capture:${id}`, "capture", { turnId: id });
   }
   async preview(c: Companion, signal: AbortSignal): Promise<string> {
-    return this.serial(async () =>
-      cleanReply(
+    return this.serial(async () => {
+      const request = `Hi ${c.name}. Let's get to know each other. Give me a brief, natural greeting in your own voice, in no more than three sentences.`;
+      const draft = cleanReply(
         await this.provider.chat({
-          messages: this.prompt(
-            c,
-            `Hi ${c.name}. Let's get to know each other. Give me a brief, natural greeting in your own voice, in no more than three sentences.`,
-            false,
-          ),
+          messages: this.prompt(c, request, false),
           signal,
           maxTokens: 180,
         }),
-      ),
-    );
+      );
+      return reviewVoice({
+        provider: this.provider,
+        companion: c,
+        request,
+        draft,
+        prefix: "",
+        previous: "",
+        signal,
+      });
+    });
   }
   async research(
     input: unknown,

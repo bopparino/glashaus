@@ -1,3 +1,15 @@
+# Unreleased — iPhone companion and continuity
+
+- Add a native SwiftUI iPhone client with Chat, Memory and Settings, HTTPS-only pairing, device-only Keychain credentials and retry-safe interrupted messages.
+- Add a separate loopback phone API, expiring one-use pairing codes, hashed device credentials and revocation controls in desktop Settings.
+- Render inline Markdown actions as italics and keep dismissed keyboards closed when replies arrive or finish.
+- Preserve conversation append order across clock differences, migration, reload and restart. Existing timestamps and saved content are unchanged.
+- Keep companion dialogue in first person with a bounded contextual voice review that preserves legitimate quotations, other speakers and requested narration.
+- Import user context, shared vocabulary and dialogue examples from soul capsules, with provenance, truncation warnings and complete originals retained in backups.
+- Add native CI, host/mobile persistence regressions, and Windows/Tailscale/WARP setup guidance.
+
+This is an unreleased source update. Back up an existing v3 home before opening it: the database schema advances from 2 to 3 for device pairing. Published alpha.7 installers do not yet contain these changes. See [the phone guide](docs/PHONE.md) for setup and validation limits.
+
 # GlasHaus v3.0.0-alpha.7
 
 ## Start over, on your terms

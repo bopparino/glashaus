@@ -2,6 +2,8 @@
 
 A local-first home for a continuing AI companion. Built around Ollama, with a new web interface, character research, portable identity, shared Telegram conversations, and memories you can inspect.
 
+**Source preview:** this checkout includes a native iPhone app, authenticated phone pairing, portable persona continuity, and clock-independent chat ordering. These additions are not in the published alpha.7 installer. Follow [the iPhone and Windows host guide](docs/PHONE.md) to build and use them.
+
 This is a **fresh alpha**, not a drop-in v2 upgrade. Existing v2 source is preserved in `legacy-v2/`; v3 never opens or changes a v2 database.
 
 ## Start the built app
@@ -14,7 +16,7 @@ node bin/glashaus-v3.js
 
 Open **http://127.0.0.1:7777**. In Settings, check the Ollama address and choose a model. Then create a companion. During setup you can choose **Run in the background and start at sign-in**. Leave it unchecked for manual start: keep the terminal running, and use Ctrl+C to stop. Data survives restarts.
 
-The default home is `~/.glashaus-v3` on every OS. `GLASHAUS_HOME` selects another home, and `GLASHAUS_PORT` selects another port. One companion per home. The server binds to localhost only; remote web access is not included. Use Telegram when away from the computer.
+The default home is `~/.glashaus-v3` on every OS. `GLASHAUS_HOME` selects another home, and `GLASHAUS_PORT` selects another port. One companion per home. The administration server binds to localhost only; remote web administration is not included. Use Telegram or the native iPhone client with its separate authenticated HTTPS connection when away from the computer.
 
 ## One-command installation
 
@@ -134,6 +136,8 @@ The CI matrix covers Windows, macOS, and Linux, and is not evidence of a pass un
 `app/server` — storage, model adapter, companion services, HTTP API, Telegram.
 
 `app/web` — React screens and the prism visual system: carbon, bone, restrained typography and one optical arc.
+
+`ios` — native SwiftUI iPhone app and shared client-contract tests. `docs/PHONE.md` — pairing, host setup, capsule import and device validation.
 
 `app/shared` — shared types. `tests` — v3 tests. `legacy-v2` — read-only historical reference, excluded from packages.
 

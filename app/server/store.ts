@@ -63,7 +63,7 @@ export class Store {
     const version = Number(
       this.db.prepare("PRAGMA user_version").get()?.user_version ?? 0,
     );
-    if (version > 2) {
+    if (version > 3) {
       this.db.close();
       throw new AppError(
         "This companion was saved by a newer GlasHaus. Update the app before opening it.",
@@ -93,9 +93,10 @@ export class Store {
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS imports (id TEXT PRIMARY KEY, format TEXT NOT NULL, original TEXT NOT NULL, createdAt TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS outreach (id TEXT PRIMARY KEY, content TEXT NOT NULL, status TEXT NOT NULL, createdAt TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS mobile_devices (id TEXT PRIMARY KEY, name TEXT NOT NULL, tokenHash TEXT NOT NULL UNIQUE, createdAt TEXT NOT NULL, lastSeenAt TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS turns_time ON turns(createdAt);
       CREATE INDEX IF NOT EXISTS memories_active ON memories(active, kind);
-      PRAGMA application_id=${APP_ID}; PRAGMA user_version=2;`);
+      PRAGMA application_id=${APP_ID}; PRAGMA user_version=3;`);
     this.db.exec(
       "UPDATE turns SET status='interrupted', error='The app restarted before this reply finished.' WHERE status='running'; UPDATE jobs SET status='pending' WHERE status='running';",
     );
@@ -170,7 +171,9 @@ export class Store {
       ])
         this.db.exec(`DELETE FROM ${table}`);
       if (purge) {
-        this.db.exec("DELETE FROM settings; DELETE FROM meta");
+        this.db.exec(
+          "DELETE FROM settings; DELETE FROM meta; DELETE FROM mobile_devices",
+        );
       } else {
         // Do not replay already acknowledged Telegram messages into a new home.
         this.db.exec("DELETE FROM meta WHERE key <> 'telegramOffset'");
@@ -221,11 +224,12 @@ export class Store {
     return c;
   }
   turns(limit = 200): Turn[] {
+    // Keep conversation order independent of the computer's clock. Archives
+    // preserve insertion order, and retries update the existing row in place.
+    // Sorting by timestamps can bury new replies beneath an imported future date.
     return (
       this.db
-        .prepare(
-          "SELECT * FROM turns ORDER BY createdAt DESC, rowid DESC LIMIT ?",
-        )
+        .prepare("SELECT * FROM turns ORDER BY rowid DESC LIMIT ?")
         .all(limit) as unknown as Turn[]
     ).reverse();
   }
@@ -530,6 +534,7 @@ export class Store {
     kind: string;
     messages: number;
     memories: number;
+    warnings?: string[];
   } {
     if (this.companion() || this.turns(1).length)
       throw new AppError(
@@ -771,7 +776,7 @@ export class Store {
     );
     const c = companionInput({
       name: text(a.companion, "Companion name", 100, true),
-      pronouns: "",
+      pronouns: text(a.pronouns, "Pronouns", 100),
       mode: "authored",
       work: "",
       summary: "Restored from a GlasHaus soul capsule.",
@@ -779,11 +784,16 @@ export class Store {
       voice: (docs.get("VOICE") ?? "").slice(0, 5000),
       backstory: "",
       values: "",
-      userName: "You",
+      userName: text(a.userName, "Your name", 100) || "You",
       relationship: (
         docs.get("IDENTITY") ||
         "Continue the relationship recorded in the imported persona."
       ).slice(0, 6000),
+      continuity: {
+        userContext: (docs.get("USER") ?? "").slice(0, 4000),
+        lexicon: (docs.get("LEXICON") ?? "").slice(0, 4000),
+        dialogue: (docs.get("DIALOGUE") ?? "").slice(0, 6000),
+      },
       uncertainties: [
         "This capsule carries identity, not complete conversation history.",
       ],
@@ -810,9 +820,16 @@ export class Store {
         if (!content) continue;
         this.writeMemory({
           kind: "fact",
-          subject: f.category === "companion" ? "companion" : "relationship",
+          subject:
+            f.category === "companion"
+              ? "companion"
+              : f.category === "user"
+                ? "user"
+                : "relationship",
           text: content,
-          evidence: "Imported identity fact from v2 soul capsule",
+          evidence:
+            text(f.evidence, "Imported memory source", 16000) ||
+            "Imported identity fact from soul capsule; original packet retained",
           turnId: null,
         });
       }
@@ -829,6 +846,30 @@ export class Store {
           });
       }
     });
-    return { kind: "capsule", messages: 0, memories: this.memories().length };
+    const limits: Record<string, number> = {
+      SOUL: 8000,
+      VOICE: 5000,
+      IDENTITY: 6000,
+      USER: 4000,
+      LEXICON: 4000,
+      DIALOGUE: 6000,
+    };
+    const shortened = [...docs]
+      .filter(
+        ([name, content]) => limits[name] && content.length > limits[name],
+      )
+      .map(([name]) => name);
+    return {
+      kind: "capsule",
+      messages: 0,
+      memories: this.memories().length,
+      ...(shortened.length
+        ? {
+            warnings: [
+              `Runtime sections shortened to fit: ${shortened.join(", ")}. The complete original capsule is preserved in the archive.`,
+            ],
+          }
+        : {}),
+    };
   }
 }

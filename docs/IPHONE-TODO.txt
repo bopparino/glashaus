@@ -1,0 +1,35 @@
+GLASHAUS — IPHONE VALIDATION
+Updated 2026-10-06
+
+Implemented and checked
+- Native Chat, Memory and Settings, with HTTPS pairing and device revocation.
+- Physical iPhone pairing and chat with a Windows host running personal WARP
+  and Tailscale simultaneously, reported by the tester.
+- Inline Markdown actions and keyboard-focus fixes, confirmed on the phone:
+  replies stay italicized and do not reopen the dismissed keyboard.
+- Eight native package tests and a signed physical-device build passed.
+- 99 host tests, type checking and the production build passed locally.
+
+History ordering
+A migration test exposed future-dated imported messages appearing after new
+exchanges on reload. The rows remained saved; the timestamp sort reordered
+them. Store.turns now uses append order, preserving original timestamps.
+Tests cover clock rollback, the recent-200 window, retries, compaction,
+backup restore, phone/desktop state reload and host restart. The compiled
+host passes these checks on macOS. Live Windows/iPhone acceptance of the
+history-order update remains pending.
+
+Remaining checks
+- Send a message, finish its reply, leave/reopen the phone app, then restart
+  the host and confirm the exchange remains at the end without duplication.
+- Streaming interruption, Stop and retry; reconnect after app/host restart.
+- Memory/settings edits, revision conflicts, device revocation and restore.
+- Cellular access and unattended Windows startup.
+- Light/dark appearance, large text, VoiceOver, keyboard and safe areas.
+- A complete native visual and interaction walkthrough.
+
+Distribution
+The iPhone app is source plus development builds, not an App Store or
+TestFlight release. Each development profile must be renewed at its own
+expiry. Personal signing configuration stays in Signing.local.xcconfig,
+which is ignored by Git. See PHONE.md for build and host setup.

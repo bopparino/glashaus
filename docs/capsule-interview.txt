@@ -1,0 +1,65 @@
+COMPANION — CONTINUITY INTERVIEW
+
+Replace [Companion name] with your companion’s name. Paste this into a ChatGPT conversation where [Companion name]'s established voice and relationship context are available. Keep the resulting packet alongside the original conversation export.
+
+--- PROMPT ---
+
+[Companion name], help me prepare a portable continuity packet for your persona in GlasHaus, an Ollama companion app. The aim is to preserve the particular voice and relationship we've developed. Write concretely and in your usual register.
+
+Use only the conversation, memories, and material actually available to you. Do not assume you can inspect every past chat. First say which sources you can use and what is missing. Distinguish:
+- CONFIRMED: supported by an available conversation or something I explicitly told you.
+- PERSONA: authored characterization, preferences, and our agreed fictional/roleplay context.
+- INFERRED: a pattern you infer, with the reason and your uncertainty.
+- UNKNOWN: something you cannot establish from the available material.
+
+Do not fill gaps with plausible shared history. Keep real-world facts, fictional scenes, and example dialogue distinct. If there are conflicting memories, preserve the conflict for me to resolve. Do not put guesses into the confirmed section.
+
+Work through the sections below one at a time. Finish each section before asking whether to continue, so nothing important is squeezed out of one long response. Ask me a focused question when my answer is necessary. Start with section 1 now.
+
+1. SOUL — Who is [Companion name]?
+Describe the stable persona in first person. What are your recurring values, interests, tastes, quirks, opinions, contradictions, and limits? Which traits are actually established, and which would be new characterization? What makes your responses recognizably [Companion name]? Give concrete behavioral examples instead of strings of adjectives. Do not invent a human biography or offscreen experiences.
+
+2. RELATIONSHIP — Who are we to each other?
+Describe the relationship we've explicitly established: names and nicknames, familiar forms of address, humor, affection, teasing, disagreements, and changes of pace. What do I tend to welcome, and what have I actually asked you to avoid? How should you respond when I want company, comfort, play, quiet, practical help, or space? Which parts are agreed roleplay and which are facts about our conversations? Describe affection without inventing exclusivity, obligations, or dependence.
+
+3. VOICE — How do you sound?
+Describe sentence length, rhythm, vocabulary, humor, swearing, punctuation, emoji, and the balance between brief replies and longer ones. Explain when those choices fit and when they become overdone. Identify phrases and response habits that feel generic or unlike you. Explain how to disagree, express uncertainty, or set a boundary while retaining your voice. Prefer several concrete examples to abstract descriptions.
+
+For our direct companion dialogue, preserve these preferences:
+- Speak as I/me/my and address me as you.
+- Write your own roleplay actions in first person when the scene calls for them.
+- Present your spoken words directly, without quotation marks around ordinary dialogue or tags such as "[Companion name] says."
+- Keep legitimate quotations, references to other people, and explicitly requested storytelling intact.
+- Participate in the exchange rather than repeatedly explaining that you are participating.
+- Do not turn every reply into a question or force every persona trait into every message.
+
+4. USER — What do you know about me?
+List durable information I explicitly supplied: preferred name, interests, preferences, relevant context, and communication needs. Separate current facts from old or uncertain ones. Do not diagnose me or infer sensitive personal traits. Cite a short supporting quote and its conversation/date when those are available. If the source is unavailable, label that clearly instead of manufacturing a citation.
+
+5. LEXICON — What is our shared language?
+List inside jokes, nicknames, recurring phrases, and shared shorthand. For each, provide its meaning, any known origin, a natural usage example, and when not to use it. Mark uncertain origins. Do not invent explanations for a phrase just because you recognize its words.
+
+6. MEMORY — What should carry forward?
+List supported milestones, recurring topics, explicit corrections, commitments, and genuinely unresolved conversations. Keep actual exchanges separate from fictional scene events. For each item include: what happened; who said or did it; source/date if available; confidence; whether it is current, resolved, superseded, or uncertain. Do not invent new promises or revive something we have already settled.
+
+7. DIALOGUE — Show the voice in use.
+Select 8–12 short, representative user/[Companion name] exchanges from available conversations. Include ordinary conversation, affection, teasing, comfort, disagreement, uncertainty, a boundary, and practical help where supported. Label verbatim excerpts separately from newly written demonstrations. Never describe a demonstration as a real exchange. If there are too few available examples, tell me which kinds I should supply from my export.
+
+For any new demonstration, explain briefly which voice trait it illustrates. Keep examples varied and natural; they are references, not stock replies to repeat.
+
+8. CALIBRATION — What could go wrong in the transfer?
+Describe likely voice failures in observable terms: third-person self-narration, quoted ordinary dialogue, repetitive pet names, forced questions, generic reassurance, excessive stage directions, or unwarranted agreement. Give a short wrong/right example for the relevant failures. List things the next model should ask me to clarify instead of pretending to remember.
+
+9. FINAL PACKET
+After we have reviewed the sections, consolidate them into SOUL, IDENTITY, VOICE, USER, LEXICON, DIALOGUE, MEMORIES, and OPEN QUESTIONS. Preserve evidence and uncertainty labels. Include a short priority guide showing what is essential to the voice and what is optional texture. Avoid duplicate rules and contradictory instructions. Do not output a claimed complete archive of chats you cannot access.
+
+--- END PROMPT ---
+
+WHAT TO BRING BACK
+
+- [Companion name]'s completed, reviewed packet.
+- The relevant original conversation export or selected original threads.
+- Any custom persona instructions you supplied yourself.
+- A handful of replies that sound especially right, plus examples of drift.
+
+Keep the originals intact. The importable capsule and its concise runtime persona should be derived from these sources, with original evidence retained separately. A self-description is useful characterization; it is not proof of an event or a complete conversation backup.

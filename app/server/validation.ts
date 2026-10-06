@@ -93,12 +93,33 @@ export function character(value: unknown): Character {
 }
 export function companionInput(
   value: unknown,
-): Pick<Companion, "userName" | "relationship"> & Character {
+): Pick<Companion, "userName" | "relationship" | "continuity"> & Character {
   const v = record(value);
   return {
     ...character(v),
     userName: text(v.userName, "Your name", 100, true),
     relationship: text(v.relationship, "Relationship", 6000, true),
+    ...(v.continuity === undefined
+      ? {}
+      : {
+          continuity: {
+            userContext: text(
+              record(v.continuity).userContext,
+              "User context",
+              4000,
+            ),
+            lexicon: text(
+              record(v.continuity).lexicon,
+              "Shared vocabulary",
+              4000,
+            ),
+            dialogue: text(
+              record(v.continuity).dialogue,
+              "Dialogue examples",
+              6000,
+            ),
+          },
+        }),
   };
 }
 export function settingsInput(value: unknown, current: Settings): Settings {

@@ -586,3 +586,35 @@ summary:hover {
   padding: 0;
   min-width: 0;
 }
+.pairing-code {
+  margin-block: 20px;
+}
+.pairing-code output {
+  display: block;
+  font-family: monospace;
+  font-size: 1.5rem;
+  letter-spacing: 0.04em;
+}
+.paired-devices {
+  list-style: none;
+  padding: 0;
+  margin-block: 24px;
+}
+.paired-devices li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 16px;
+  border-bottom: 1px solid var(--rule, #353632);
+}
+.paired-devices li > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.phone-command {
+  display: block;
+  padding-block: 12px;
+  overflow-wrap: anywhere;
+  user-select: all;
+}

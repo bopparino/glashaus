@@ -6,6 +6,7 @@ import { Icon } from "./Icon";
 import { modelLocation } from "./model-location";
 import { StartupSettings } from "./Startup";
 import { UpdateSettings } from "./Updates";
+import { MobileSettings } from "./Mobile";
 import { DataControls } from "./DataControls";
 export function Settings({
   state,
@@ -352,6 +353,7 @@ export function Settings({
           </fieldset>
         </form>
         <StartupSettings refresh={refresh} />
+        <MobileSettings />
         <UpdateSettings
           blockedReason={
             busy
