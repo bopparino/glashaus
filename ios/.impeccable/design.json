@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-05T22:09:18.761614Z",
+  "title": "Design System: GlasHaus for iPhone",
+  "extensions": {
+    "native": {
+      "platform": "iPhone",
+      "minimumOS": "iOS 17.0",
+      "framework": "SwiftUI",
+      "scope": "ios/",
+      "tokenUnits": "Native points; typography sizes are system text styles.",
+      "colorBindings": {
+        "primary": {
+          "source": "Color.primary / .primary",
+          "purpose": "Text, tint and send/stop fill"
+        },
+        "secondary": {
+          "source": "Color.secondary / .secondary",
+          "purpose": "Supporting text and metadata"
+        },
+        "background": {
+          "source": "Color(uiColor: .systemBackground)",
+          "purpose": "Inactive-scene cover and inverse send/stop symbol"
+        },
+        "secondary-background": {
+          "source": "Color(uiColor: .secondarySystemBackground)",
+          "purpose": "Composer field and user-message fill"
+        },
+        "error": {
+          "source": "Color.red / .red",
+          "purpose": "Error messages and over-limit text"
+        },
+        "destructive": {
+          "source": "Button(role: .destructive)",
+          "purpose": "Native destructive-action styling"
+        }
+      },
+      "materials": {
+        "composer": ".bar",
+        "latest-message": ".regularMaterial"
+      },
+      "componentBindings": [
+        {
+          "name": "Chat, Memory and Settings tabs",
+          "source": "GlasHaus/GlasHausApp.swift",
+          "implementation": "TabView with NavigationStack per destination"
+        },
+        {
+          "name": "Pairing form",
+          "source": "GlasHaus/GlasHausApp.swift",
+          "implementation": "Form, Section, TextField, native progress and error feedback"
+        },
+        {
+          "name": "Composer field",
+          "refersTo": "composer-field",
+          "source": "GlasHaus/ChatView.swift",
+          "implementation": "Multiline TextField with lineLimit(1...6), secondarySystemBackground and RoundedRectangle"
+        },
+        {
+          "name": "Send / Stop",
+          "refersTo": "send-stop",
+          "source": "GlasHaus/ChatView.swift",
+          "implementation": "Circular Button with labeled SF Symbol and primary fill; disabled fill opacity 0.3"
+        },
+        {
+          "name": "User message",
+          "refersTo": "user-message",
+          "source": "GlasHaus/ChatView.swift",
+          "implementation": "Selectable Text on secondarySystemBackground, aligned right"
+        },
+        {
+          "name": "Memory list",
+          "source": "GlasHaus/MemoryView.swift",
+          "implementation": "List with segmented Picker, searchable modifier, editable rows and destructive swipe action"
+        },
+        {
+          "name": "Settings and editors",
+          "source": "GlasHaus/SettingsView.swift",
+          "implementation": "Form with Section, Picker, Toggle, TextEditor, sheets, toolbar Save/Cancel and confirmation dialogs"
+        }
+      ],
+      "previewPolicy": "Native controls are not translated into invented HTML/CSS. Semantic color bindings remain native rather than fixed swatches or synthesized tonal ramps. Actual appearance requires simulator or device inspection.",
+      "verification": {
+        "recordedOn": "2026-10-05",
+        "direction": "Confirmed by user before implementation",
+        "compile": "Parent implementation pass reports successful Xcode 27 build",
+        "nativeVisualWalkthrough": "Incomplete: Mac lock followed by an accessibility-control error",
+        "nativeVisualApproval": false,
+        "remaining": [
+          "Rendered light and dark appearance",
+          "Dynamic Type and long-content layouts",
+          "VoiceOver order and control hit areas",
+          "Keyboard and safe-area behavior",
+          "Loading, failure, retry and modal interaction states"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "large-title": {
+        "displayName": "Pairing introduction",
+        "nativeTextStyle": ".largeTitle.weight(.semibold)"
+      },
+      "title": {
+        "displayName": "Conversation empty-state title",
+        "nativeTextStyle": ".title2.weight(.semibold)"
+      },
+      "body": {
+        "displayName": "Conversation and ordinary controls",
+        "nativeTextStyle": "Inherited .body"
+      },
+      "callout": {
+        "displayName": "Errors and memory evidence",
+        "nativeTextStyle": ".callout"
+      },
+      "footnote": {
+        "displayName": "Helpers and status",
+        "nativeTextStyle": ".footnote"
+      },
+      "caption": {
+        "displayName": "Memory metadata",
+        "nativeTextStyle": ".caption"
+      }
+    },
+    "shadows": [],
+    "motion": [],
+    "breakpoints": []
+  },
+  "components": [],
+  "narrative": {
+    "northStar": "Minimal, text-first native conversation",
+    "overview": "The user's approved direction is a fresh native iPhone app, inspired by ChatGPT's quiet conversational structure. The conversation carries the experience. Navigation, forms and editors use familiar platform controls, with functional symbols and no needless graphics.\n\nThis document records the implemented native source. It applies only to `ios/`; the web app retains the repository-root Prism system. The successful Xcode 27 build does not establish visual quality. **Native visual walkthrough remains incomplete because simulator control was blocked**, so rendered accessibility, layout and interaction behavior are unverified.",
+    "keyCharacteristics": [
+      "System typography and semantic colors adapt to appearance and text preferences.",
+      "Chat, Memory and Settings use native tabs and navigation stacks.",
+      "Assistant replies remain unframed; user messages use a quiet tonal fill.",
+      "Grouped forms, search, modal editors and confirmation dialogs use platform behavior.",
+      "Custom conversation controls use explicit touch areas of at least 44 points."
+    ],
+    "rules": [
+      {
+        "name": "The Semantic Appearance Rule",
+        "body": "Preserve native semantic colors and the System/Light/Dark preference; do not freeze their resolved colors into a single appearance.",
+        "section": "colors"
+      },
+      {
+        "name": "The Native Type Rule",
+        "body": "Keep native text styles and their scaling behavior. No custom display face, tracked label system or fixed text-size ramp is defined for this app.",
+        "section": "typography"
+      }
+    ],
+    "dos": [
+      "Do use native semantic colors and SF text styles.",
+      "Do preserve readable conversation spacing, safe-area placement and explicit touch areas for custom controls.",
+      "Do use native tabs, navigation stacks, forms, sheets and accessible functional SF Symbols.",
+      "Do describe loading, errors, pending replies and destructive consequences with plain text.",
+      "Do complete the native visual walkthrough before claiming rendered approval."
+    ],
+    "donts": [
+      "Don't import the web Prism artwork, fixed palette or typography into the native app.",
+      "Don't add needless graphics or decorative conversation chrome.",
+      "Don't replace dynamic colors or text styles with fixed screenshot values.",
+      "Don't present a successful build as native visual or accessibility verification."
+    ]
+  }
+}

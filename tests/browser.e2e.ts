@@ -87,6 +87,9 @@ const app = createApp({
 await new Promise<void>((resolve) =>
   app.server.listen(0, "127.0.0.1", resolve),
 );
+await new Promise<void>((resolve) =>
+  app.mobile.server.listen(0, "127.0.0.1", resolve),
+);
 const address = app.server.address();
 assert.ok(address && typeof address === "object");
 const executable = "C:/Program Files/Google/Chrome/Application/chrome.exe";
@@ -296,6 +299,36 @@ try {
     .click();
   await capture("settings-mobile", 390, 844);
   await capture("settings-desktop", 1440, 1024);
+  const phone = page.getByRole("region", { name: "Your phone", exact: true });
+  await phone
+    .getByRole("button", { name: "Create pairing code", exact: true })
+    .click();
+  const code = await phone
+    .getByLabel("Pairing code", { exact: true })
+    .innerText();
+  assert.match(code, /^[A-Z2-9]{5}-[A-Z2-9]{5}$/);
+  app.mobile.devices.pair({ name: "Synthetic test iPhone", code });
+  await page
+    .getByRole("button", {
+      name: "Disconnect Synthetic test iPhone",
+      exact: true,
+    })
+    .waitFor();
+  await capture("phone-settings-desktop", 1440, 1024);
+  await capture("phone-settings-mobile", 390, 844);
+  await page
+    .getByRole("button", {
+      name: "Disconnect Synthetic test iPhone",
+      exact: true,
+    })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Disconnect Synthetic test iPhone",
+      exact: true,
+    })
+    .waitFor({ state: "hidden" });
+  assert.equal(app.mobile.devices.list().length, 0);
   const updateSection = page.getByRole("region", {
     name: "Updates",
     exact: true,

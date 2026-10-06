@@ -44,6 +44,7 @@ export function Setup({
   const [preview, setPreview] = useState("");
   const [backgroundStartup, setBackgroundStartup] = useState(false);
   const [identitySaved, setIdentitySaved] = useState(false);
+  const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const controller = useRef<AbortController | null>(null);
   const researchId = useRef<string | undefined>(undefined);
   useEffect(() => () => controller.current?.abort(), []);
@@ -96,6 +97,9 @@ export function Setup({
           </Notice>
         )}
         {error && <Notice error>{error}</Notice>}
+        {importWarnings.map((warning) => (
+          <Notice key={warning}>{warning}</Notice>
+        ))}
         {!busy && (
           <div className="form-actions">
             {backgroundStartup && (
@@ -108,7 +112,9 @@ export function Setup({
                   })
                 }
               >
-                Retry background startup
+                {importWarnings.length && !error
+                  ? "Start in the background"
+                  : "Retry background startup"}
               </button>
             )}
             <button
@@ -250,8 +256,15 @@ export function Setup({
                         if (file.size > 50_000_000)
                           throw new Error("Choose a JSON backup under 50 MB.");
                         if (!identitySaved) {
-                          await api("/import", JSON.parse(await file.text()));
+                          const result = await api<{ warnings?: string[] }>(
+                            "/import",
+                            JSON.parse(await file.text()),
+                          );
                           setIdentitySaved(true);
+                          if (result.warnings?.length) {
+                            setImportWarnings(result.warnings);
+                            return;
+                          }
                         }
                         if (backgroundStartup) await changeStartup(true);
                         await complete();

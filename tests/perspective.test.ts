@@ -37,8 +37,14 @@ function fixture(
     },
     async chat(options) {
       calls.push(options);
+      if (options.utility && options.json)
+        return JSON.stringify({
+          decision: "keep",
+          reason: "quotation",
+          text: "",
+        });
       const reply =
-        'Vi opens the door. "She made it," I say. I wave you inside.';
+        'Vi opens the door. She says, "You made it." I wave you inside.';
       options.onToken?.(reply);
       return reply;
     },
@@ -92,15 +98,17 @@ test("web and Telegram receive the same perspective rules despite older third-pe
         signal(),
         () => {},
       );
-      checkPerspective(f.calls.at(-1)!.messages[0].content);
+      checkPerspective(
+        f.calls.findLast((call) => !call.utility)!.messages[0].content,
+      );
       assert.ok(
         f.calls
-          .at(-1)!
+          .findLast((call) => !call.utility)!
           .messages.some((m) => m.role === "assistant" && m.content === older),
       );
       assert.equal(
         result.reply,
-        'Vi opens the door. "She made it," I say. I wave you inside.',
+        'Vi opens the door. She says, "You made it." I wave you inside.',
       );
     }
     assert.equal(

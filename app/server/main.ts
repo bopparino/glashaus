@@ -59,6 +59,23 @@ while (true) {
   }
 }
 const startup = new Startup({ directory, port });
+const mobileServer = http.createServer();
+const mobilePort = port === 65535 ? 65534 : port + 1;
+try {
+  await new Promise<void>((resolve, reject) => {
+    mobileServer.once("error", reject);
+    mobileServer.listen(mobilePort, "127.0.0.1", () => {
+      mobileServer.removeListener("error", reject);
+      resolve();
+    });
+  });
+} catch {
+  console.error(
+    `Could not open mobile port ${mobilePort}. Stop the other app using it, or choose a different GLASHAUS_PORT.`,
+  );
+  server.close();
+  process.exit(1);
+}
 const updateId = process.env.GLASHAUS_UPDATE_ID;
 const activation = updateId
   ? {
@@ -80,6 +97,7 @@ const app = createApp({
   directory,
   webRoot,
   server,
+  mobileServer,
   startup,
   updates: new Updates(startup),
   activation,

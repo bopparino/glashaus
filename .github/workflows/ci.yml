@@ -3,6 +3,14 @@ on: [push, pull_request, workflow_dispatch, workflow_call]
 permissions:
   contents: read
 jobs:
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test native connection contracts
+        run: swift test --package-path ios
+      - name: Compile the iPhone app
+        run: xcodebuild -project ios/GlasHaus.xcodeproj -scheme GlasHaus -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
   test:
     strategy:
       fail-fast: false

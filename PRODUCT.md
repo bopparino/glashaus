@@ -50,4 +50,4 @@ The user's new two-phone reference replaces the previous stone-and-coral design:
 
 ## Evidence and Open Questions
 
-Source baseline: v2.15.1, commit 0c5dbe1. Core and real-browser tests use deterministic test providers; live Kimi K2.6 cloud research, streaming, concise preview, memory correction and long-history recall passed on 2026-09-20. The owner confirmed Telegram pairing and a reply. Primary hardware capacity and preferred local model are not established. Native iOS and scratchpad privacy behavior remain undecided.
+Source baseline: v2.15.1, commit 0c5dbe1. Core and real-browser tests use deterministic test providers; live Kimi K2.6 cloud research, streaming, concise preview, memory correction and long-history recall passed on 2026-09-20. The owner confirmed Telegram pairing and a reply. Primary hardware capacity and preferred local model are not established. This branch adds a native SwiftUI iPhone client and a separate authenticated phone API; the user confirmed a minimal, text-first native direction. See ios/PRODUCT.md and docs/PHONE.md for its scope and remaining device validation. Scratchpad privacy behavior remains undecided.

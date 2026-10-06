@@ -24,3 +24,8 @@ dist/
 .impeccable/mocks/
 !.impeccable/config.json
 .impeccable/references/
+ios/.build/
+ios/DerivedData/
+**/xcuserdata/
+
+ios/Signing.local.xcconfig
