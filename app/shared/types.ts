@@ -108,6 +108,13 @@ export interface State {
     botName?: string;
     error?: string;
   };
+  self: {
+    stance: string;
+    openThreads: string[];
+    willNotPretend: string[];
+    updatedAt: string;
+  } | null;
+  lastOutreach: { content: string; createdAt: string } | null;
 }
 export interface StartupStatus {
   id?: string;
