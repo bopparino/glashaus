@@ -143,7 +143,7 @@ export class CompanionService {
     emit: (event: StreamEvent) => void,
   ): Promise<Turn> {
     if (this.busy)
-      emit({ type: "status", text: "Finishing the previous thought\u2026" });
+      emit({ type: "status", text: "Finishing the previous thought…" });
     return this.serial(async () => {
       signal.throwIfAborted();
       const c = this.store.companion();
@@ -162,7 +162,7 @@ export class CompanionService {
       const messages = this.prompt(c, input);
       this.store.startTurn(id, input, channel);
       const stream = new ReplyStream();
-      emit({ type: "status", text: `${c.name} is thinking\u2026`, id });
+      emit({ type: "status", text: `${c.name} is thinking…`, id });
       try {
         const reply = await this.provider.chat({
           messages,
@@ -271,7 +271,7 @@ export class CompanionService {
         this.store.saveResearch(r);
       }
       emit({ type: "sources", sources: r.sources });
-      stage("Finding their personality and voice\u2026");
+      stage("Finding their personality and voice…");
       await this.serial(async () => {
         signal.throwIfAborted();
         const perSource = Math.min(
@@ -349,7 +349,7 @@ export class CompanionService {
                 .memories(true)
                 .slice(0, 30)
                 .map((m) => ({ text: m.text, forgotten: !m.active })),
-            )}` ,
+            )}`,
           },
           {
             role: "user",
