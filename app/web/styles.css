@@ -121,8 +121,8 @@ h2 {
   position: relative;
   isolation: isolate;
   background: var(--carbon);
-  min-height: 100dvh;
-  overflow: clip;
+  height: 100dvh;
+  overflow: hidden;
 }
 .scene {
   position: fixed;
@@ -155,12 +155,17 @@ h2 {
   max-width: 1600px;
   margin: 0 auto;
   padding: 0 6vw;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .masthead {
-  min-height: 132px;
+  min-height: 72px;
   display: flex;
   align-items: center;
-  gap: 40px;
+  gap: 28px;
+  flex-shrink: 0;
 }
 .brand-group {
   display: flex;
@@ -207,11 +212,11 @@ h2 {
 .nav-item {
   position: relative;
   min-height: 44px;
-  font: 11px/1.5 var(--mono);
-  letter-spacing: 0.1em;
+  font: 12px/1.4 var(--mono);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
-  padding: 12px 8px;
+  padding: 12px 6px;
 }
 .nav-item:hover,
 .nav-item[aria-current] {
@@ -229,25 +234,29 @@ h2 {
 }
 .main-stage {
   position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 .home-stage.chat-stage {
-  width: min(560px, 52%);
-  min-height: calc(100dvh - 132px);
-  padding: 8vh 0 28px;
+  width: min(640px, 100%);
+  min-height: 0;
+  height: 100%;
+  padding: 12px 0 20px;
   display: flex;
   flex-direction: column;
 }
 .welcome h1 {
   font-family: var(--mono);
   font-weight: 200;
-  font-size: clamp(56px, 5.2vw, 78px);
-  line-height: 1.13;
-  letter-spacing: 0.07em;
+  font-size: clamp(34px, 3.4vw, 48px);
+  line-height: 1.05;
+  letter-spacing: 0.02em;
 }
 .welcome > p {
-  margin-top: 28px;
-  font: 11px/1.8 var(--mono);
-  letter-spacing: 0.22em;
+  margin-top: 14px;
+  font: 12px/1.5 var(--mono);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -295,26 +304,33 @@ h2 {
   border-radius: 0 14px 14px 0;
 }
 .home-stage .composer {
-  margin-top: 56px;
+  margin-top: 22px;
 }
 .home-actions {
-  margin-top: 26px;
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 .home-actions > button {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  min-height: 67px;
-  padding: 15px 6px;
-  border-bottom: 1px solid var(--rule);
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
   text-align: left;
-  font: 11px/1.6 var(--mono);
-  letter-spacing: 0.18em;
+  font: 12px/1.4 var(--mono);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 .home-actions > button:last-of-type {
-  border-bottom: 0;
+  border-bottom: 1px solid var(--rule);
+}
+.home-actions > .continue-chat {
+  grid-column: 1 / -1;
 }
 .home-actions > button:hover {
   background: #e9e8e208;
@@ -355,8 +371,8 @@ h2 {
 }
 .chat-stage:not(.home-stage) {
   max-width: 800px;
-  height: calc(100dvh - 132px);
-  min-height: 350px;
+  height: 100%;
+  min-height: 0;
   margin: auto;
   display: flex;
   flex-direction: column;
@@ -447,7 +463,40 @@ h2 {
   min-height: 44px;
 }
 .document-stage {
-  padding-bottom: 80px;
+  height: 100%;
+  overflow: auto;
+  padding-bottom: 32px;
+}
+.section-nav {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding: 8px 0 12px;
+  background: #090a09f2;
+}
+.section-nav a {
+  font: 12px/1.3 var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+}
+.section-nav a:hover {
+  color: var(--ink);
+}
+.welcome > p.last-outreach {
+  margin-top: 18px;
+  max-width: 42ch;
+  font: 15px/1.55 var(--sans, inherit);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
 }
 .muted {
   color: var(--muted);
@@ -459,17 +508,23 @@ h2 {
 }
 @media (min-width: 761px) and (max-height: 850px) {
   .home-stage.chat-stage {
-    padding-top: 25px;
+    padding-top: 4px;
   }
   .welcome h1 {
-    font-size: 60px;
+    font-size: 34px;
+  }
+  .welcome > p {
+    margin-top: 8px;
   }
   .home-stage .composer {
-    margin-top: 38px;
+    margin-top: 14px;
   }
   .home-actions > button {
-    min-height: 58px;
-    padding-block: 10px;
+    min-height: 48px;
+    padding-block: 8px;
+  }
+  .session-note {
+    padding-top: 12px;
   }
 }
 @media (max-width: 760px) {
@@ -537,22 +592,28 @@ h2 {
   }
   .home-stage.chat-stage {
     width: 100%;
-    min-height: calc(100dvh - 74px);
-    padding: 130px 0 72px;
+    min-height: 0;
+    height: 100%;
+    padding: 16px 0 88px;
   }
   .welcome h1 {
-    font-size: 43px;
+    font-size: 36px;
     letter-spacing: 0.045em;
     line-height: 1.06;
   }
   .welcome > p {
-    margin: 24px 4px 0;
-    font-size: 10px;
-    line-height: 1.8;
-    letter-spacing: 0.19em;
+    margin: 8px 0 0;
+    font-size: 11px;
+    line-height: 1.5;
+    letter-spacing: 0.08em;
+  }
+  .welcome > p.last-outreach {
+    letter-spacing: 0;
+    text-transform: none;
+    font-size: 15px;
   }
   .home-stage .composer {
-    margin-top: 58px;
+    margin-top: 14px;
   }
   .composer {
     min-height: 53px;
@@ -568,12 +629,17 @@ h2 {
     height: 38px;
   }
   .home-actions {
-    margin-top: 14px;
+    margin-top: 12px;
+    grid-template-columns: 1fr;
+    gap: 0;
   }
   .home-actions > button {
-    min-height: 55px;
-    padding: 11px 6px;
-    font-size: 10px;
+    min-height: 52px;
+    padding: 8px 4px;
+    font-size: 12px;
+    border: 0;
+    border-bottom: 1px solid var(--rule);
+    border-radius: 0;
   }
   .home-actions small {
     font-size: 11px;
@@ -587,8 +653,8 @@ h2 {
     min-height: 40px;
   }
   .chat-stage:not(.home-stage) {
-    height: calc(100dvh - 74px);
-    min-height: 340px;
+    height: 100%;
+    min-height: 0;
     padding-bottom: max(18px, env(safe-area-inset-bottom));
   }
   .in-conversation .main-nav {
