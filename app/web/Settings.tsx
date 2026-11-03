@@ -93,6 +93,15 @@ export function Settings({
       </header>
       {error && <Notice error>{error}</Notice>}
       {saved && <Notice>{saved}</Notice>}
+      <nav className="section-nav" aria-label="On this page">
+        <a href="#engine">Engine</a>
+        <a href="#research">Research</a>
+        <a href="#telegram">Telegram</a>
+        <a href="#presence">Presence</a>
+        <a href="#copies">Copies</a>
+        <a href="#updates-title">Updates</a>
+        <a href="#data-controls-title">Data</a>
+      </nav>
       <fieldset className="settings-fields" disabled={deleting}>
         <form
           onSubmit={(e) => {
@@ -113,7 +122,7 @@ export function Settings({
           }}
         >
           <fieldset className="settings-fields" disabled={updating}>
-            <section className="settings-section">
+            <section className="settings-section" id="engine">
               <h2>The engine</h2>
               <p className="section-description">
                 Choose a model available through Ollama. Local models run on
@@ -200,7 +209,7 @@ export function Settings({
                 </Field>
               </details>
             </section>
-            <section className="settings-section">
+            <section className="settings-section" id="research">
               <h2>Character research</h2>
               <p className="section-description">
                 Search and fetch public sources through Ollama. Only the
@@ -243,7 +252,7 @@ export function Settings({
                 </button>
               )}
             </section>
-            <section className="settings-section">
+            <section className="settings-section" id="telegram">
               <h2>Take this to Telegram.</h2>
               <p className="section-description">
                 Create a bot with BotFather, paste its token, and save. Pair
@@ -332,8 +341,9 @@ export function Settings({
                 </div>
               )}
               <p className="helper">
-                This alpha supports private text conversations. Photos, voice,
-                and proactive messages are not enabled.
+                This alpha supports private text conversations. Photos and voice
+                are not enabled. Unprompted messages stay off until you allow
+                them under Their foundation.
               </p>
             </section>
             <div className="form-actions">
@@ -364,7 +374,7 @@ export function Settings({
         />
         {state.companion && (
           <>
-            <section className="settings-section">
+            <section className="settings-section" id="presence">
               <h2>Their foundation</h2>
               <p className="section-description">
                 Edit {state.companion.name}’s identity and your relationship.
@@ -390,8 +400,25 @@ export function Settings({
                 Allow a quiet daily reflection after 9pm while GlasHaus is
                 running
               </label>
+              <label className="check-line">
+                <input
+                  type="checkbox"
+                  checked={state.settings.outreachEnabled}
+                  disabled={!!busy}
+                  onChange={(e) =>
+                    void run("outreach", async () => {
+                      await api("/settings", {
+                        outreachEnabled: e.target.checked,
+                      });
+                    })
+                  }
+                />{" "}
+                Allow a rare unprompted message, at most{" "}
+                {state.settings.maxOutreachPerDay} a day, and not between{" "}
+                {state.settings.quietStart}:00 and {state.settings.quietEnd}:00
+              </label>
             </section>
-            <section className="settings-section">
+            <section className="settings-section" id="copies">
               <h2>Keep a copy.</h2>
               <p className="section-description">
                 Export identity, conversations, memories, and reflections.
