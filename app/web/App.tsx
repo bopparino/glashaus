@@ -276,6 +276,9 @@ export default function App() {
                     <br />
                     Brighter days.
                   </p>
+                  {state.lastOutreach && (
+                    <p className="last-outreach">{state.lastOutreach.content}</p>
+                  )}
                 </section>
               ) : (
                 <section
