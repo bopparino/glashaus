@@ -6,6 +6,7 @@ import type { Companion, StreamEvent } from "../shared/types.ts";
 import { CompanionService } from "./companion.ts";
 import { Store } from "./store.ts";
 import { Ollama } from "./ollama.ts";
+import { XaiProvider } from "./xai.ts";
 import type { ModelProvider } from "./ollama.ts";
 import { Telegram } from "./telegram.ts";
 import type { StartupControl } from "./startup.ts";
@@ -42,7 +43,11 @@ export function createApp(options: {
   activation?: { id: string; ready: () => boolean };
 }) {
   const store = new Store(options.directory);
-  const provider = options.provider ?? new Ollama(() => store.settings());
+  const provider =
+    options.provider ??
+    (process.env.XAI_API_KEY
+      ? new XaiProvider(() => store.settings())
+      : new Ollama(() => store.settings()));
   const service = new CompanionService(store, provider);
   const telegram = new Telegram(store, service);
   let csrfToken = randomBytes(32).toString("hex");
@@ -280,6 +285,15 @@ export function createApp(options: {
             version: VERSION,
             background: service.background,
             telegram: telegram.status,
+            self: (() => {
+              try {
+                const raw = store.meta("self");
+                return raw ? JSON.parse(raw) : null;
+              } catch {
+                return null;
+              }
+            })(),
+            lastOutreach: store.lastOutreach(),
           });
         if (route === "GET /api/models")
           return json(await provider.models(controller.signal));
