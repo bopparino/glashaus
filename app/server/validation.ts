@@ -1,3 +1,4 @@
+import { PERSONA_PROMPT_LIMIT } from "../shared/types.ts";
 import type {
   Character,
   Companion,
@@ -9,6 +10,11 @@ export class AppError extends Error {
   constructor(message: string, status = 400) {
     super(message);
     this.status = status;
+  }
+}
+export class ModelUnavailable extends AppError {
+  constructor(message: string) {
+    super(message, 503);
   }
 }
 export function record(value: unknown): Record<string, unknown> {
@@ -46,7 +52,7 @@ export function publicUrl(value: unknown): string {
 }
 export function character(value: unknown): Character {
   const v = record(value);
-  if (!["character", "authored", "grow"].includes(String(v.mode)))
+  if (!["character", "authored", "grow", "prompt"].includes(String(v.mode)))
     throw new AppError("Choose how your companion begins.");
   const sources: Source[] = (
     Array.isArray(v.sources) ? v.sources.slice(0, 12) : []
@@ -66,6 +72,16 @@ export function character(value: unknown): Character {
     pronouns: text(v.pronouns, "Pronouns", 60),
     mode: v.mode as Character["mode"],
     work: text(v.work, "Source work", 200),
+    ...(v.mode === "prompt"
+      ? {
+          personaPrompt: text(
+            v.personaPrompt,
+            "Companion prompt",
+            PERSONA_PROMPT_LIMIT,
+            v.mode === "prompt",
+          ),
+        }
+      : {}),
     summary: text(v.summary, "Summary", 2000),
     personality: text(v.personality, "Personality", 8000),
     voice: text(v.voice, "Voice", 5000),
@@ -98,14 +114,26 @@ export function companionInput(
   return {
     ...character(v),
     userName: text(v.userName, "Your name", 100, true),
-    relationship: text(v.relationship, "Relationship", 6000, true),
+    relationship: text(
+      v.relationship,
+      "Relationship",
+      6000,
+      v.mode !== "prompt",
+    ),
   };
 }
 export function settingsInput(value: unknown, current: Settings): Settings {
   const v = record(value);
   const next = { ...current };
+  if ("provider" in v) {
+    if (v.provider !== "grok" && v.provider !== "ollama")
+      throw new AppError("Choose Ollama or Grok.");
+    next.provider = v.provider;
+  }
   for (const key of [
     "model",
+    "grokModel",
+    "grokApiKey",
     "utilityModel",
     "ollamaApiKey",
     "telegramToken",

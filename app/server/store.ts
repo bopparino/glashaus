@@ -20,6 +20,11 @@ import {
   text,
 } from "./validation.ts";
 
+const RECALL_STOP_WORDS = new Set(
+  "about after all also am an and are as at be been but by can could did do does for from had has have here how if in is it just me my of on or our remember said so some tell than that the their them then there these they this to too up us was we were what when where which who will with would you your".split(
+    " ",
+  ),
+);
 const APP_ID = 1196179763;
 const iso = () => new Date().toISOString();
 const hash = (s: string) =>
@@ -63,7 +68,7 @@ export class Store {
     const version = Number(
       this.db.prepare("PRAGMA user_version").get()?.user_version ?? 0,
     );
-    if (version > 2) {
+    if (version > 3) {
       this.db.close();
       throw new AppError(
         "This companion was saved by a newer GlasHaus. Update the app before opening it.",
@@ -92,12 +97,34 @@ export class Store {
       CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, type TEXT NOT NULL, payload TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0, error TEXT NOT NULL DEFAULT '', createdAt TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS imports (id TEXT PRIMARY KEY, format TEXT NOT NULL, original TEXT NOT NULL, createdAt TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS telegram_inbox (id INTEGER PRIMARY KEY, data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS outreach (id TEXT PRIMARY KEY, content TEXT NOT NULL, status TEXT NOT NULL, createdAt TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS turns_time ON turns(createdAt);
       CREATE INDEX IF NOT EXISTS memories_active ON memories(active, kind);
-      PRAGMA application_id=${APP_ID}; PRAGMA user_version=2;`);
+      PRAGMA application_id=${APP_ID};`);
+    if (version < 3)
+      this.transaction(() => {
+        this.db.exec(`
+        ALTER TABLE jobs ADD COLUMN availableAt INTEGER NOT NULL DEFAULT 0;
+        CREATE VIRTUAL TABLE memory_search USING fts5(text, evidence, tokenize='porter unicode61 remove_diacritics 2');
+        INSERT INTO memory_search(rowid,text,evidence)
+          SELECT rowid,text,evidence FROM memories WHERE active=1;
+        CREATE TRIGGER memory_search_insert AFTER INSERT ON memories WHEN new.active=1 BEGIN
+          INSERT INTO memory_search(rowid,text,evidence) VALUES (new.rowid,new.text,new.evidence);
+        END;
+        CREATE TRIGGER memory_search_update AFTER UPDATE ON memories BEGIN
+          DELETE FROM memory_search WHERE rowid=old.rowid;
+          INSERT INTO memory_search(rowid,text,evidence)
+            SELECT new.rowid,new.text,new.evidence WHERE new.active=1;
+        END;
+        CREATE TRIGGER memory_search_delete AFTER DELETE ON memories BEGIN
+          DELETE FROM memory_search WHERE rowid=old.rowid;
+        END;
+        PRAGMA user_version=3;
+      `);
+      });
     this.db.exec(
-      "UPDATE turns SET status='interrupted', error='The app restarted before this reply finished.' WHERE status='running'; UPDATE jobs SET status='pending' WHERE status='running';",
+      "UPDATE turns SET status='interrupted', error='The app restarted before this reply finished.' WHERE status='running'; UPDATE jobs SET status='pending',attempts=MAX(0,attempts-1) WHERE status='running';",
     );
     for (const r of this.research())
       if (r.status === "running")
@@ -134,9 +161,11 @@ export class Store {
     };
   }
   publicSettings(): PublicSettings {
-    const { ollamaApiKey, telegramToken, ...settings } = this.settings();
+    const { ollamaApiKey, grokApiKey, telegramToken, ...settings } =
+      this.settings();
     return {
       ...settings,
+      hasGrokKey: Boolean(grokApiKey),
       hasSearchKey: Boolean(ollamaApiKey),
       hasTelegramToken: Boolean(telegramToken),
     };
@@ -161,6 +190,7 @@ export class Store {
         "memories",
         "reflections",
         "jobs",
+        "telegram_inbox",
         "outreach",
         "research",
         "imports",
@@ -169,11 +199,16 @@ export class Store {
         "companion",
       ])
         this.db.exec(`DELETE FROM ${table}`);
+      this.db.exec(
+        "INSERT INTO memory_search(memory_search) VALUES ('optimize')",
+      );
       if (purge) {
         this.db.exec("DELETE FROM settings; DELETE FROM meta");
       } else {
         // Do not replay already acknowledged Telegram messages into a new home.
-        this.db.exec("DELETE FROM meta WHERE key <> 'telegramOffset'");
+        this.db.exec(
+          "DELETE FROM meta WHERE key NOT IN ('telegramOffset','telegramOffsetAt')",
+        );
       }
     });
     try {
@@ -315,19 +350,26 @@ export class Store {
         stamp,
         stamp,
       );
-    return result.changes ? this.memories().find((m) => m.id === id)! : null;
+    return result.changes ? this.memory(id)! : null;
+  }
+  private memory(id: string): Memory | undefined {
+    return this.db
+      .prepare(
+        "SELECT id,kind,subject,text,evidence,turnId,active,createdAt,updatedAt FROM memories WHERE id=? AND active=1",
+      )
+      .get(id) as unknown as Memory | undefined;
   }
   replaceMemory(
     input: Pick<Memory, "kind" | "subject" | "text" | "evidence" | "turnId">,
     supersedes: string[] = [],
   ): Memory | null {
     return this.transaction(() => {
-      const requested = this.memories().filter((m) =>
-        supersedes.includes(m.id),
-      );
+      const requested = [...new Set(supersedes)].map((id) => this.memory(id));
+      if (requested.some((m) => !m)) return null;
+      const previousMemories = requested.filter((m) => m !== undefined);
       // A model cannot overwrite a manual correction or a different subject/kind.
       if (
-        requested.some(
+        previousMemories.some(
           (m) =>
             m.kind !== input.kind || m.subject !== input.subject || !m.turnId,
         )
@@ -335,7 +377,7 @@ export class Store {
         return null;
       const next = this.writeMemory(input);
       if (!next) return null;
-      for (const previous of requested) {
+      for (const previous of previousMemories) {
         this.db
           .prepare("UPDATE memories SET active=0,updatedAt=? WHERE id=?")
           .run(iso(), previous.id);
@@ -351,7 +393,7 @@ export class Store {
     });
   }
   editMemory(id: string, content: string) {
-    const m = this.memories().find((m) => m.id === id);
+    const m = this.memory(id);
     if (!m) throw new AppError("That memory was not found.", 404);
     this.transaction(() => {
       const nextFingerprint = `${m.kind}:${m.subject}:${hash(content)}`;
@@ -377,7 +419,7 @@ export class Store {
     });
   }
   forgetMemory(id: string) {
-    const m = this.memories().find((m) => m.id === id);
+    const m = this.memory(id);
     if (!m) throw new AppError("That memory was not found.", 404);
     this.transaction(() => {
       this.db
@@ -390,22 +432,39 @@ export class Store {
     });
   }
   recall(query: string, limit = 12): Memory[] {
-    const terms = new Set(
-      query.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) ?? [],
-    );
-    return this.memories()
-      .map((m) => ({
-        m,
-        score:
-          [...terms].filter((t) => m.text.toLowerCase().includes(t)).length +
-          (m.subject === "relationship" ? 0.3 : 0),
-      }))
-      .sort(
-        (a, b) =>
-          b.score - a.score || b.m.updatedAt.localeCompare(a.m.updatedAt),
+    const terms = [
+      ...new Set(query.toLowerCase().match(/[\p{L}\p{N}]{2,}/gu) ?? []),
+    ]
+      .filter((term) => !RECALL_STOP_WORDS.has(term))
+      .slice(0, 60);
+    if (!terms.length) return [];
+    // Search only active memories and rank rare terms ahead of generic matches.
+    return this.db
+      .prepare(
+        `
+      SELECT m.id,m.kind,m.subject,m.text,m.evidence,m.turnId,m.active,m.createdAt,m.updatedAt
+      FROM memory_search JOIN memories m ON m.rowid=memory_search.rowid
+      WHERE memory_search MATCH ?
+        AND NOT EXISTS (SELECT 1 FROM blocked_turns b WHERE b.turnId=m.turnId)
+      ORDER BY bm25(memory_search, 2, 1), m.updatedAt DESC, m.rowid DESC LIMIT ?
+    `,
       )
-      .slice(0, limit)
-      .map((x) => x.m);
+      .all(
+        terms.map((term) => `"${term}"`).join(" OR "),
+        limit,
+      ) as unknown as Memory[];
+  }
+  recentMemories(subject: Memory["subject"], limit = 6): Memory[] {
+    return this.db
+      .prepare(
+        `
+      SELECT id,kind,subject,text,evidence,turnId,active,createdAt,updatedAt
+      FROM memories m WHERE active=1 AND subject=?
+        AND NOT EXISTS (SELECT 1 FROM blocked_turns b WHERE b.turnId=m.turnId)
+      ORDER BY updatedAt DESC, rowid DESC LIMIT ?
+    `,
+      )
+      .all(subject, limit) as unknown as Memory[];
   }
   blockedTurn(id: string) {
     return Boolean(
@@ -461,9 +520,9 @@ export class Store {
   } | null {
     const row = this.db
       .prepare(
-        "SELECT * FROM jobs WHERE status='pending' AND attempts<3 ORDER BY createdAt LIMIT 1",
+        "SELECT * FROM jobs WHERE status='pending' AND availableAt<=? ORDER BY availableAt,createdAt,rowid LIMIT 1",
       )
-      .get();
+      .get(Date.now());
     return (row as unknown as ReturnType<Store["nextJob"]>) ?? null;
   }
   jobStatus(id: string, status: string, error = "") {
@@ -473,12 +532,52 @@ export class Store {
       )
       .run(status, error, status, id);
   }
+  retryMemoryJobs() {
+    this.db.exec(
+      "UPDATE jobs SET availableAt=0,attempts=0,status='pending' WHERE type='capture' AND (status='failed' OR (status='pending' AND availableAt>0))",
+    );
+  }
+  retryJob(id: string, error: string, delay: number) {
+    this.db
+      .prepare(
+        "UPDATE jobs SET status='pending',error=?,availableAt=? WHERE id=?",
+      )
+      .run(error, Date.now() + delay, id);
+  }
   deferJob(id: string) {
     this.db
       .prepare(
         "UPDATE jobs SET status='pending', attempts=MAX(0,attempts-1),error='' WHERE id=?",
       )
       .run(id);
+  }
+  queueTelegramUpdates(updates: { update_id: number }[]) {
+    const insert = this.db.prepare(
+      "INSERT OR IGNORE INTO telegram_inbox VALUES (?,?)",
+    );
+    this.transaction(() => {
+      for (const update of updates)
+        insert.run(update.update_id, JSON.stringify(update));
+    });
+  }
+  pendingTelegramUpdate(): string | null {
+    const row = this.db
+      .prepare("SELECT data FROM telegram_inbox ORDER BY id LIMIT 1")
+      .get();
+    return row ? String(row.data) : null;
+  }
+  acknowledgeTelegramUpdate(id: number) {
+    this.transaction(() => {
+      this.db.prepare("DELETE FROM telegram_inbox WHERE id=?").run(id);
+      const offset = Number(this.meta("telegramOffset") ?? 0);
+      this.setMeta("telegramOffset", String(Math.max(offset, id + 1)));
+      this.setMeta("telegramOffsetAt", String(Date.now()));
+    });
+  }
+  resetTelegramQueue() {
+    this.db.exec(
+      "DELETE FROM telegram_inbox; DELETE FROM meta WHERE key IN ('telegramOffset','telegramOffsetAt') OR key LIKE 'telegramDelivery:%'",
+    );
   }
   meta(key: string): string | null {
     const row = this.db.prepare("SELECT value FROM meta WHERE key=?").get(key);

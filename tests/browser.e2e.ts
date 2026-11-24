@@ -42,7 +42,7 @@ class BrowserModel implements ModelProvider {
           ],
           uncertainties: [],
         })
-      : system.includes("Extract at most")
+      : system.includes("Select up to 3 lasting details")
         ? JSON.stringify({ memories: [], opinions: [] })
         : system.includes("journal entry")
           ? "There was something good about returning to an unfinished idea. I am curious what we will make of it."
@@ -128,6 +128,11 @@ async function capture(name: string, width = 1536, height = 1024) {
 try {
   await page.goto(`http://127.0.0.1:${address.port}`);
   await page
+    .getByRole("heading", { name: "GlasHaus is for adults." })
+    .waitFor();
+  await page.getByRole("checkbox", { name: "I am 18 or older." }).check();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page
     .getByRole("heading", { name: "A beginning, not a template." })
     .waitFor();
   await capture("setup-desktop");
@@ -136,6 +141,11 @@ try {
   await page
     .getByRole("button", { name: "Open settings", exact: true })
     .click();
+  await page.getByLabel("Model provider").selectOption("grok");
+  await page.getByLabel("Grok model").fill("synthetic-grok");
+  await capture("grok-settings-desktop", 1440, 1024);
+  await capture("grok-settings-mobile", 390, 844);
+  await page.getByLabel("Model provider").selectOption("ollama");
   await page.getByLabel("Conversation model").fill("test-model");
   await page.getByLabel("Ollama API key").fill("test-key-not-real");
   await page
@@ -145,6 +155,15 @@ try {
   await page
     .getByRole("button", { name: "Back to setup", exact: true })
     .click();
+  await page.getByRole("button", { name: "Let’s begin", exact: true }).click();
+  await page
+    .getByRole("heading", { name: "Give them a starting point." })
+    .waitFor();
+  await page.getByLabel("Companion prompt").fill("Warm, candid, and curious.");
+  await capture("prompt-setup-desktop", 1440, 1024);
+  await capture("prompt-setup-mobile", 390, 844);
+  await page.getByRole("button", { name: "Other ways to begin" }).click();
+  await page.getByText("Someone you know", { exact: true }).click();
   await page.getByRole("button", { name: "Let’s begin", exact: true }).click();
   await page.getByLabel("Their name", { exact: true }).fill("Mira");
   await page.getByLabel("Where are they from?").fill("Example novel");
@@ -543,11 +562,30 @@ try {
     .getByRole("button", { name: "Purge this home", exact: true })
     .click();
   await page
-    .getByRole("heading", { name: "A beginning, not a template." })
+    .getByRole("heading", { name: "GlasHaus is for adults." })
     .waitFor();
   assert.equal(app.store.settings().model, "");
   assert.equal(app.store.settings().ollamaApiKey, "");
+  await page.getByRole("checkbox", { name: "I am 18 or older." }).check();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page
+    .getByRole("heading", { name: "A beginning, not a template." })
+    .waitFor();
   await capture("purge-complete-mobile", 390, 844);
+  await page.getByRole("button", { name: "Let’s begin", exact: true }).click();
+  await page.getByLabel("Companion name").fill("Nova");
+  await page.getByLabel("What should they call you?").fill("Ash");
+  await page
+    .getByLabel("Companion prompt")
+    .fill("Speak plainly and stay curious.");
+  await page
+    .getByRole("button", { name: "Create companion", exact: true })
+    .click();
+  await page.getByLabel("Companion prompt").waitFor({ state: "hidden" });
+  assert.equal(
+    app.store.companion()?.personaPrompt,
+    "Speak plainly and stay curious.",
+  );
   assert.deepEqual(errors, []);
   console.log(
     "PASS: setup, research, chat, memory, journal, updates, typed deletion/cancel/focus, save-first and pending guards, delete/recreate readiness, and full purge. Desktop and mobile captures have no horizontal overflow or browser errors. Provider is a deterministic test double, not live Ollama.",

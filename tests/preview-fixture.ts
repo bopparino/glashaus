@@ -15,7 +15,7 @@ const provider: ModelProvider = {
   },
   async chat(options) {
     const system = options.messages[0]?.content || "";
-    const reply = system.includes("Extract at most")
+    const reply = system.includes("Select up to 3 lasting details")
       ? '{"memories":[],"opinions":[]}'
       : "There’s room for that here. Tell me the part you keep coming back to.";
     for (const chunk of reply.match(/.{1,10}/gs) || []) {
@@ -75,7 +75,11 @@ for (const [port, seed] of [
       },
     });
   app = makeApp();
-  app.store.saveSettings({ ...app.store.settings(), model: "demo-model" });
+  app.store.saveSettings({
+    ...app.store.settings(),
+    model: "demo-model",
+    adultConfirmed: seed,
+  });
   if (seed) {
     app.store.saveCompanion(
       companionInput({

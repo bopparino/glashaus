@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { conversationModel, PERSONA_PROMPT_LIMIT } from "../shared/types";
 import type { Character, Companion, State } from "../shared/types";
 import { api, stream } from "./api";
 import { Field, Notice, messageOf } from "./Forms";
@@ -8,7 +9,8 @@ type Draft = Character & Pick<Companion, "userName" | "relationship">;
 const empty: Draft = {
   name: "",
   pronouns: "",
-  mode: "character",
+  mode: "prompt",
+  personaPrompt: "",
   work: "",
   summary: "",
   personality: "",
@@ -82,6 +84,15 @@ export function Setup({
     );
     setStatus("Ready for your review. Make it feel right before you continue.");
   }
+  const hasModel = Boolean(conversationModel(state.settings));
+  async function save() {
+    if (!identitySaved || editing) {
+      await api("/companion", draft, editing ? "PATCH" : "POST");
+      setIdentitySaved(true);
+    }
+    if (!editing && backgroundStartup) await changeStartup(true);
+    await complete();
+  }
   const savedResearch = state.research.find((r) => r.draft || r.sources.length);
   if (identitySaved && !editing)
     return (
@@ -119,6 +130,89 @@ export function Setup({
             </button>
           </div>
         )}
+      </section>
+    );
+  if (draft.mode === "prompt" && step === 1 && !restore)
+    return (
+      <section className="document setup-page prompt-setup">
+        <header className="page-heading">
+          <h1>
+            {editing ? "Edit companion prompt." : "Give them a starting point."}
+          </h1>
+        </header>
+        {error && <Notice error>{error}</Notice>}
+        {!hasModel && (
+          <Notice>
+            <span>Choose a model to start chatting.</span>
+            <button onClick={settings}>Open settings</button>
+          </Notice>
+        )}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void run("save", save);
+          }}
+        >
+          <div className="field-row">
+            <Field label="Companion name">
+              <input
+                required
+                maxLength={100}
+                value={draft.name}
+                onChange={(e) => patch({ name: e.target.value })}
+              />
+            </Field>
+            <Field label="What should they call you?">
+              <input
+                required
+                maxLength={100}
+                value={draft.userName}
+                onChange={(e) => patch({ userName: e.target.value })}
+              />
+            </Field>
+          </div>
+          <Field
+            label="Companion prompt"
+            hint="Describe their voice, interests, and how you want to relate. GlasHaus sends this prompt with each reply."
+          >
+            <textarea
+              required
+              rows={6}
+              maxLength={PERSONA_PROMPT_LIMIT}
+              value={draft.personaPrompt ?? ""}
+              onChange={(e) => patch({ personaPrompt: e.target.value })}
+            />
+          </Field>
+          <p className="helper">
+            {(draft.personaPrompt?.length ?? 0).toLocaleString()} /{" "}
+            {PERSONA_PROMPT_LIMIT.toLocaleString()} characters
+          </p>
+          {!editing && (
+            <details>
+              <summary>Background startup</summary>
+              <StartupChoice
+                checked={backgroundStartup}
+                onChange={setBackgroundStartup}
+                disabled={!!busy}
+              />
+            </details>
+          )}
+          <div className="form-actions">
+            <button className="button primary" disabled={!!busy}>
+              {editing ? "Save changes" : "Create companion"}
+            </button>
+            {!editing && (
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => setStep(0)}
+                disabled={!!busy}
+              >
+                Other ways to begin
+              </button>
+            )}
+          </div>
+        </form>
       </section>
     );
   return (
@@ -161,11 +255,9 @@ export function Setup({
         ))}
       </ol>
       {error && <Notice error>{error}</Notice>}
-      {!state.settings.model && (
+      {!hasModel && (
         <Notice>
-          <span>
-            Connect your Ollama model before researching or previewing.
-          </span>
+          <span>Choose Ollama or Grok before researching or previewing.</span>
           <button onClick={settings}>Open settings</button>
         </Notice>
       )}
@@ -175,6 +267,11 @@ export function Setup({
             <legend className="sr-only">Choose a beginning</legend>
             {(
               [
+                [
+                  "prompt",
+                  "Write a prompt",
+                  "Set their voice and your relationship in one prompt.",
+                ],
                 [
                   "character",
                   "Someone you know",
@@ -278,6 +375,7 @@ export function Setup({
                 patch(
                   savedResearch.draft || {
                     ...empty,
+                    mode: "character",
                     name: savedResearch.name,
                     work: savedResearch.work,
                     sources: savedResearch.sources,
@@ -349,9 +447,7 @@ export function Setup({
                   <button
                     className="button secondary"
                     disabled={
-                      !!busy ||
-                      !state.settings.model ||
-                      !state.settings.hasSearchKey
+                      !!busy || !hasModel || !state.settings.hasSearchKey
                     }
                     type="submit"
                   >
@@ -534,7 +630,7 @@ export function Setup({
           </div>
           <button
             className="button secondary"
-            disabled={!!busy || !state.settings.model}
+            disabled={!!busy || !hasModel}
             onClick={() =>
               void run("preview", async () => {
                 controller.current = new AbortController();
@@ -574,16 +670,7 @@ export function Setup({
             <button
               className="button primary"
               disabled={!!busy}
-              onClick={() =>
-                void run("save", async () => {
-                  if (!identitySaved || editing) {
-                    await api("/companion", draft, editing ? "PATCH" : "POST");
-                    setIdentitySaved(true);
-                  }
-                  if (!editing && backgroundStartup) await changeStartup(true);
-                  await complete();
-                })
-              }
+              onClick={() => void run("save", save)}
             >
               {busy === "save"
                 ? backgroundStartup

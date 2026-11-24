@@ -82,6 +82,9 @@
 .field-row > .field {
   min-width: 0;
 }
+.prompt-setup .field-row > .field {
+  margin-block: 12px;
+}
 .button {
   display: inline-flex;
   align-items: center;
@@ -146,7 +149,8 @@
   padding-top: 0;
   margin-top: 0;
 }
-.settings-section .check-line {
+.settings-section .check-line,
+.setup-page .check-line {
   display: flex;
   align-items: flex-start;
   gap: 12px;

@@ -8,11 +8,11 @@ web
 
 ## Users
 
-The owner is the primary user. Setup, daily conversation, repair, and memory correction should be easy without reading source code. One companion and one person per data directory.
+The owner is the primary user and confirms they are 18 or older before using the companion. Setup, daily conversation, repair, and memory correction should be easy without reading source code. One companion and one person per data directory.
 
 ## Product Purpose
 
-A continuing AI companion on Ollama, with portable identity, memories, opinions, and a user-defined relationship. Samantha from *Her* is the experiential reference, not a promise of consciousness or a requirement for voice.
+A continuing AI companion on Ollama or Grok, with portable identity, memories, opinions, and a user-defined relationship. Samantha from *Her* is the experiential reference, not a promise of consciousness or a requirement for voice.
 
 ## Operating Context
 
@@ -20,10 +20,10 @@ A fresh implementation in the existing bopparino/glashaus repository. Web and a 
 
 ## Capabilities and Constraints
 
-- Creation paths: researched character, authored identity, minimal grow foundation, v3 archive restore, v2 soul capsule import.
+- Creation paths: a single companion prompt up to 4,000 characters, researched character, authored identity, minimal grow foundation, v3 archive restore, and v2 soul capsule import.
 - Character research uses public sources through Ollama web search and web fetch with the owner's API key. Source material is untrusted data. Sourced claims, interpretations, and uncertainty are distinct. The relationship is authored separately.
-- Ollama provides model inference; locally installed and cloud models must be distinguished accurately. SQLite state is stored locally. Telegram and public web research require network services.
-- Conversation, supported memories, stated opinions, and opt-in journal reflections persist. Model behavior and quality vary; persistence does not promise identical behavior across model changes.
+- Ollama and Grok provide inference. Settings identify which provider receives conversation context. SQLite state is stored locally. Telegram, Grok, and public web research require network services.
+- Chat defaults to conversational replies and allows more detail when asked. Conversation, source quotes, stated opinions, manual notes, and opt-in journal reflections persist. Model behavior varies across providers and models.
 - The alpha implements inspect/edit/forget memory controls. Forgetting is not permanent erasure: original conversations and tombstones remain in backups, but the source exchange is excluded from future recall and extraction.
 - Windows, macOS, and Linux one-command installation remains a release requirement. Node 24.14+ in the 24.x line is required. Alpha.3 passed the cross-OS CI matrix and a real Windows network-install check.
 - Alpha.4 adds opt-in background startup in setup/restore and Settings: per-user Task Scheduler on Windows, LaunchAgent on macOS, and systemd user service on Linux. Manual mode stays the default. No automatic privilege elevation, Linux lingering changes, or Ollama service installation. Native service lifecycle tests are a publication gate; developer previews only simulate OS registration.

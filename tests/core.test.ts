@@ -230,7 +230,7 @@ test("replaying a request ID does not generate twice; quoted evidence gates auto
     model.response = JSON.stringify({
       memories: [
         {
-          text: "Loves rainy mornings.",
+          text: "The owner invented rain.",
           subject: "user",
           evidence: "I love rainy mornings.",
         },
@@ -240,7 +240,7 @@ test("replaying a request ID does not generate twice; quoted evidence gates auto
     });
     await service.capture("same", signal);
     assert.equal(store.memories().length, 1);
-    assert.equal(store.memories()[0].text, "Loves rainy mornings.");
+    assert.equal(store.memories()[0].text, "I love rainy mornings.");
   } finally {
     service.stop();
     store.close();
@@ -301,7 +301,10 @@ test("HTTP setup, streaming chat and export work with origin/CSRF checks", async
   mkdirSync(path.join(directory, "assets"));
   writeFileSync(path.join(directory, "index.html"), "GlasHaus test");
   writeFileSync(path.join(directory, "art", "prism.png"), "test asset");
-  writeFileSync(path.join(directory, "assets", "index-abc123.js"), "// fixture");
+  writeFileSync(
+    path.join(directory, "assets", "index-abc123.js"),
+    "// fixture",
+  );
   const app = createApp({
     directory,
     webRoot: directory,
@@ -354,6 +357,15 @@ test("HTTP setup, streaming chat and export work with origin/CSRF checks", async
           ollamaApiKey: "never-return-me",
         })
       ).status,
+      200,
+    );
+    assert.equal((await post("/api/companion", persona())).status, 403);
+    assert.equal(
+      (await post("/api/adult-confirmation", { confirmed: false })).status,
+      400,
+    );
+    assert.equal(
+      (await post("/api/adult-confirmation", { confirmed: true })).status,
       200,
     );
     assert.equal((await post("/api/companion", persona())).status, 200);

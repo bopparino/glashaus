@@ -1,5 +1,5 @@
 import type { Settings, Source } from "../shared/types.ts";
-import { AppError } from "./validation.ts";
+import { AppError, ModelUnavailable } from "./validation.ts";
 export interface Message {
   role: "system" | "user" | "assistant";
   content: string;
@@ -82,9 +82,8 @@ export class Ollama implements ModelProvider {
       });
     } catch (e) {
       if (signal?.aborted) throw signal.reason;
-      throw new AppError(
+      throw new ModelUnavailable(
         "Ollama did not respond. Check that it is running and your model is available.",
-        503,
       );
     }
     if (!response.ok) {
@@ -93,9 +92,13 @@ export class Ollama implements ModelProvider {
           `The selected model is unavailable. Choose an installed model in Settings.`,
           503,
         );
+      if (response.status === 429 || response.status >= 500)
+        throw new ModelUnavailable(
+          `Ollama is temporarily unavailable (HTTP ${response.status}).`,
+        );
       throw new AppError(
         `Ollama could not complete the request (HTTP ${response.status}).`,
-        502,
+        400,
       );
     }
     if (!response.body)
@@ -131,22 +134,32 @@ export class Ollama implements ModelProvider {
       }
       if (event.done) completed = true;
     };
-    for await (const chunk of response.body) {
-      buffer += decoder.decode(chunk, { stream: true });
-      let end: number;
-      while ((end = buffer.indexOf("\n")) >= 0) {
-        consume(buffer.slice(0, end));
-        buffer = buffer.slice(end + 1);
+    try {
+      for await (const chunk of response.body) {
+        buffer += decoder.decode(chunk, { stream: true });
+        let end: number;
+        while ((end = buffer.indexOf("\n")) >= 0) {
+          consume(buffer.slice(0, end));
+          buffer = buffer.slice(end + 1);
+        }
+        if (buffer.length > 2_000_000 || result.length > 100_000)
+          throw new AppError(
+            "The model response exceeded the size limit.",
+            502,
+          );
       }
-      if (buffer.length > 2_000_000 || result.length > 100_000)
-        throw new AppError("The model response exceeded the size limit.", 502);
+    } catch (error) {
+      signal?.throwIfAborted();
+      if (error instanceof AppError) throw error;
+      throw new ModelUnavailable(
+        "The Ollama connection ended before the reply finished.",
+      );
     }
     buffer += decoder.decode();
     if (buffer.trim()) consume(buffer);
     if (!completed)
-      throw new AppError(
+      throw new ModelUnavailable(
         "The model connection ended before the reply finished. Retry to continue.",
-        502,
       );
     if (!result.trim())
       throw new AppError(
