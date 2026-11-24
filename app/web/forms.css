@@ -74,6 +74,12 @@
 .helper {
   margin: 15px 0;
 }
+.model-picker .field {
+  margin-bottom: 0;
+}
+.model-picker select {
+  min-width: 0;
+}
 .field-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

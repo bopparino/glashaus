@@ -72,3 +72,55 @@ test("Grok maps rate limits into retryable model outages", async () => {
   );
   await assert.rejects(() => models.chat({ messages: [] }), ModelUnavailable);
 });
+
+test("model discovery uses draft connections and returns usable IDs from each provider", async () => {
+  const saved = { ...DEFAULT_SETTINGS, grokApiKey: "saved-test-key" };
+  const models = new CompanionModels(
+    () => saved,
+    async (input, options) => {
+      const url = String(input);
+      if (url.endsWith("/v1/language-models")) {
+        assert.equal(options?.redirect, "error");
+        assert.equal(url, "https://api.x.ai/v1/language-models");
+        assert.equal(
+          new Headers(options?.headers).get("Authorization"),
+          "Bearer draft-test-key",
+        );
+        return Response.json({
+          models: [
+            { id: "grok-test", output_modalities: ["text"] },
+            { id: "grok-test", output_modalities: ["text"] },
+            { id: "audio-test", output_modalities: ["audio"] },
+            null,
+          ],
+        });
+      }
+      assert.equal(url, "http://127.0.0.1:11435/api/tags");
+      assert.equal(new Headers(options?.headers).get("Authorization"), null);
+      return Response.json({
+        models: [
+          { name: "test-model:latest", size: 10 },
+          { model: "other-model:7b", size: 20 },
+        ],
+      });
+    },
+  );
+  assert.deepEqual(
+    await models.models(undefined, {
+      ...saved,
+      provider: "grok",
+      grokApiKey: "draft-test-key",
+    }),
+    [{ name: "grok-test", size: 0 }],
+  );
+  assert.deepEqual(
+    await models.models(undefined, {
+      ...saved,
+      ollamaUrl: "http://127.0.0.1:11435",
+    }),
+    [
+      { name: "test-model:latest", size: 10 },
+      { name: "other-model:7b", size: 20 },
+    ],
+  );
+});

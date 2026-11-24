@@ -126,7 +126,12 @@ export async function stageRelease(
   // Only the checksum-verified, fixed repository release is extracted; browser
   // input cannot supply a URL, archive, executable, or destination.
   const exec = promisify(execFile);
-  if (process.platform === "win32")
+  if (process.platform === "win32") {
+    // Windows PowerShell must load its own Archive module even when GlasHaus
+    // was launched from PowerShell 7 with a different module path.
+    const env = { ...process.env };
+    for (const key of Object.keys(env))
+      if (key.toLowerCase() === "psmodulepath") delete env[key];
     await exec(
       "powershell.exe",
       [
@@ -135,9 +140,9 @@ export async function stageRelease(
         "-Command",
         `$ErrorActionPreference='Stop'; Expand-Archive -LiteralPath ${psQuote(zip)} -DestinationPath ${psQuote(candidate)}`,
       ],
-      { windowsHide: true, timeout: 60000 },
+      { env, windowsHide: true, timeout: 60000 },
     );
-  else await exec("unzip", ["-q", zip, "-d", candidate], { timeout: 60000 });
+  } else await exec("unzip", ["-q", zip, "-d", candidate], { timeout: 60000 });
   const pkg = JSON.parse(
     readFileSync(path.join(candidate, "package.json"), "utf8"),
   );

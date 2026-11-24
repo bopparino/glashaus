@@ -359,6 +359,22 @@ test("HTTP setup, streaming chat and export work with origin/CSRF checks", async
       ).status,
       200,
     );
+    const savedConnection = app.store.settings();
+    const draft = { provider: "grok", grokApiKey: "draft-key-never-save" };
+    assert.equal(
+      (
+        await post("/api/models/discover", draft, {
+          "x-glashaus-token": "wrong",
+        })
+      ).status,
+      403,
+    );
+    const discovered = await post("/api/models/discover", draft);
+    assert.equal(discovered.status, 200);
+    assert.deepEqual(await discovered.json(), [
+      { name: "test-model", size: 1000 },
+    ]);
+    assert.deepEqual(app.store.settings(), savedConnection);
     assert.equal((await post("/api/companion", persona())).status, 403);
     assert.equal(
       (await post("/api/adult-confirmation", { confirmed: false })).status,

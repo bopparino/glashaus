@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import type { State } from "../shared/types";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Settings as RuntimeSettings, State } from "../shared/types";
 import { api } from "./api";
 import { Field, Notice, messageOf } from "./Forms";
 import { Icon } from "./Icon";
@@ -7,6 +7,74 @@ import { modelLocation } from "./model-location";
 import { StartupSettings } from "./Startup";
 import { UpdateSettings } from "./Updates";
 import { DataControls } from "./DataControls";
+type ModelRequest = {
+  provider: RuntimeSettings["provider"];
+  ollamaUrl?: string;
+  grokApiKey?: string;
+};
+type ModelDiscovery =
+  | { status: "loading" }
+  | { status: "ready"; names: string[] }
+  | { status: "error"; message: string };
+const emptyModelList: string[] = [];
+
+function ModelPicker({
+  label,
+  value,
+  onChange,
+  names,
+  required = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  names: string[];
+  required?: boolean;
+}) {
+  const [manual, setManual] = useState(false);
+  const unlisted = value && !names.includes(value);
+  return (
+    <div className="model-picker">
+      <Field label={label}>
+        {manual ? (
+          <input
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            required={required}
+            maxLength={500}
+            placeholder="Exact model ID"
+          />
+        ) : (
+          <select
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            required={required}
+          >
+            <option value="">
+              {required ? "Choose a model" : "Use the conversation model"}
+            </option>
+            {unlisted && <option value={value}>{value} (unlisted)</option>}
+            {names.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
+      <button
+        type="button"
+        className="text-button"
+        onClick={() => setManual(!manual)}
+      >
+        {manual
+          ? `Choose ${label.toLowerCase()} from list`
+          : `Enter ${label.toLowerCase()} manually`}
+      </button>
+    </div>
+  );
+}
+
 export function Settings({
   state,
   refresh,
@@ -27,8 +95,8 @@ export function Settings({
   const [context, setContext] = useState(state.settings.contextSize);
   const [searchKey, setSearchKey] = useState("");
   const [botToken, setBotToken] = useState("");
-  const [models, setModels] = useState<{ name: string }[]>([]);
-  const [connection, setConnection] = useState("Not checked");
+  const [discovery, setDiscovery] = useState<ModelDiscovery | null>(null);
+  const discoveryRequest = useRef<AbortController | null>(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
@@ -44,30 +112,73 @@ export function Settings({
     context !== state.settings.contextSize ||
     !!searchKey ||
     !!botToken;
-  useEffect(() => {
-    if (provider !== "ollama") return;
-    let active = true;
-    api<{ name: string }[]>("/models")
-      .then((list) => {
-        if (active) {
-          setModels(list);
-          setConnection(
-            list.length
-              ? `${list.length} models available`
-              : "Connected. No models installed yet.",
-          );
+  const loadModels = useCallback(
+    async (connection: ModelRequest, autoSelect = false) => {
+      discoveryRequest.current?.abort();
+      const request = new AbortController();
+      discoveryRequest.current = request;
+      setDiscovery({ status: "loading" });
+      try {
+        const models = await api<{ name: string }[]>(
+          "/models/discover",
+          connection,
+          "POST",
+          request.signal,
+        );
+        if (request.signal.aborted) return;
+        const names = [...new Set(models.map(({ name }) => name))].sort(
+          (a, b) => a.localeCompare(b, undefined, { numeric: true }),
+        );
+        setDiscovery({ status: "ready", names });
+        if (autoSelect && names.length === 1) {
+          const select =
+            connection.provider === "grok" ? setGrokModel : setModel;
+          select((current) => current || names[0]);
         }
-      })
-      .catch(() => {
-        if (active)
-          setConnection(
-            "Ollama is not reachable. Start Ollama, then test the connection.",
-          );
-      });
-    return () => {
-      active = false;
-    };
-  }, [provider]);
+      } catch (e) {
+        if (!request.signal.aborted)
+          setDiscovery({ status: "error", message: messageOf(e) });
+      }
+    },
+    [],
+  );
+  useEffect(() => {
+    if (
+      (provider === "ollama" && url === state.settings.ollamaUrl) ||
+      (provider === "grok" && !grokKey && state.settings.hasGrokKey)
+    )
+      void loadModels({ provider });
+    return () => discoveryRequest.current?.abort();
+  }, [
+    provider,
+    url,
+    grokKey,
+    state.settings.ollamaUrl,
+    state.settings.hasGrokKey,
+    loadModels,
+  ]);
+
+  function clearDiscovery() {
+    discoveryRequest.current?.abort();
+    setDiscovery(null);
+  }
+  const names =
+    discovery?.status === "ready" ? discovery.names : emptyModelList;
+  const modelSettings = {
+    provider,
+    grokModel,
+    ...(grokKey.trim() ? { grokApiKey: grokKey } : {}),
+    ollamaUrl: url,
+    model,
+    utilityModel: utility,
+    contextSize: context,
+  };
+  const canLoad =
+    provider === "grok"
+      ? Boolean(grokKey.trim() || state.settings.hasGrokKey)
+      : Boolean(url.trim());
+  const canSaveModel =
+    canLoad && Boolean((provider === "grok" ? grokModel : model).trim());
   async function run(name: string, task: () => Promise<void>) {
     setBusy(name);
     setError("");
@@ -83,6 +194,7 @@ export function Settings({
   }
   async function afterCleanup() {
     const next = await api<State>("/state");
+    clearDiscovery();
     setProvider(next.settings.provider);
     setGrokModel(next.settings.grokModel);
     setGrokKey("");
@@ -109,13 +221,7 @@ export function Settings({
             e.preventDefault();
             void run("save", async () => {
               await api("/settings", {
-                provider,
-                grokModel,
-                ...(grokKey ? { grokApiKey: grokKey } : {}),
-                ollamaUrl: url,
-                model,
-                utilityModel: utility,
-                contextSize: context,
+                ...modelSettings,
                 ...(searchKey ? { ollamaApiKey: searchKey } : {}),
                 ...(botToken ? { telegramToken: botToken } : {}),
               });
@@ -128,13 +234,14 @@ export function Settings({
         >
           <fieldset className="settings-fields" disabled={updating}>
             <section className="settings-section">
-              <h2>The engine</h2>
+              <h2>Model connection</h2>
               <Field label="Model provider">
                 <select
                   value={provider}
-                  onChange={(e) =>
-                    setProvider(e.target.value === "grok" ? "grok" : "ollama")
-                  }
+                  onChange={(e) => {
+                    clearDiscovery();
+                    setProvider(e.target.value === "grok" ? "grok" : "ollama");
+                  }}
                 >
                   <option value="ollama">Ollama</option>
                   <option value="grok">Grok (xAI)</option>
@@ -142,38 +249,27 @@ export function Settings({
               </Field>
               {provider === "grok" ? (
                 <>
-                  <p className="section-description">
-                    xAI processes conversation and memory context when Grok is
-                    selected. Your GlasHaus history is stored on this machine.
-                  </p>
-                  <Field
-                    label="Grok model"
-                    hint="Enter a model ID available to your xAI API account."
-                  >
-                    <input
-                      value={grokModel}
-                      onChange={(e) => setGrokModel(e.target.value)}
-                      required
-                      placeholder="Model ID from the xAI console"
-                    />
-                  </Field>
                   <Field
                     label="xAI API key"
                     hint={
                       state.settings.hasGrokKey
-                        ? "A key is saved. Leave blank to keep it."
-                        : "Use a key from the xAI API console."
+                        ? "A key is saved. Enter a new one to replace it."
+                        : "Paste an API key from your xAI console."
                     }
                   >
                     <input
                       type="password"
                       autoComplete="off"
+                      maxLength={500}
                       value={grokKey}
-                      onChange={(e) => setGrokKey(e.target.value)}
                       required={!state.settings.hasGrokKey}
+                      onChange={(e) => {
+                        clearDiscovery();
+                        setGrokKey(e.target.value);
+                      }}
                     />
                   </Field>
-                  {state.settings.hasGrokKey && (
+                  {state.settings.hasGrokKey ? (
                     <button
                       type="button"
                       className="text-button"
@@ -181,6 +277,7 @@ export function Settings({
                       onClick={() =>
                         void run("remove-grok", async () => {
                           await api("/settings", { grokApiKey: "" });
+                          clearDiscovery();
                           setGrokKey("");
                           setSaved("xAI API key removed.");
                         })
@@ -188,91 +285,135 @@ export function Settings({
                     >
                       Remove saved xAI key
                     </button>
+                  ) : (
+                    <a
+                      className="text-button"
+                      href="https://console.x.ai/"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open xAI console
+                    </a>
                   )}
                 </>
               ) : (
-                <>
-                  <Field label="Ollama address">
-                    <input
-                      type="url"
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      required
-                      placeholder="http://127.0.0.1:11434"
-                    />
-                  </Field>
-                  <div className="inline-actions">
-                    <button
-                      className="button secondary"
-                      type="button"
-                      disabled={!!busy}
-                      onClick={() =>
-                        void run("test", async () => {
-                          await api("/settings", { ollamaUrl: url });
-                          const list = await api<{ name: string }[]>("/models");
-                          setModels(list);
-                          setConnection(
-                            list.length
-                              ? `${list.length} models available`
-                              : "Connected. Install a model in Ollama first.",
-                          );
-                          if (!model && list.length) setModel(list[0].name);
-                        })
-                      }
-                    >
-                      {busy === "test" ? "Connecting…" : "Test connection"}
-                    </button>
-                    <span className="helper">{connection}</span>
-                  </div>
+                <Field
+                  label="Ollama address"
+                  hint="Use the default for Ollama running on this computer."
+                >
+                  <input
+                    type="url"
+                    value={url}
+                    required
+                    placeholder="http://127.0.0.1:11434"
+                    onChange={(e) => {
+                      clearDiscovery();
+                      setUrl(e.target.value);
+                    }}
+                  />
+                </Field>
+              )}
+              <div className="inline-actions">
+                <button
+                  className="button secondary"
+                  type="button"
+                  disabled={
+                    !!busy || !canLoad || discovery?.status === "loading"
+                  }
+                  onClick={() =>
+                    void loadModels(
+                      provider === "ollama"
+                        ? { provider, ollamaUrl: url }
+                        : {
+                            provider,
+                            ...(grokKey.trim() ? { grokApiKey: grokKey } : {}),
+                          },
+                      true,
+                    )
+                  }
+                >
+                  {discovery?.status === "loading"
+                    ? "Loading models…"
+                    : discovery?.status === "ready"
+                      ? "Refresh models"
+                      : "Load models"}
+                </button>
+                <span className="helper" role="status">
+                  {discovery?.status === "ready" &&
+                    (names.length
+                      ? `${names.length} ${names.length === 1 ? "model" : "models"} available`
+                      : provider === "ollama"
+                        ? "Connected. Install a model in Ollama, then refresh."
+                        : "No chat models are available to this xAI key.")}
+                </span>
+              </div>
+              {discovery?.status === "error" && (
+                <Notice error>{discovery.message}</Notice>
+              )}
+              <ModelPicker
+                key={provider}
+                label={
+                  provider === "grok" ? "Grok model" : "Conversation model"
+                }
+                value={provider === "grok" ? grokModel : model}
+                onChange={provider === "grok" ? setGrokModel : setModel}
+                names={names}
+                required
+              />
+              <p className="model-location">
+                {provider === "grok"
+                  ? "xAI processes the conversation and memory context. Your GlasHaus history is stored on this machine."
+                  : `${modelLocation(model, url)}. Your GlasHaus history is stored on this machine.`}
+              </p>
+              {provider === "ollama" && (
+                <details>
+                  <summary>Advanced model settings</summary>
+                  <ModelPicker
+                    label="Memory and research model"
+                    value={utility}
+                    onChange={setUtility}
+                    names={names}
+                  />
                   <Field
-                    label="Conversation model"
-                    hint="Use the exact model name from Ollama. Names ending in :cloud use hosted inference. A remote address sends context to that server. Custom aliases may hide cloud routing; check your Ollama configuration."
+                    label="Context size"
+                    hint="Choose a size supported by your model and hardware."
                   >
                     <input
-                      list="ollama-models"
-                      value={model}
-                      onChange={(e) => setModel(e.target.value)}
-                      required
-                      placeholder="Choose or enter a model"
+                      type="number"
+                      min={2048}
+                      max={131072}
+                      step={1}
+                      value={context}
+                      onChange={(e) => setContext(Number(e.target.value))}
                     />
                   </Field>
-                  <datalist id="ollama-models">
-                    {models.map((m) => (
-                      <option key={m.name} value={m.name} />
-                    ))}
-                  </datalist>
-                  <p className="model-location" role="status">
-                    {modelLocation(model, url)}. Your GlasHaus history is stored
-                    on this machine.
-                  </p>
-                  <details>
-                    <summary>Advanced model settings</summary>
-                    <Field
-                      label="Memory and research model"
-                      hint="Leave blank to use the conversation model."
-                    >
-                      <input
-                        list="ollama-models"
-                        value={utility}
-                        onChange={(e) => setUtility(e.target.value)}
-                      />
-                    </Field>
-                    <Field
-                      label="Context size"
-                      hint="Larger contexts use more memory. Must be supported by your model and hardware."
-                    >
-                      <input
-                        type="number"
-                        min={2048}
-                        max={131072}
-                        step={1}
-                        value={context}
-                        onChange={(e) => setContext(Number(e.target.value))}
-                      />
-                    </Field>
-                  </details>
-                </>
+                </details>
               )}
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="button primary"
+                  disabled={!!busy || !canSaveModel}
+                  onClick={() =>
+                    void run("save-model", async () => {
+                      await api("/settings", modelSettings);
+                      setGrokKey("");
+                      setSaved("Model settings saved.");
+                    })
+                  }
+                >
+                  {busy === "save-model" ? "Saving model…" : "Save model"}
+                </button>
+                {!state.companion && (
+                  <button
+                    type="button"
+                    className="button secondary"
+                    onClick={back}
+                  >
+                    Back to setup
+                  </button>
+                )}
+              </div>
             </section>
             <section className="settings-section">
               <h2>Character research</h2>
@@ -419,9 +560,15 @@ export function Settings({
                 {busy === "save" ? "Saving…" : "Save settings"}
                 <Icon name="arrow" />
               </button>
-              <button className="button secondary" type="button" onClick={back}>
-                Back to {state.companion ? "conversation" : "setup"}
-              </button>
+              {state.companion && (
+                <button
+                  className="button secondary"
+                  type="button"
+                  onClick={back}
+                >
+                  Back to conversation
+                </button>
+              )}
             </div>
           </fieldset>
         </form>
