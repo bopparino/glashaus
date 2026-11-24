@@ -5,12 +5,26 @@ import path from "node:path";
 import { chromium } from "playwright";
 import { createApp } from "../app/server/http.ts";
 import { AppError } from "../app/server/validation.ts";
-import type { ChatOptions, ModelProvider } from "../app/server/ollama.ts";
+import type {
+  ChatOptions,
+  ModelConnection,
+  ModelProvider,
+} from "../app/server/ollama.ts";
 import { updateFixture } from "./update-fixture.ts";
 
 class BrowserModel implements ModelProvider {
-  async models() {
-    return [{ name: "test-model", size: 1000 }];
+  async models(_signal?: AbortSignal, connection?: ModelConnection) {
+    if (connection?.provider === "grok") {
+      if (connection.grokApiKey !== "synthetic-xai-key")
+        throw new AppError(
+          "xAI rejected this key. Check the key in your xAI console.",
+        );
+      return [{ name: "synthetic-grok", size: 0 }];
+    }
+    return [
+      { name: "test-model", size: 1000 },
+      { name: "other-test-model", size: 2000 },
+    ];
   }
   async research() {
     return [
@@ -142,12 +156,45 @@ try {
     .getByRole("button", { name: "Open settings", exact: true })
     .click();
   await page.getByLabel("Model provider").selectOption("grok");
-  await page.getByLabel("Grok model").fill("synthetic-grok");
+  await page.getByLabel("xAI API key").fill("bad-synthetic-key");
+  await page.getByRole("button", { name: "Load models", exact: true }).click();
+  await page
+    .getByRole("alert")
+    .filter({ hasText: "xAI rejected this key" })
+    .waitFor();
+  await page.getByLabel("xAI API key").fill("synthetic-xai-key");
+  await page.getByRole("button", { name: "Load models", exact: true }).click();
+  await page.getByText("1 model available", { exact: true }).waitFor();
+  assert.equal(
+    await page.getByLabel("Grok model").inputValue(),
+    "synthetic-grok",
+  );
+  assert.equal(app.store.settings().grokApiKey, "");
   await capture("grok-settings-desktop", 1440, 1024);
   await capture("grok-settings-mobile", 390, 844);
-  await page.getByLabel("Model provider").selectOption("ollama");
-  await page.getByLabel("Conversation model").fill("test-model");
   await page.getByLabel("Ollama API key").fill("test-key-not-real");
+  await page.getByRole("button", { name: "Save model", exact: true }).click();
+  await page.getByText("Model settings saved.", { exact: true }).waitFor();
+  assert.equal(app.store.settings().grokModel, "synthetic-grok");
+  assert.equal(app.store.settings().grokApiKey, "synthetic-xai-key");
+  assert.equal(app.store.settings().ollamaApiKey, "");
+  await page.getByLabel("Model provider").selectOption("ollama");
+  await page.getByLabel("Ollama address").fill("http://127.0.0.1:11437");
+  await page.getByRole("button", { name: "Load models", exact: true }).click();
+  await page.getByText("2 models available", { exact: true }).waitFor();
+  assert.equal(app.store.settings().ollamaUrl, "http://127.0.0.1:11434");
+  await page
+    .getByRole("button", { name: "Enter conversation model manually" })
+    .click();
+  await page.getByLabel("Conversation model").fill("a-custom-model-alias");
+  await page
+    .getByRole("button", { name: "Choose conversation model from list" })
+    .click();
+  assert.equal(
+    await page.getByLabel("Conversation model").inputValue(),
+    "a-custom-model-alias",
+  );
+  await page.getByLabel("Conversation model").selectOption("test-model");
   await page
     .getByRole("button", { name: "Save settings", exact: true })
     .click();
@@ -588,7 +635,7 @@ try {
   );
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: setup, research, chat, memory, journal, updates, typed deletion/cancel/focus, save-first and pending guards, delete/recreate readiness, and full purge. Desktop and mobile captures have no horizontal overflow or browser errors. Provider is a deterministic test double, not live Ollama.",
+    "PASS: setup, provider model selection and save, research, chat, memory, journal, updates, typed deletion/cancel/focus, save-first and pending guards, delete/recreate readiness, and full purge. Desktop and mobile captures have no horizontal overflow or browser errors. Provider is a deterministic test double, not live Ollama.",
   );
 } finally {
   await browser.close();

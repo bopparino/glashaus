@@ -13,8 +13,15 @@ export interface ChatOptions {
   utility?: boolean;
   maxTokens?: number;
 }
+export type ModelConnection = Pick<
+  Settings,
+  "provider" | "ollamaUrl" | "grokApiKey"
+>;
 export interface ModelProvider {
-  models(signal?: AbortSignal): Promise<{ name: string; size: number }[]>;
+  models(
+    signal?: AbortSignal,
+    connection?: ModelConnection,
+  ): Promise<{ name: string; size: number }[]>;
   chat(options: ChatOptions): Promise<string>;
   research(
     name: string,
@@ -31,21 +38,30 @@ export class Ollama implements ModelProvider {
     this.settings = settings;
     this.fetcher = fetcher;
   }
-  async models(signal?: AbortSignal) {
+  async models(
+    signal?: AbortSignal,
+    connection: ModelConnection = this.settings(),
+  ) {
     try {
-      const r = await this.fetcher(`${this.settings().ollamaUrl}/api/tags`, {
+      const r = await this.fetcher(`${connection.ollamaUrl}/api/tags`, {
         signal: combine(signal, 6000),
       });
       if (!r.ok) throw new Error();
       const body = (await r.json()) as {
-        models?: { name: string; size: number }[];
+        models?: Array<{ name?: string; model?: string; size?: number } | null>;
       };
-      return (body.models ?? [])
-        .filter((m) => typeof m.name === "string")
-        .map((m) => ({ name: m.name, size: Number(m.size) || 0 }));
+      if (!Array.isArray(body?.models)) throw new Error();
+      const models = new Map<string, number>();
+      for (const model of body.models) {
+        const name = model?.name || model?.model;
+        if (typeof name === "string" && name.trim())
+          models.set(name, Number(model?.size) || 0);
+      }
+      return [...models].map(([name, size]) => ({ name, size }));
     } catch {
+      signal?.throwIfAborted();
       throw new AppError(
-        "Ollama is not reachable. Start Ollama and check the server address in Settings.",
+        "Ollama is not reachable at this address. Start Ollama and check the address.",
         503,
       );
     }

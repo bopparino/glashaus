@@ -12,7 +12,7 @@ Requires Node **24.14+ (24.x) or 26.x** and either an Ollama model or an xAI API
 node bin/glashaus-v3.js
 ```
 
-Open **http://127.0.0.1:7777** and confirm that you are 18 or older. GlasHaus records your confirmation in this companion home. Existing v3 homes will be asked once after upgrading. In **Settings**, choose Ollama or Grok, then save the model settings. Choose **Write a prompt** to set a companion name, the name they call you, and one prompt of up to 4,000 characters. GlasHaus sends the prompt with each chat turn, alongside its chat rules and relevant context.
+Open **http://127.0.0.1:7777** and confirm that you are 18 or older. GlasHaus records your confirmation in this companion home. Existing v3 homes will be asked once after upgrading. In **Settings → Model connection**, choose Ollama or Grok. For Ollama, keep the default address if it runs locally. For Grok, paste your xAI API key and click **Load models**. Pick a model from the list and click **Save model**. You can enter an exact model ID manually if needed. Choose **Write a prompt** to set a companion name, the name they call you, and one prompt of up to 4,000 characters. GlasHaus sends the prompt with each chat turn, alongside its chat rules and relevant context.
 
 During setup you can choose **Run in the background and start at sign-in**. For manual start, keep the terminal running and use Ctrl+C to stop. Data survives restarts.
 
@@ -24,7 +24,7 @@ The default home is `~/.glashaus-v3` on every OS. `GLASHAUS_HOME` selects anothe
 
 The included installers download the prebuilt `glashaus-v3.zip` asset from a GitHub release. They use your installed Node 24.14+ (24.x) or Node 26.x. Set up Ollama separately if you choose local inference. Sign-in startup is off unless you choose it in setup or Settings.
 
-The commands below install **v3.0.0-alpha.8**. They require its [published release assets](https://github.com/bopparino/glashaus/releases/tag/v3.0.0-alpha.8); a pending or failed release check will not publish an unverified app.
+The commands below install **v3.0.0-alpha.9**. They require its [published release assets](https://github.com/bopparino/glashaus/releases/tag/v3.0.0-alpha.9); a pending or failed release check will not publish an unverified app.
 
 Windows PowerShell:
 

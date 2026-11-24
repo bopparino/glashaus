@@ -312,6 +312,10 @@ export function createApp(options: {
           );
         if (route === "GET /api/models")
           return json(await provider.models(controller.signal));
+        if (route === "POST /api/models/discover") {
+          const draft = settingsInput(await body(req), store.settings());
+          return json(await provider.models(controller.signal, draft));
+        }
         if (route === "POST /api/data/reset") {
           const input = record(await body(req));
           const current = store.companion();
