@@ -18,6 +18,9 @@ export function Settings({
   editIdentity: () => void;
   back: () => void;
 }) {
+  const [provider, setProvider] = useState(state.settings.provider);
+  const [grokModel, setGrokModel] = useState(state.settings.grokModel);
+  const [grokKey, setGrokKey] = useState("");
   const [url, setUrl] = useState(state.settings.ollamaUrl);
   const [model, setModel] = useState(state.settings.model);
   const [utility, setUtility] = useState(state.settings.utilityModel);
@@ -32,6 +35,9 @@ export function Settings({
   const [updating, setUpdating] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const unsaved =
+    provider !== state.settings.provider ||
+    grokModel !== state.settings.grokModel ||
+    !!grokKey ||
     url !== state.settings.ollamaUrl ||
     model !== state.settings.model ||
     utility !== state.settings.utilityModel ||
@@ -39,6 +45,7 @@ export function Settings({
     !!searchKey ||
     !!botToken;
   useEffect(() => {
+    if (provider !== "ollama") return;
     let active = true;
     api<{ name: string }[]>("/models")
       .then((list) => {
@@ -60,7 +67,7 @@ export function Settings({
     return () => {
       active = false;
     };
-  }, []);
+  }, [provider]);
   async function run(name: string, task: () => Promise<void>) {
     setBusy(name);
     setError("");
@@ -76,6 +83,9 @@ export function Settings({
   }
   async function afterCleanup() {
     const next = await api<State>("/state");
+    setProvider(next.settings.provider);
+    setGrokModel(next.settings.grokModel);
+    setGrokKey("");
     setUrl(next.settings.ollamaUrl);
     setModel(next.settings.model);
     setUtility(next.settings.utilityModel);
@@ -99,6 +109,9 @@ export function Settings({
             e.preventDefault();
             void run("save", async () => {
               await api("/settings", {
+                provider,
+                grokModel,
+                ...(grokKey ? { grokApiKey: grokKey } : {}),
                 ollamaUrl: url,
                 model,
                 utilityModel: utility,
@@ -106,6 +119,7 @@ export function Settings({
                 ...(searchKey ? { ollamaApiKey: searchKey } : {}),
                 ...(botToken ? { telegramToken: botToken } : {}),
               });
+              setGrokKey("");
               setSearchKey("");
               setBotToken("");
               setSaved("Settings saved.");
@@ -115,90 +129,150 @@ export function Settings({
           <fieldset className="settings-fields" disabled={updating}>
             <section className="settings-section">
               <h2>The engine</h2>
-              <p className="section-description">
-                Choose a model available through Ollama. Local models run on
-                your Ollama server; cloud models send conversation context to
-                their hosted provider.
-              </p>
-              <Field label="Ollama address">
-                <input
-                  type="url"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  required
-                  placeholder="http://127.0.0.1:11434"
-                />
-              </Field>
-              <div className="inline-actions">
-                <button
-                  className="button secondary"
-                  type="button"
-                  disabled={!!busy}
-                  onClick={() =>
-                    void run("test", async () => {
-                      await api("/settings", { ollamaUrl: url });
-                      const list = await api<{ name: string }[]>("/models");
-                      setModels(list);
-                      setConnection(
-                        list.length
-                          ? `${list.length} models available`
-                          : "Connected. Install a model in Ollama first.",
-                      );
-                      if (!model && list.length) setModel(list[0].name);
-                    })
+              <Field label="Model provider">
+                <select
+                  value={provider}
+                  onChange={(e) =>
+                    setProvider(e.target.value === "grok" ? "grok" : "ollama")
                   }
                 >
-                  {busy === "test" ? "Connecting…" : "Test connection"}
-                </button>
-                <span className="helper">{connection}</span>
-              </div>
-              <Field
-                label="Conversation model"
-                hint="Use the exact model name from Ollama. Names ending in :cloud use hosted inference. A remote address sends context to that server. Custom aliases may hide cloud routing; check your Ollama configuration."
-              >
-                <input
-                  list="ollama-models"
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  required
-                  placeholder="Choose or enter a model"
-                />
+                  <option value="ollama">Ollama</option>
+                  <option value="grok">Grok (xAI)</option>
+                </select>
               </Field>
-              <datalist id="ollama-models">
-                {models.map((m) => (
-                  <option key={m.name} value={m.name} />
-                ))}
-              </datalist>
-              <p className="model-location" role="status">
-                {modelLocation(model, url)}. Your GlasHaus history is stored on
-                this machine.
-              </p>
-              <details>
-                <summary>Advanced model settings</summary>
-                <Field
-                  label="Memory and research model"
-                  hint="Leave blank to use the conversation model."
-                >
-                  <input
-                    list="ollama-models"
-                    value={utility}
-                    onChange={(e) => setUtility(e.target.value)}
-                  />
-                </Field>
-                <Field
-                  label="Context size"
-                  hint="Larger contexts use more memory. Must be supported by your model and hardware."
-                >
-                  <input
-                    type="number"
-                    min={2048}
-                    max={131072}
-                    step={1}
-                    value={context}
-                    onChange={(e) => setContext(Number(e.target.value))}
-                  />
-                </Field>
-              </details>
+              {provider === "grok" ? (
+                <>
+                  <p className="section-description">
+                    xAI processes conversation and memory context when Grok is
+                    selected. Your GlasHaus history is stored on this machine.
+                  </p>
+                  <Field
+                    label="Grok model"
+                    hint="Enter a model ID available to your xAI API account."
+                  >
+                    <input
+                      value={grokModel}
+                      onChange={(e) => setGrokModel(e.target.value)}
+                      required
+                      placeholder="Model ID from the xAI console"
+                    />
+                  </Field>
+                  <Field
+                    label="xAI API key"
+                    hint={
+                      state.settings.hasGrokKey
+                        ? "A key is saved. Leave blank to keep it."
+                        : "Use a key from the xAI API console."
+                    }
+                  >
+                    <input
+                      type="password"
+                      autoComplete="off"
+                      value={grokKey}
+                      onChange={(e) => setGrokKey(e.target.value)}
+                      required={!state.settings.hasGrokKey}
+                    />
+                  </Field>
+                  {state.settings.hasGrokKey && (
+                    <button
+                      type="button"
+                      className="text-button"
+                      disabled={!!busy}
+                      onClick={() =>
+                        void run("remove-grok", async () => {
+                          await api("/settings", { grokApiKey: "" });
+                          setGrokKey("");
+                          setSaved("xAI API key removed.");
+                        })
+                      }
+                    >
+                      Remove saved xAI key
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Field label="Ollama address">
+                    <input
+                      type="url"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      required
+                      placeholder="http://127.0.0.1:11434"
+                    />
+                  </Field>
+                  <div className="inline-actions">
+                    <button
+                      className="button secondary"
+                      type="button"
+                      disabled={!!busy}
+                      onClick={() =>
+                        void run("test", async () => {
+                          await api("/settings", { ollamaUrl: url });
+                          const list = await api<{ name: string }[]>("/models");
+                          setModels(list);
+                          setConnection(
+                            list.length
+                              ? `${list.length} models available`
+                              : "Connected. Install a model in Ollama first.",
+                          );
+                          if (!model && list.length) setModel(list[0].name);
+                        })
+                      }
+                    >
+                      {busy === "test" ? "Connecting…" : "Test connection"}
+                    </button>
+                    <span className="helper">{connection}</span>
+                  </div>
+                  <Field
+                    label="Conversation model"
+                    hint="Use the exact model name from Ollama. Names ending in :cloud use hosted inference. A remote address sends context to that server. Custom aliases may hide cloud routing; check your Ollama configuration."
+                  >
+                    <input
+                      list="ollama-models"
+                      value={model}
+                      onChange={(e) => setModel(e.target.value)}
+                      required
+                      placeholder="Choose or enter a model"
+                    />
+                  </Field>
+                  <datalist id="ollama-models">
+                    {models.map((m) => (
+                      <option key={m.name} value={m.name} />
+                    ))}
+                  </datalist>
+                  <p className="model-location" role="status">
+                    {modelLocation(model, url)}. Your GlasHaus history is stored
+                    on this machine.
+                  </p>
+                  <details>
+                    <summary>Advanced model settings</summary>
+                    <Field
+                      label="Memory and research model"
+                      hint="Leave blank to use the conversation model."
+                    >
+                      <input
+                        list="ollama-models"
+                        value={utility}
+                        onChange={(e) => setUtility(e.target.value)}
+                      />
+                    </Field>
+                    <Field
+                      label="Context size"
+                      hint="Larger contexts use more memory. Must be supported by your model and hardware."
+                    >
+                      <input
+                        type="number"
+                        min={2048}
+                        max={131072}
+                        step={1}
+                        value={context}
+                        onChange={(e) => setContext(Number(e.target.value))}
+                      />
+                    </Field>
+                  </details>
+                </>
+              )}
             </section>
             <section className="settings-section">
               <h2>Character research</h2>

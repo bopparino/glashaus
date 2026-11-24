@@ -47,6 +47,7 @@ const app = createApp({
 });
 app.store.saveSettings({
   ...settings,
+  adultConfirmed: true,
   ollamaApiKey: "",
   reflectionEnabled: false,
   outreachEnabled: false,

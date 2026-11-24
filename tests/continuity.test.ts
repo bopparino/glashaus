@@ -25,6 +25,9 @@ function fixture(store = new Store(":memory:")) {
     research: async () => [],
     chat: async (options) => {
       calls.push(options);
+      if (options.onToken)
+        for (const chunk of response.match(/.{1,13}/gs) ?? [])
+          options.onToken(chunk);
       return response;
     },
   };
@@ -59,7 +62,8 @@ function memory(
     kind,
     subject: kind === "fact" ? "user" : "companion",
     text: content,
-    evidence: content,
+    evidence:
+      kind === "opinion" ? store.turn(id)!.reply : store.turn(id)!.userText,
     turnId: id,
   })!;
 }
@@ -322,13 +326,28 @@ test("schema upgrade is additive and newer archives fail atomically", () => {
   let store = new Store(directory);
   try {
     const c = store.saveCompanion(persona());
-    store.db.exec("PRAGMA user_version=1");
+    store.writeMemory({
+      kind: "fact",
+      subject: "user",
+      text: "My dog is called Hazel.",
+      evidence: "Added by you",
+      turnId: null,
+    });
+    store.db.exec(`
+      DROP TRIGGER memory_search_insert;
+      DROP TRIGGER memory_search_update;
+      DROP TRIGGER memory_search_delete;
+      DROP TABLE memory_search;
+      ALTER TABLE jobs DROP COLUMN availableAt;
+      PRAGMA user_version=2;
+    `);
     store.close();
     store = new Store(directory);
     assert.equal(store.companion()!.id, c.id);
+    assert.match(store.recall("Hazel")[0].text, /Hazel/);
     assert.equal(
       store.db.prepare("PRAGMA user_version").get()!.user_version,
-      2,
+      3,
     );
     const target = new Store(":memory:");
     try {
@@ -343,5 +362,83 @@ test("schema upgrade is additive and newer archives fail atomically", () => {
   } finally {
     store.close();
     rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("a 4000-character prompt survives an archive round-trip and longer replies stream in full", async () => {
+  const input = "Stay curious. ".repeat(300).slice(0, 4000);
+  const source = new Store(":memory:");
+  const restored = new Store(":memory:");
+  try {
+    source.saveCompanion(
+      companionInput({
+        name: "Mira",
+        userName: "Ash",
+        mode: "prompt",
+        personaPrompt: input,
+      }),
+    );
+    assert.throws(
+      () =>
+        companionInput({
+          name: "Mira",
+          userName: "Ash",
+          mode: "prompt",
+          personaPrompt: "x".repeat(4001),
+        }),
+      /4,000/,
+    );
+    restored.importArchive(source.archive());
+    const f = fixture(restored);
+    const reply = Array.from({ length: 45 }, (_, i) => `word${i + 1}`).join(
+      " ",
+    );
+    f.setResponse(reply);
+    const pieces: string[] = [];
+    const result = await f.service.chat(
+      "cap",
+      "Hello again.",
+      "web",
+      signal(),
+      (event) => {
+        if (event.type === "token") pieces.push(event.text!);
+      },
+    );
+    assert(f.calls[0].messages[0].content.includes(input));
+    assert.equal(result.reply, reply);
+    assert.equal(pieces.join(""), result.reply);
+  } finally {
+    source.close();
+    restored.close();
+  }
+});
+
+test("stored evidence keeps surrounding qualifications and old Telegram quotes cannot become user facts", async () => {
+  const f = fixture();
+  try {
+    turn(f.store, "qualified", "I like snow, but only in photographs.");
+    f.setResponse({ memories: [{ evidence: "I like snow" }] });
+    await f.service.capture("qualified", signal());
+    assert.equal(
+      f.store.memories()[0].text,
+      "I like snow, but only in photographs.",
+    );
+    f.store.startTurn(
+      "quoted",
+      "[Replying to: I own a racehorse.]\nGood for you!",
+      "telegram",
+    );
+    f.store.finishTurn("quoted", "That sounds fun.", "complete");
+    f.store.markDelivered("quoted");
+    f.setResponse({ memories: [{ evidence: "I own a racehorse." }] });
+    await f.service.capture("quoted", signal());
+    assert.equal(f.store.memories().length, 1);
+    assert(
+      !JSON.stringify(
+        f.service.prompt(f.store.companion()!, "Tell me about my racehorse."),
+      ).includes("I own a racehorse."),
+    );
+  } finally {
+    f.store.close();
   }
 });

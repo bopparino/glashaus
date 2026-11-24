@@ -81,7 +81,7 @@ export function StartupChoice({
           ? status.managed
             ? "Sign-in startup is already on. You can change it in Settings."
             : "Sign-in startup is already on. Select this to switch this manual session to the background."
-          : "Optional. Close the terminal and keep web and Telegram available while this computer is awake and Ollama is running. You can turn off sign-in startup in Settings."}
+          : "Optional. Close the terminal and keep web and Telegram available while this computer and the selected model are available. You can turn off sign-in startup in Settings."}
       </p>
       <p className="helper">
         {error ||
@@ -134,7 +134,7 @@ export function StartupSettings({ refresh }: { refresh: () => Promise<void> }) {
       <h2>Here when you sign in.</h2>
       <p className="section-description">
         Keep GlasHaus running without a terminal. Web and Telegram still need
-        this computer awake and Ollama available.
+        this computer awake and the selected model available.
       </p>
       {error && <Notice error>{error}</Notice>}
       {message && <Notice>{message}</Notice>}

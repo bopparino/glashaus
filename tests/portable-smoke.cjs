@@ -18,9 +18,10 @@ async function stop() { if (!child || child.exitCode !== null) return; const clo
   try {
     let state = await start(); assert.equal(state.companion,null);
     assert.ok((await (await fetch('http://127.0.0.1:7793/')).text()).includes('GlasHaus'));
-    const draft={name:'Portable test',userName:'Test user',mode:'grow',relationship:'Friendly testing context.',sources:[],claims:[],uncertainties:[]};
+    const adult=await fetch('http://127.0.0.1:7793/api/adult-confirmation',{method:'POST',headers:{'Content-Type':'application/json','x-glashaus-token':state.csrfToken},body:'{"confirmed":true}'});assert.equal(adult.status,200);
+    const draft={name:'Portable test',userName:'Test user',mode:'prompt',personaPrompt:'Friendly testing context.',sources:[],claims:[],uncertainties:[]};
     const response=await fetch('http://127.0.0.1:7793/api/companion',{method:'POST',headers:{'Content-Type':'application/json','x-glashaus-token':state.csrfToken},body:JSON.stringify(draft)});assert.equal(response.status,200);const saved=await response.json();
-    await stop(); state=await start();assert.equal(state.companion.id,saved.id);assert.equal(state.companion.name,'Portable test');
+    await stop(); state=await start();assert.equal(state.companion.id,saved.id);assert.equal(state.companion.name,'Portable test');assert.equal(state.companion.personaPrompt,draft.personaPrompt);assert.equal(state.settings.adultConfirmed,true);
     console.log('PASS: dependency-free portable build serves UI, saves identity, and restores it after a separate-process restart. No model inference or external API called.');
   }finally{await stop();rmSync(data,{recursive:true,force:true});}
 })().catch(error=>{console.error(error);process.exitCode=1;});

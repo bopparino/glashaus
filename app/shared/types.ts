@@ -1,4 +1,5 @@
-export type Mode = "character" | "authored" | "grow";
+export type Mode = "character" | "authored" | "grow" | "prompt";
+export const PERSONA_PROMPT_LIMIT = 4000;
 export interface Source {
   id: string;
   title: string;
@@ -16,6 +17,7 @@ export interface Character {
   pronouns: string;
   mode: Mode;
   work: string;
+  personaPrompt?: string;
   summary: string;
   personality: string;
   voice: string;
@@ -33,6 +35,10 @@ export interface Companion extends Character {
   revision: number;
 }
 export interface Settings {
+  adultConfirmed: boolean;
+  provider: "ollama" | "grok";
+  grokModel: string;
+  grokApiKey: string;
   ollamaUrl: string;
   model: string;
   utilityModel: string;
@@ -48,9 +54,10 @@ export interface Settings {
 }
 export type PublicSettings = Omit<
   Settings,
-  "ollamaApiKey" | "telegramToken"
+  "ollamaApiKey" | "telegramToken" | "grokApiKey"
 > & {
   hasSearchKey: boolean;
+  hasGrokKey: boolean;
   hasTelegramToken: boolean;
 };
 export interface Turn {
@@ -147,6 +154,10 @@ export interface StreamEvent {
   turn?: Turn;
 }
 export const DEFAULT_SETTINGS: Settings = {
+  adultConfirmed: false,
+  provider: "ollama",
+  grokModel: "",
+  grokApiKey: "",
   ollamaUrl: "http://127.0.0.1:11434",
   model: "",
   utilityModel: "",
@@ -160,3 +171,7 @@ export const DEFAULT_SETTINGS: Settings = {
   quietEnd: 8,
   maxOutreachPerDay: 2,
 };
+
+export function conversationModel(settings: Settings | PublicSettings): string {
+  return settings.provider === "grok" ? settings.grokModel : settings.model;
+}

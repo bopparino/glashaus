@@ -5,7 +5,7 @@ import path from "node:path";
 import type { Companion, StreamEvent } from "../shared/types.ts";
 import { CompanionService } from "./companion.ts";
 import { Store } from "./store.ts";
-import { Ollama } from "./ollama.ts";
+import { CompanionModels } from "./grok.ts";
 import type { ModelProvider } from "./ollama.ts";
 import { Telegram } from "./telegram.ts";
 import type { StartupControl } from "./startup.ts";
@@ -42,7 +42,8 @@ export function createApp(options: {
   activation?: { id: string; ready: () => boolean };
 }) {
   const store = new Store(options.directory);
-  const provider = options.provider ?? new Ollama(() => store.settings());
+  const provider =
+    options.provider ?? new CompanionModels(() => store.settings());
   const service = new CompanionService(store, provider);
   const telegram = new Telegram(store, service);
   let csrfToken = randomBytes(32).toString("hex");
@@ -281,6 +282,34 @@ export function createApp(options: {
             background: service.background,
             telegram: telegram.status,
           });
+        if (route === "POST /api/adult-confirmation") {
+          if (record(await body(req)).confirmed !== true)
+            throw new AppError(
+              "Confirm that you are 18 or older to use GlasHaus.",
+            );
+          if (!store.settings().adultConfirmed) {
+            store.saveSettings({ ...store.settings(), adultConfirmed: true });
+            if (options.background !== false) telegram.start();
+          }
+          return json(store.publicSettings());
+        }
+        if (
+          [
+            "POST /api/chat",
+            "POST /api/companion",
+            "PATCH /api/companion",
+            "POST /api/preview",
+            "POST /api/research",
+            "POST /api/reflect",
+            "POST /api/import",
+            "POST /api/telegram/pair",
+          ].includes(route) &&
+          !store.settings().adultConfirmed
+        )
+          throw new AppError(
+            "Confirm that you are 18 or older in the web app first.",
+            403,
+          );
         if (route === "GET /api/models")
           return json(await provider.models(controller.signal));
         if (route === "POST /api/data/reset") {
@@ -359,9 +388,17 @@ export function createApp(options: {
             settings.telegramToken !== old.telegramToken ||
             settings.telegramOwnerId !== old.telegramOwnerId
           ) {
-            if (settings.telegramToken !== old.telegramToken)
-              store.setMeta("telegramOffset", "0");
-            telegram.start();
+            store.resetTelegramQueue();
+            if (options.background !== false) telegram.start();
+          } else if (
+            settings.provider !== old.provider ||
+            settings.model !== old.model ||
+            settings.grokModel !== old.grokModel ||
+            settings.ollamaUrl !== old.ollamaUrl ||
+            settings.grokApiKey !== old.grokApiKey ||
+            settings.utilityModel !== old.utilityModel
+          ) {
+            store.retryMemoryJobs();
           }
           return json(store.publicSettings());
         }

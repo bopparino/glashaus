@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { Store } from "../app/server/store.ts";
 import { CompanionService } from "../app/server/companion.ts";
 import {
@@ -8,7 +11,7 @@ import {
   telegramHtml,
   waitForRetry,
 } from "../app/server/telegram.ts";
-import { companionInput } from "../app/server/validation.ts";
+import { companionInput, ModelUnavailable } from "../app/server/validation.ts";
 import type { ModelProvider } from "../app/server/ollama.ts";
 
 const reply = (result: unknown) => Response.json({ ok: true, result });
@@ -29,21 +32,24 @@ function fixture(
     signal: AbortSignal,
   ) => Promise<Response> | Response,
   wait = waitForRetry,
+  directory = ":memory:",
 ) {
-  const store = new Store(":memory:");
+  const store = new Store(directory);
   store.saveSettings({
     ...store.settings(),
+    adultConfirmed: true,
     telegramToken: "123:synthetic-token",
     model: "test-model",
   });
-  store.saveCompanion(
-    companionInput({
-      name: "Test",
-      mode: "grow",
-      userName: "Visitor",
-      relationship: "Friends",
-    }),
-  );
+  if (!store.companion())
+    store.saveCompanion(
+      companionInput({
+        name: "Test",
+        mode: "grow",
+        userName: "Visitor",
+        relationship: "Friends",
+      }),
+    );
   let modelCalls = 0;
   const provider: ModelProvider = {
     models: async () => [],
@@ -377,6 +383,103 @@ test("shutdown cancels retry sleep and no old poller survives reconnect", async 
     const before = f.calls.length;
     await new Promise((r) => setTimeout(r, 20));
     assert.equal(f.calls.length, before);
+  } finally {
+    await f.close();
+  }
+});
+
+test("Telegram delivers a locally queued message after a model outage and process restart", async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "glashaus-inbox-"));
+  let fetched = false;
+  const first = fixture(
+    (method) => {
+      if (method !== "getUpdates" || fetched) return undefined as any;
+      fetched = true;
+      return reply([
+        {
+          update_id: 123,
+          message: {
+            message_id: 123,
+            text: "Are you there?",
+            from: { id: 42 },
+            chat: { id: 42, type: "private" },
+          },
+        },
+      ]);
+    },
+    waitForRetry,
+    directory,
+  );
+  first.store.saveSettings({
+    ...first.store.settings(),
+    telegramOwnerId: "42",
+  });
+  first.service.provider.chat = async () => {
+    throw new ModelUnavailable("Synthetic resume outage.");
+  };
+  try {
+    try {
+      first.telegram.start();
+      await until(() => first.store.turn("telegram:123")?.status === "failed");
+      assert(first.store.pendingTelegramUpdate()?.includes("Are you there?"));
+    } finally {
+      await first.close();
+    }
+    const second = fixture(undefined, waitForRetry, directory);
+    second.service.provider.chat = async () => "I’m here.";
+    try {
+      second.telegram.start();
+      await until(() => second.store.meta("telegramOffset") === "124");
+      assert.equal(second.store.pendingTelegramUpdate(), null);
+      assert.equal(second.store.turn("telegram:123")?.delivered, 1);
+      assert.deepEqual(
+        second.calls
+          .filter((c) => c.method === "sendMessage")
+          .map((c) => c.body.text),
+        ["I’m here."],
+      );
+    } finally {
+      await second.close();
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("Telegram requires adult confirmation and saves owner notes without inference", async () => {
+  let fetched = false;
+  const f = fixture((method) => {
+    if (method !== "getUpdates" || fetched) return undefined as any;
+    fetched = true;
+    return reply([
+      {
+        update_id: 31,
+        message: {
+          message_id: 31,
+          text: "/note My grandmother's recipe is in the blue book.",
+          from: { id: 42 },
+          chat: { id: 42, type: "private" },
+        },
+      },
+    ]);
+  });
+  try {
+    f.store.saveSettings({
+      ...f.store.settings(),
+      telegramOwnerId: "42",
+      adultConfirmed: false,
+    });
+    f.telegram.start();
+    assert.equal(f.telegram.status.connected, false);
+    assert.equal(f.calls.length, 0);
+    f.store.saveSettings({ ...f.store.settings(), adultConfirmed: true });
+    f.telegram.start();
+    await until(() => f.store.meta("telegramOffset") === "32");
+    assert.equal(f.modelCalls, 0);
+    assert.equal(
+      f.store.recall("recipe")[0].text,
+      "My grandmother's recipe is in the blue book.",
+    );
   } finally {
     await f.close();
   }

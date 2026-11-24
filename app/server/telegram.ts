@@ -1,8 +1,9 @@
 import { randomInt } from "node:crypto";
+import { conversationModel } from "../shared/types.ts";
 import type { StreamEvent } from "../shared/types.ts";
 import { CompanionService } from "./companion.ts";
 import { Store } from "./store.ts";
-import { AppError, errorMessage } from "./validation.ts";
+import { AppError, ModelUnavailable, errorMessage } from "./validation.ts";
 
 export class TelegramError extends AppError {
   code: number;
@@ -63,6 +64,7 @@ export class Telegram {
   } = { connected: false };
   private controller: AbortController | null = null;
   private pairingExpires = 0;
+  private resumeWatch: ReturnType<typeof setInterval> | null = null;
   private revision = 0;
   private task: Promise<void> = Promise.resolve();
   private fetcher: typeof fetch;
@@ -80,6 +82,8 @@ export class Telegram {
   }
   stop() {
     this.revision++;
+    if (this.resumeWatch) clearInterval(this.resumeWatch);
+    this.resumeWatch = null;
     this.controller?.abort();
     this.controller = null;
     this.status.connected = false;
@@ -90,7 +94,8 @@ export class Telegram {
   }
   start() {
     this.stop();
-    if (!this.store.settings().telegramToken) {
+    const settings = this.store.settings();
+    if (!settings.telegramToken || !settings.adultConfirmed) {
       this.status = { connected: false };
       return;
     }
@@ -98,10 +103,19 @@ export class Telegram {
     const signal = this.controller.signal,
       revision = this.revision;
     this.status = { connected: false };
-    if (!this.store.settings().telegramOwnerId) {
+    if (!settings.telegramOwnerId) {
       this.status.pairingCode = String(randomInt(100000, 1000000));
       this.pairingExpires = Date.now() + 15 * 60 * 1000;
     }
+    let lastCheck = Date.now();
+    this.resumeWatch = setInterval(() => {
+      const now = Date.now();
+      // The interval stalls during suspend. Replace any long poll or network
+      // operation using an old connection when the process resumes.
+      if (now - lastCheck > 45_000 && this.status.connected) this.start();
+      lastCheck = now;
+    }, 10_000);
+    this.resumeWatch.unref();
     // Wait for the previous poller to abort before using the same token again.
     this.task = this.task.then(() =>
       signal.aborted ? undefined : this.poll(signal, revision),
@@ -198,7 +212,6 @@ export class Telegram {
           signal,
         );
       }
-      signal?.throwIfAborted();
       if (checkpoint) this.store.setMeta(checkpoint, String(i + 1));
     }
   }
@@ -236,6 +249,7 @@ export class Telegram {
                   description: "Connection and companion status",
                 },
                 { command: "memory", description: "Recent shared memories" },
+                { command: "note", description: "Save a note verbatim" },
               ],
             },
             signal,
@@ -243,6 +257,20 @@ export class Telegram {
           ready = true;
         }
         signal.throwIfAborted();
+        const pending = this.store.pendingTelegramUpdate();
+        if (pending) {
+          const update = JSON.parse(pending) as Update;
+          await this.onUpdate(update, signal);
+          signal.throwIfAborted();
+          this.store.acknowledgeTelegramUpdate(update.update_id);
+          if (revision === this.revision)
+            this.status = { ...this.status, connected: true, error: undefined };
+          failures = 0;
+          continue;
+        }
+        const offsetAt = Number(this.store.meta("telegramOffsetAt") ?? 0);
+        if (Date.now() - offsetAt >= 86_400_000)
+          this.store.setMeta("telegramOffset", "0");
         const offset = Number(this.store.meta("telegramOffset") ?? 0);
         const updates = await this.api<Update[]>(
           "getUpdates",
@@ -250,12 +278,25 @@ export class Telegram {
           signal,
         );
         signal.throwIfAborted();
-        for (const u of updates) {
-          if (signal.aborted) return;
-          await this.onUpdate(u, signal);
-          signal.throwIfAborted();
-          this.store.setMeta("telegramOffset", String(u.update_id + 1));
-        }
+        let owner = this.store.settings().telegramOwnerId;
+        const owned = updates.filter(({ message }) => {
+          if (message?.chat.type !== "private" || !message.from) return false;
+          if (owner) return String(message.from.id) === owner;
+          if (
+            this.status.pairingCode &&
+            Date.now() <= this.pairingExpires &&
+            message.text?.trim() === `/start ${this.status.pairingCode}`
+          ) {
+            owner = String(message.from.id);
+            return true;
+          }
+          return false;
+        });
+        this.store.queueTelegramUpdates(owned);
+        // Acknowledge only after writing the owner's messages to disk.
+        const last = updates.at(-1);
+        if (last && !owned.some((u) => u.update_id === last.update_id))
+          this.store.acknowledgeTelegramUpdate(last.update_id);
         failures = 0;
         if (revision === this.revision)
           this.status = { ...this.status, connected: true, error: undefined };
@@ -264,7 +305,7 @@ export class Telegram {
         if (revision === this.revision)
           this.status = {
             ...this.status,
-            connected: false,
+            connected: e instanceof ModelUnavailable,
             error: errorMessage(e),
           };
         if (e instanceof TelegramError && [401, 403, 409, 400].includes(e.code))
@@ -312,7 +353,7 @@ export class Telegram {
     if (command === "/start" || command === "/status") {
       await this.send(
         message.chat.id,
-        `${this.store.companion()?.name ?? "No companion yet"} · GlasHaus v3\nModel: ${s.model || "Choose one in Settings"}\n${this.service.background}`,
+        `${this.store.companion()?.name ?? "No companion yet"} · GlasHaus v3\nModel: ${conversationModel(s) || "Choose one in Settings"}\n${this.service.background}`,
         signal,
       );
       return;
@@ -351,6 +392,24 @@ export class Telegram {
       message.date < Math.floor(Date.parse(companion.createdAt) / 1000)
     )
       return; // Do not feed a new companion queued messages from before setup.
+    if (command === "/note") {
+      const note = input.slice(input.split(/\s/, 1)[0].length).trim();
+      let confirmation = "Use /note followed by up to 1,500 characters.";
+      if (note && note.length <= 1500) {
+        const saved = this.store.writeMemory({
+          kind: "fact",
+          subject: "user",
+          text: note,
+          evidence: "Added by you",
+          turnId: null,
+        });
+        confirmation = saved
+          ? "Saved that note."
+          : "That wording already exists in your memory records. Review it in the web app.";
+      }
+      await this.send(message.chat.id, confirmation, signal);
+      return;
+    }
     const id = `telegram:${update.update_id}`;
     const existing = this.store.turn(id);
     if (existing?.delivered) return;
@@ -363,7 +422,8 @@ export class Telegram {
       return;
     }
     const quote = message.reply_to_message?.text?.slice(0, 1200);
-    const content = quote ? `[Replying to: ${quote}]\n${input}` : input;
+    // A previously saved turn may have used the older combined format.
+    const content = existing?.userText ?? input;
     let accumulated = "",
       lastDraft = 0;
     let draftSupported = true;
@@ -410,12 +470,17 @@ export class Telegram {
         "telegram",
         signal,
         emit,
+        existing?.userText.startsWith("[Replying to: ") ? undefined : quote,
       );
       await this.send(message.chat.id, turn.reply, signal, id);
       signal.throwIfAborted();
       this.service.delivered(id);
     } catch (e) {
-      if (this.store.turn(id)?.status === "complete") throw e; // Keep the update pending until a completed reply is delivered.
+      if (
+        e instanceof ModelUnavailable ||
+        this.store.turn(id)?.status === "complete"
+      )
+        throw e; // Keep the update pending until a completed reply is delivered.
       if (!signal.aborted)
         await this.send(
           message.chat.id,

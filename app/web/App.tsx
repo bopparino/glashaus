@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { conversationModel } from "../shared/types";
 import type { State, Turn } from "../shared/types";
 import { api, stream } from "./api";
 import { Icon } from "./Icon";
@@ -6,7 +7,7 @@ import { Settings } from "./Settings";
 import { Setup } from "./Setup";
 import { Memory, Becoming } from "./Memory";
 import { Notice, date, messageOf } from "./Forms";
-import { modelLocation } from "./model-location";
+import { inferenceLocation } from "./model-location";
 type Page = "chat" | "memory" | "becoming" | "settings" | "identity";
 export default function App() {
   const [state, setState] = useState<State | null>(null);
@@ -15,6 +16,7 @@ export default function App() {
   const [editingIdentity, setEditingIdentity] = useState(false);
   const [error, setError] = useState("");
   const [text, setText] = useState("");
+  const [confirmingAge, setConfirmingAge] = useState(false);
   const [live, setLive] = useState<Turn | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
@@ -146,6 +148,43 @@ export default function App() {
   const greeting =
     hour < 12 ? "morning." : hour < 18 ? "afternoon." : "evening.";
   const chatting = page === "chat" && !home && !!c;
+  if (state && !state.settings.adultConfirmed)
+    return (
+      <div className="app reading">
+        <div className="shell">
+          <main className="main-stage document-stage">
+            <section className="document setup-page">
+              <header className="page-heading">
+                <h1>GlasHaus is for adults.</h1>
+                <p>Confirm your age to continue to your companion.</p>
+              </header>
+              {error && <Notice error>{error}</Notice>}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setConfirmingAge(true);
+                  setError("");
+                  void api("/adult-confirmation", { confirmed: true })
+                    .then(refresh)
+                    .catch((e) => setError(messageOf(e)))
+                    .finally(() => setConfirmingAge(false));
+                }}
+              >
+                <label className="check-line">
+                  <input type="checkbox" required disabled={confirmingAge} />I
+                  am 18 or older.
+                </label>
+                <div className="form-actions">
+                  <button className="button primary" disabled={confirmingAge}>
+                    {confirmingAge ? "Confirming…" : "Continue"}
+                  </button>
+                </div>
+              </form>
+            </section>
+          </main>
+        </div>
+      </div>
+    );
   return (
     <div
       className={`app ${chatting ? "in-conversation" : ""} ${reading ? "reading" : ""} ${busy ? "is-thinking" : ""}`}
@@ -388,7 +427,9 @@ export default function App() {
                   <button
                     className="send"
                     aria-label="Send message"
-                    disabled={!text.trim() || !state.settings.model}
+                    disabled={
+                      !text.trim() || !conversationModel(state.settings)
+                    }
                   >
                     <Icon name="up" size={25} />
                   </button>
@@ -444,10 +485,7 @@ export default function App() {
                 <span>
                   {busy
                     ? status || "Thinking…"
-                    : modelLocation(
-                        state.settings.model,
-                        state.settings.ollamaUrl,
-                      )}
+                    : inferenceLocation(state.settings)}
                 </span>
                 <span>GlasHaus / v3</span>
               </div>

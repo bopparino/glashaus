@@ -1,18 +1,22 @@
 # GlasHaus v3 · alpha
 
-A local-first home for a continuing AI companion. Built around Ollama, with a new web interface, character research, portable identity, shared Telegram conversations, and memories you can inspect.
+A local-first home for a continuing AI companion. Choose Ollama or Grok for inference. Web and Telegram share one conversation, with portable identity and memories you can inspect.
 
 This is a **fresh alpha**, not a drop-in v2 upgrade. Existing v2 source is preserved in `legacy-v2/`; v3 never opens or changes a v2 database.
 
 ## Start the built app
 
-Requires Node **24.14 or newer within the 24.x line**, and Ollama with a model available. Extract the portable release archive, then:
+Requires Node **24.14 or newer within the 24.x line** and either an Ollama model or an xAI API key and Grok model ID. Extract the portable archive and run:
 
 ```sh
 node bin/glashaus-v3.js
 ```
 
-Open **http://127.0.0.1:7777**. In Settings, check the Ollama address and choose a model. Then create a companion. During setup you can choose **Run in the background and start at sign-in**. Leave it unchecked for manual start: keep the terminal running, and use Ctrl+C to stop. Data survives restarts.
+Open **http://127.0.0.1:7777** and confirm that you are 18 or older. GlasHaus records your confirmation in this companion home. Existing v3 homes will be asked once after upgrading. In **Settings**, choose Ollama or Grok, then save the model settings. Choose **Write a prompt** to set a companion name, the name they call you, and one prompt of up to 4,000 characters. GlasHaus sends the prompt with each chat turn, alongside its chat rules and relevant context.
+
+During setup you can choose **Run in the background and start at sign-in**. For manual start, keep the terminal running and use Ctrl+C to stop. Data survives restarts.
+
+To try a preview alongside an existing installation, choose a separate data directory and port. You can transfer the companion with JSON export and restore.
 
 The default home is `~/.glashaus-v3` on every OS. `GLASHAUS_HOME` selects another home, and `GLASHAUS_PORT` selects another port. One companion per home. The server binds to localhost only; remote web access is not included. Use Telegram when away from the computer.
 
@@ -44,7 +48,17 @@ Choose the optional checkbox at the last setup step, or before selecting a resto
 - **macOS:** a per-user LaunchAgent at sign-in. macOS may show it in Login Items; allow it there if your system blocks it.
 - **Linux:** a `systemd --user` service. A working systemd user session is required. On a headless server, an administrator can separately enable lingering for your account if you want it to run before sign-in or after logout. GlasHaus never changes that setting or runs `sudo` itself.
 
-The computer must stay awake, and Ollama must be available. This does not turn a cloud model into a local model or install an Ollama service. Keep the installed app folder and Node executable in place; the service uses their absolute paths. Each companion home gets its own service name.
+Keep the installed app folder and Node executable in place. The service uses their absolute paths. Each companion home gets its own service name.
+
+### Stay reachable when your PC sleeps
+
+Run GlasHaus on a separate always-on computer or a private server. On that host, select Grok or run Ollama on an always-on machine reachable by GlasHaus. If Ollama runs on the sleeping PC, inference pauses with it.
+
+1. Start the portable build on the always-on host. On a remote machine, open the local web app from your PC with an SSH tunnel such as `ssh -N -L 7777:127.0.0.1:7777 user@host`, then visit `http://127.0.0.1:7777`.
+2. For an existing companion, export from the old installation and choose **Someone you remember** in setup on the new one. Save your model credentials again. Stop the old process before moving its Telegram bot, then add the bot token and pair on the new host.
+3. Enable background startup. On an unattended systemd host, enable user lingering if GlasHaus needs to start before login. Send a test message from Telegram with the old PC asleep.
+
+On a single PC, GlasHaus reconnects after the process resumes. It saves received owner messages locally and retries temporary model and Telegram outages. Messages that only reached Telegram expire after [24 hours](https://core.telegram.org/bots/api#getting-updates).
 
 **Turn off sign-in startup** in Settings prevents future sign-in launches and leaves the current session open. From the installation folder you can also run:
 
@@ -75,8 +89,8 @@ If a power loss or failed rollback leaves the app offline, run `node bin/glashau
 
 - **Character absorption:** provide a name, originating work, and optional scope. Ollama web search/fetch retrieves public sources; the local/configured utility model writes an editable foundation. Sources, claims, and uncertainty are visible. Saved research resumes after interruption.
 - **Authored / grow / restore:** write a persona, start with a name and minimal foundation, restore a v3 JSON archive, or import a v2 soul capsule. Set your relationship separately and preview their voice before saving.
-- **Conversation:** streamed replies, stop/retry, persistent history, context budgeting, and separate conversation/utility models. Duplicate request IDs do not generate duplicate replies.
-- **Memory:** supported details and explicit companion opinions are extracted after replies, with exact-quote evidence. Explicit corrections can supersede old memories and opinions; manual edits are protected from automatic replacement. Inspect, edit, add, search, filter, or forget. Extraction can be wrong; it is not a fact checker.
+- **Conversation:** Ollama replies stream. Grok returns each reply when it is ready. The companion defaults to conversational replies and can go into detail when asked. Duplicate request IDs reuse a completed reply.
+- **Memory:** lasting interests, preferences, and milestones can be captured as quotes from their original speaker. SQLite full-text search ranks active memories across the full collection. Model-selected quotes and generated replies can still misread context. Use Memory to inspect, edit, add, or forget saved details. Use `/note your text` in Telegram to save a note verbatim without a model call.
 - **Journal:** on-demand reflections and optional daily reflection after 9pm while running. A minimal grow persona can form conversational preferences; autonomous identity rewriting is not included yet.
 - **Telegram:** private text chats, owner-only pairing, initial-connect retries, rate-limit backoff, clear polling/webhook conflict errors, typing/draft updates where supported, long-message splitting, shared memory and history, `/status` and `/memory`. Do not run v2 and v3 with the same bot token at once. Delivery retry is at-least-once; an ambiguous network failure may duplicate a delivered message.
 - **Backup:** v3 archive export/restore includes identity revisions, conversations, active and forgotten memories, reflections, and character research. Credentials and machine settings are excluded. Restore requires an empty home and is atomic.
@@ -96,7 +110,7 @@ The app clears SQLite rows, compacts the database and truncates its write-ahead 
 
 ## Privacy and limitations
 
-Model inference follows your Ollama configuration. `:cloud` models use hosted inference, even when Ollama itself runs locally. A remote Ollama address sends context to that server. Character search sends the character name, work, and scope to Ollama's hosted search; it does not send your relationship or chat history. Telegram uses Telegram's servers.
+Grok sends the prompt, relevant conversation context, and memory processing requests to xAI using the [Responses API](https://docs.x.ai/developers/rest-api-reference/inference/responses). GlasHaus requests `store: false`. Ollama inference follows your Ollama configuration. `:cloud` models use hosted inference, even when Ollama itself runs locally. A remote Ollama address sends context to that server. Character search sends the character name, work, and scope to Ollama's hosted search; it does not send your relationship or chat history. Telegram uses Telegram's servers.
 
 Saved credentials and conversations are **not encrypted at rest**. They are in your v3 SQLite file and should be protected with your OS account and disk encryption. The web API uses loopback Host/Origin checks and a per-process mutation token, not remote-user authentication. Do not expose this service through a public proxy.
 
@@ -131,7 +145,7 @@ The CI matrix covers Windows, macOS, and Linux, and is not evidence of a pass un
 
 ## Code map
 
-`app/server` — storage, model adapter, companion services, HTTP API, Telegram.
+`app/server` — storage, model adapters, companion services, HTTP API, Telegram.
 
 `app/web` — React screens and the prism visual system: carbon, bone, restrained typography and one optical arc.
 
