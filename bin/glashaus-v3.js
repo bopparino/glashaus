@@ -4,14 +4,14 @@ import { fileURLToPath } from "node:url";
 
 const command = process.argv[2] ?? "start";
 const [nodeMajor, nodeMinor] = process.versions.node.split(".").map(Number);
-if (nodeMajor !== 24 || nodeMinor < 14) {
+if (!(nodeMajor === 26 || (nodeMajor === 24 && nodeMinor >= 14))) {
   console.error(
-    "GlasHaus v3 requires Node 24.14 or newer within the 24.x line.",
+    "GlasHaus v3 requires Node 24.14+ (24.x) or Node 26.x.",
   );
   process.exit(1);
 }
 if (command === "--version" || command === "version") {
-  console.log("3.0.0-alpha.7");
+  console.log("3.0.0-alpha.8");
   process.exit(0);
 }
 if (command === "--help" || command === "help") {

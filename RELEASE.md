@@ -1,6 +1,10 @@
-# v3 alpha.7 release checks
+# v3 release checks
 
 The owner approved replacing the repository's current app with v3 and publishing an installable alpha. Git history and the v2 source are retained. Release status is recorded by GitHub Actions and the release page.
+
+## Alpha.8 runtime and migration checks
+
+CI runs the full suite on Node 24 and 26 across Windows, macOS, and Linux. The native upgrade fixture starts the published alpha.5 on Node 24, then checks the new release under the selected runtime. It confirms the stored companion survives the upgrade and exercises the 18+ gate before creating a replacement companion.
 
 ## Alpha.7 deletion and purge checks
 
@@ -28,7 +32,7 @@ Browser regression covers check failure/retry, inline confirmation/cancel and fo
 1. Review the branch diff and preserve the existing v2 tag/history. The historical source under `legacy-v2/` is not included in runtime archives.
 2. Run the included GitHub Actions Windows/macOS/Linux matrix. It covers installer execution, browser regression, build, and separate-process portable startup. Mac/Linux results are not verified locally.
 3. A push to `main` runs the release workflow. It publishes a **prerelease** only after the full matrix succeeds, the build completes, and the actual ZIP passes a separate-process startup/restart test.
-4. The package version selects the release tag. Existing release assets are never overwritten. Both installers default to `v3.0.0-alpha.7`, avoiding GitHub's stable-only latest-release lookup. `GLASHAUS_RELEASE_TAG` can select another v3 version.
+4. The package version selects the release tag. Existing release assets are never overwritten. Both installers default to `v3.0.0-alpha.8`, avoiding GitHub's stable-only latest-release lookup. `GLASHAUS_RELEASE_TAG` can select another v3 version.
 
 ## First-person voice checks
 

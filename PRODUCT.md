@@ -25,7 +25,7 @@ A fresh implementation in the existing bopparino/glashaus repository. Web and a 
 - Ollama and Grok provide inference. Settings identify which provider receives conversation context. SQLite state is stored locally. Telegram, Grok, and public web research require network services.
 - Chat defaults to conversational replies and allows more detail when asked. Conversation, source quotes, stated opinions, manual notes, and opt-in journal reflections persist. Model behavior varies across providers and models.
 - The alpha implements inspect/edit/forget memory controls. Forgetting is not permanent erasure: original conversations and tombstones remain in backups, but the source exchange is excluded from future recall and extraction.
-- Windows, macOS, and Linux one-command installation remains a release requirement. Node 24.14+ in the 24.x line is required. Alpha.3 passed the cross-OS CI matrix and a real Windows network-install check.
+- Windows, macOS, and Linux one-command installation remains a release requirement. Supported runtimes are Node 24.14+ (24.x) and Node 26.x. Alpha.3 passed the cross-OS CI matrix and a real Windows network-install check.
 - Alpha.4 adds opt-in background startup in setup/restore and Settings: per-user Task Scheduler on Windows, LaunchAgent on macOS, and systemd user service on Linux. Manual mode stays the default. No automatic privilege elevation, Linux lingering changes, or Ollama service installation. Native service lifecycle tests are a publication gate; developer previews only simulate OS registration.
 - Owner-started updates: rerunning the one-line installer can update an existing background installation; Settings also offers a release check and explicit Update and restart confirmation. The updater downloads and verifies the release before stopping the service, keeps the previous app and a private local recovery copy, then restarts and checks health. Failed startup attempts restore the previous app and database; uncertain shutdown requires explicit recovery. Recovery copies include saved keys. Unsaved Settings edits block installation, and the form is disabled during restart. Updates are never unattended.
 - Settings offers Delete companion and Purge local data, each with an exact typed phrase and separate acknowledgment. Delete clears companion records while keeping connection settings, keys, Telegram pairing and existing backups. Purge also clears those connections and known managed recovery copies and background logs in that home. Both offer export first and require saved Settings; neither removes the app, startup preference, Ollama, models, external exports or Telegram history, or promises secure disk erasure.
@@ -33,7 +33,7 @@ A fresh implementation in the existing bopparino/glashaus repository. Web and a 
 
 ## Stack
 
-TypeScript, Node 24 built-in SQLite, React, and Vite. Server code uses Node APIs and has no runtime package dependencies; React is bundled into the prebuilt web assets. Release archives can run with Node without installing dependencies. A separate ~/.glashaus-v3 home prevents accidental changes to an existing v2 companion.
+TypeScript, Node’s built-in SQLite, React, and Vite. Server code uses Node APIs and has no runtime package dependencies; React is bundled into the prebuilt web assets. Release archives can run with Node without installing dependencies. A separate ~/.glashaus-v3 home prevents accidental changes to an existing v2 companion.
 
 ## Visual Direction
 
