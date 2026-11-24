@@ -80,7 +80,10 @@ const address = socket.address();
 assert.ok(address && typeof address === "object");
 const port = address.port;
 await new Promise<void>((r) => socket.close(() => r()));
+// Published alpha.5 accepts Node 24. Use the matrix runtime for the candidate.
+const legacyNode = process.env.GLASHAUS_TEST_LEGACY_NODE ?? process.execPath;
 const startup = new Startup({
+  node: legacyNode,
   directory: root,
   port,
   entry: path.join(legacyApp, "dist/server/background.js"),
@@ -88,7 +91,7 @@ const startup = new Startup({
 const base = `http://127.0.0.1:${port}`;
 const exec = promisify(execFile);
 const foreground = spawn(
-  process.execPath,
+  legacyNode,
   [path.join(legacyApp, "bin/glashaus-v3.js")],
   {
     env: { ...process.env, GLASHAUS_HOME: root, GLASHAUS_PORT: String(port) },
@@ -249,6 +252,7 @@ try {
     assert.equal(alive(readUpdate(root)!.pid), false);
     assert.equal(existsSync(path.join(root, "updates", "lock.json")), false);
   });
+  await post("/adult-confirmation", { confirmed: true });
   const beforeDelete = await state();
   await post("/data/reset", {
     mode: "companion",

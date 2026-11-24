@@ -8,12 +8,20 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ['24', '26']
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Locate Node 24 for the published alpha.5 fixture
+        if: matrix.node == '26'
+        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'GLASHAUS_TEST_LEGACY_NODE=' + process.execPath + '\n')"
+      - uses: actions/setup-node@v4
+        if: matrix.node == '26'
+        with:
+          node-version: ${{ matrix.node }}
       - uses: pnpm/action-setup@v4
         with:
           version: '11.19.0'
@@ -27,7 +35,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: browser-review-${{ matrix.os }}
+          name: browser-review-${{ matrix.os }}-node-${{ matrix.node }}
           path: .impeccable/review/browser-regression/
           retention-days: 7
           if-no-files-found: ignore

@@ -6,7 +6,7 @@ This is a **fresh alpha**, not a drop-in v2 upgrade. Existing v2 source is prese
 
 ## Start the built app
 
-Requires Node **24.14 or newer within the 24.x line** and either an Ollama model or an xAI API key and Grok model ID. Extract the portable archive and run:
+Requires Node **24.14+ (24.x) or 26.x** and either an Ollama model or an xAI API key and Grok model ID. Extract the portable archive and run:
 
 ```sh
 node bin/glashaus-v3.js
@@ -22,9 +22,9 @@ The default home is `~/.glashaus-v3` on every OS. `GLASHAUS_HOME` selects anothe
 
 ## One-command installation
 
-The included installers download the prebuilt `glashaus-v3.zip` asset from a GitHub release. They require Node 24 and do not install Ollama, download a model, change your PATH, or modify v2 data. Sign-in startup is off unless you choose it in setup or Settings.
+The included installers download the prebuilt `glashaus-v3.zip` asset from a GitHub release. They use your installed Node 24.14+ (24.x) or Node 26.x. Set up Ollama separately if you choose local inference. Sign-in startup is off unless you choose it in setup or Settings.
 
-The commands below install **v3.0.0-alpha.7**. They require its [published release assets](https://github.com/bopparino/glashaus/releases/tag/v3.0.0-alpha.7); a pending or failed release check will not publish an unverified app.
+The commands below install **v3.0.0-alpha.8**. They require its [published release assets](https://github.com/bopparino/glashaus/releases/tag/v3.0.0-alpha.8); a pending or failed release check will not publish an unverified app.
 
 Windows PowerShell:
 
@@ -129,7 +129,7 @@ pnpm test:browser
 pnpm start
 ```
 
-Use Node 24 and pnpm 11. Browser tests use existing Chrome on Windows, or Playwright Chromium (`pnpm exec playwright install chromium`). The normal core and browser tests use temporary homes and a deterministic test model, never your real companion or credentials. `pnpm dev` watches the backend; after frontend edits rebuild with `pnpm build`. Production serves the frontend and API from one origin.
+Use Node 24.14+ (24.x) or Node 26.x and pnpm 11. Browser tests use existing Chrome on Windows, or Playwright Chromium (`pnpm exec playwright install chromium`). The normal core and browser tests use temporary homes and a deterministic test model, never your real companion or credentials. `pnpm dev` watches the backend; after frontend edits rebuild with `pnpm build`. Production serves the frontend and API from one origin.
 
 An **opt-in live integration test** is separate from the normal test suite:
 

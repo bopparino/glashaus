@@ -1,12 +1,12 @@
 #!/bin/sh
-# Inspect this file before running it. Requires Node 24, curl, and unzip.
+# Inspect this file before running it. Requires Node 24.14+ (24.x) or 26.x, curl, and unzip.
 set -eu
 fail() { printf '%s\n' "$1" >&2; exit 1; }
-command -v node >/dev/null 2>&1 || fail 'Install Node.js 24 LTS first: https://nodejs.org/en/download'
-node -e 'const [major,minor]=process.versions.node.split(".").map(Number);process.exit(major===24&&minor>=14?0:1)' || fail 'GlasHaus v3 requires Node 24.14 or newer within the 24.x line.'
+command -v node >/dev/null 2>&1 || fail 'Install a supported Node.js LTS version: https://nodejs.org/en/download'
+node -e 'const [major,minor]=process.versions.node.split(".").map(Number);process.exit(major===26||(major===24&&minor>=14)?0:1)' || fail 'GlasHaus v3 requires Node 24.14+ (24.x) or Node 26.x.'
 command -v curl >/dev/null 2>&1 || fail 'Install curl, then try again.'
 command -v unzip >/dev/null 2>&1 || fail 'Install unzip, then try again.'
-: "${GLASHAUS_RELEASE_TAG:=v3.0.0-alpha.7}"
+: "${GLASHAUS_RELEASE_TAG:=v3.0.0-alpha.8}"
 if [ -n "$GLASHAUS_RELEASE_TAG" ]; then
   case "$GLASHAUS_RELEASE_TAG" in v3.*) ;; *) fail 'GLASHAUS_RELEASE_TAG must be a v3 release tag.' ;; esac
   case "$GLASHAUS_RELEASE_TAG" in *[!A-Za-z0-9._-]*) fail 'Invalid release tag.' ;; esac
